@@ -1,0 +1,42 @@
+<%- include('partials/head') %>
+<div class="auth">
+  <section class="auth-form" style="grid-column: 1 / -1">
+    <div class="auth-card" style="max-width:560px">
+      <div class="mobile-logo" style="display:flex;margin-bottom:22px">
+        <%- include('partials/logo', { size: 38 }) %>
+        <span><%= company.name %></span>
+      </div>
+
+      <h2>Almost there</h2>
+      <p class="sub">
+        This deployment is missing some configuration. Add these in your host's
+        environment variables, then redeploy.
+      </p>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Variable</th><th>What it is</th></tr></thead>
+            <tbody>
+              <% missing.forEach(function (item) { %>
+                <tr>
+                  <td class="mono"><%= item.name %></td>
+                  <td class="small muted"><%= item.hint %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="auth-note" style="text-align:left;margin-top:18px">
+        On Vercel: <strong>Settings → Environment Variables</strong>, then redeploy from
+        the Deployments tab. You will also want <span class="mono">SEED_ADMIN_EMAIL</span>
+        and <span class="mono">SEED_ADMIN_PASSWORD</span> so the first admin account is
+        created; without them nobody can sign in.
+      </p>
+    </div>
+  </section>
+</div>
+</body>
+</html>

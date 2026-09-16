@@ -2,23 +2,32 @@
 const { Pool } = require('pg');
 const config = require('./config');
 
-if (!config.databaseUrl) {
-  throw new Error('DATABASE_URL must be set. See the Deploying section of the README.');
+// One pool per process, created on first use so that a deployment missing
+// DATABASE_URL can render a setup page instead of crashing at import.
+let _pool = null;
+function getPool() {
+  if (!_pool) {
+    if (!config.databaseUrl) {
+      throw new Error('DATABASE_URL is not set. See the Deploying section of the README.');
+    }
+    const isLocal = /@(localhost|127\.0\.0\.1)/.test(config.databaseUrl);
+    _pool = new Pool({
+      connectionString: config.databaseUrl,
+      max: config.pgPoolMax,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000,
+      ssl: isLocal ? false : { rejectUnauthorized: false }
+    });
+    _pool.on('error', (err) => console.error('Unexpected database pool error:', err));
+  }
+  return _pool;
 }
 
-const isLocal = /@(localhost|127\.0\.0\.1)/.test(config.databaseUrl);
-
-// One pool per process. On serverless each instance handles a single request at
-// a time, so a small pool avoids exhausting the database's connection limit.
-const pool = new Pool({
-  connectionString: config.databaseUrl,
-  max: config.pgPoolMax,
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 10000,
-  ssl: isLocal ? false : { rejectUnauthorized: false }
-});
-
-pool.on('error', (err) => console.error('Unexpected database pool error:', err));
+const pool = {
+  query: (...args) => getPool().query(...args),
+  connect: (...args) => getPool().connect(...args),
+  end: (...args) => (_pool ? _pool.end(...args) : Promise.resolve())
+};
 
 /** Rewrites the `?` placeholders used throughout the queries into $1, $2, … */
 function toPlaceholders(sql) {

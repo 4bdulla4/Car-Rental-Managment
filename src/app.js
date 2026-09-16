@@ -41,6 +41,22 @@ const bootstrap = () => {
   return bootstrapped;
 };
 
+// A deployment missing its configuration explains itself rather than 500ing.
+app.use((req, res, next) => {
+  const missing = config.missingConfig();
+  if (!missing.length) return next();
+  res.status(503).render('setup', {
+    title: 'Setup needed',
+    company: config.company,
+    missing,
+    currency: config.currency,
+    csrfToken: '',
+    flash: null,
+    currentUser: null,
+    path: req.path
+  });
+});
+
 app.use(async (req, res, next) => {
   try {
     await bootstrap();

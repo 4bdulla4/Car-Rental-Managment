@@ -7,11 +7,8 @@ const num = (value, fallback) => {
 };
 
 const isProduction = process.env.NODE_ENV === 'production';
-if (isProduction && !process.env.SESSION_SECRET) {
-  throw new Error('SESSION_SECRET must be set in production — sessions would otherwise be forgeable.');
-}
 
-module.exports = {
+const settings = {
   port: num(process.env.PORT, 3000),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-insecure-secret-change-me',
   databaseUrl: process.env.DATABASE_URL || '',
@@ -39,3 +36,27 @@ module.exports = {
   // Daily rate pre-filled when a car is added. Real rates live on each car.
   defaultDailyRate: num(process.env.DEFAULT_DAILY_RATE, 0)
 };
+
+/**
+ * Configuration the app cannot run without. Reported on a setup page rather than
+ * thrown at import, so a misconfigured deployment explains itself instead of
+ * failing with an opaque 500.
+ */
+settings.missingConfig = function missingConfig() {
+  const missing = [];
+  if (!settings.databaseUrl) {
+    missing.push({
+      name: 'DATABASE_URL',
+      hint: 'Postgres connection string. On Vercel use your provider\'s pooled string.'
+    });
+  }
+  if (isProduction && !process.env.SESSION_SECRET) {
+    missing.push({
+      name: 'SESSION_SECRET',
+      hint: 'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+    });
+  }
+  return missing;
+};
+
+module.exports = settings;
