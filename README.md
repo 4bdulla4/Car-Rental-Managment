@@ -33,8 +33,8 @@ not want the sample cars and customers.
 | `SESSION_SECRET` | Signs the session cookie. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `COMPANY_*` | Starting name, address, phone, email and registration number. Editable in **Settings**, where the stored value then wins |
 | `CURRENCY` | Starting currency. Once changed in **Settings** the stored value wins |
-| `FUEL_CHARGE_PER_EIGHTH` | Charged per missing 1/8 tank at return |
-| `LATE_DAY_MULTIPLIER` | Late days bill at daily rate × this (default 1.25) |
+| `FUEL_CHARGE_PER_EIGHTH` | Starting fuel charge per missing 1/8 tank. Editable in **Settings** |
+| `LATE_DAY_MULTIPLIER` | Starting late-day multiplier. Editable in **Settings** |
 
 `.env` and the database in `data/` are gitignored. Never commit real credentials.
 
@@ -131,6 +131,18 @@ Seeding is skipped on every later boot because a user already exists.
 `PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+
+## Return charges
+
+The fuel charge per 1/8 tank and the late-day multiplier are edited under **Settings**,
+with a worked example showing the effect before you save. The `FUEL_CHARGE_PER_EIGHTH`
+and `LATE_DAY_MULTIPLIER` env vars only seed the initial values.
+
+These are contract terms — they are printed on the handover agreement the customer
+signs — so each rental records the rates it was issued under and is always settled
+against those. Raising the fuel charge today never re-prices a car that was rented
+last week, and reprinting an old contract still shows the rates that were agreed.
+New rentals use the current rates.
 
 ## Company details
 

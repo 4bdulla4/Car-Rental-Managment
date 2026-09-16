@@ -91,6 +91,62 @@
   </div>
 </div>
 
+<div class="card">
+  <h3>Return charges</h3>
+  <p class="small muted" style="margin:-8px 0 16px">
+    Applied automatically when a car is checked back in, and printed as terms on the
+    handover contract.
+  </p>
+  <form method="post" action="/settings/policy">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="row">
+      <div class="field">
+        <label for="fuel_charge_per_eighth">Fuel charge per 1/8 tank (<%= currency %>)</label>
+        <input id="fuel_charge_per_eighth" name="fuel_charge_per_eighth" type="number"
+               step="0.01" min="0" max="10000" value="<%= policy.fuelChargePerEighth %>" required>
+        <div class="hint">A car returned 3/8 down is charged three times this.</div>
+      </div>
+      <div class="field">
+        <label for="late_day_multiplier">Late day multiplier</label>
+        <input id="late_day_multiplier" name="late_day_multiplier" type="number"
+               step="0.05" min="0" max="10" value="<%= policy.lateDayMultiplier %>" required>
+        <div class="hint">Each day past the end date bills at the daily rate times this.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Worked example</label>
+      <div class="lines" id="policy-example">
+        <div class="line"><span>2 days late on a <%= money(150) %>/day car</span><span data-p="late"></span></div>
+        <div class="line"><span>Returned 3/8 of a tank down</span><span data-p="fuel"></span></div>
+        <div class="line total"><span>Added at check-in</span><span class="amount" data-p="total"></span></div>
+      </div>
+    </div>
+    <button class="btn primary" type="submit">Save return charges</button>
+  </form>
+</div>
+
+<script>
+  // Worked example, so the effect of a rate change is visible before saving.
+  (function () {
+    var f = document.querySelector('form[action="/settings/policy"]');
+    var currency = <%- JSON.stringify(currency) %>;
+    var fmt = function (n) {
+      return (Math.round(n * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/, '') + ' ' + currency;
+    };
+    var paint = function () {
+      var late = 2 * 150 * (Number(f.late_day_multiplier.value) || 0);
+      var fuel = 3 * (Number(f.fuel_charge_per_eighth.value) || 0);
+      f.querySelector('[data-p="late"]').textContent = fmt(late);
+      f.querySelector('[data-p="fuel"]').textContent = fmt(fuel);
+      f.querySelector('[data-p="total"]').textContent = fmt(late + fuel);
+    };
+    f.fuel_charge_per_eighth.addEventListener('input', paint);
+    f.late_day_multiplier.addEventListener('input', paint);
+    paint();
+  })();
+</script>
+
 <script>
   // Live preview of the contract header as the details are typed.
   (function () {

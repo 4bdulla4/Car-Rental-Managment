@@ -10,6 +10,7 @@ process.env.DB_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'carrenter
 
 const db = require('../src/db');
 const settings = require('../src/lib/settings');
+const { settlement } = require('../src/lib/pricing');
 
 function issueRental(contractNo) {
   const car = db
@@ -18,11 +19,14 @@ function issueRental(contractNo) {
   const customer = db
     .prepare("INSERT INTO customers (full_name, phone, license_number) VALUES ('Test', '123', 'DL-1')")
     .run();
+  const p = settings.policy();
   db.prepare(
     `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
-                          total_amount, currency, status)
-     VALUES (?,?,?,'2026-03-01','2026-03-05',150,600,?,'active')`
-  ).run(contractNo, car.lastInsertRowid, customer.lastInsertRowid, settings.currency());
+                          pickup_odometer, pickup_fuel, km_allowance_per_day, excess_km_rate,
+                          total_amount, currency, fuel_charge_per_eighth, late_day_multiplier, status)
+     VALUES (?,?,?,'2026-03-01','2026-03-05',150,10000,8,250,0.5,600,?,?,?,'active')`
+  ).run(contractNo, car.lastInsertRowid, customer.lastInsertRowid,
+        settings.currency(), p.fuelChargePerEighth, p.lateDayMultiplier);
   return db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get(contractNo);
 }
 
@@ -91,4 +95,49 @@ test('a field cleared on purpose stays empty instead of reverting to the env val
   process.env.COMPANY_PHONE = '+966 11 000 0000';
   settings.set('company_phone', '');
   assert.equal(settings.company().phone, '', 'an explicit blank must not fall back');
+});
+
+test('return charges fall back to the environment until set', () => {
+  settings.set('fuel_charge_per_eighth', '');
+  settings.clearCache();
+  db.prepare("DELETE FROM settings WHERE key IN ('fuel_charge_per_eighth','late_day_multiplier')").run();
+  settings.clearCache();
+  const p = settings.policy();
+  assert.equal(p.fuelChargePerEighth, 25);
+  assert.equal(p.lateDayMultiplier, 1.25);
+});
+
+test('return charges are stored and read back as numbers', () => {
+  settings.set('fuel_charge_per_eighth', 40);
+  settings.set('late_day_multiplier', 1.5);
+  const p = settings.policy();
+  assert.equal(p.fuelChargePerEighth, 40);
+  assert.equal(p.lateDayMultiplier, 1.5);
+  assert.equal(typeof p.fuelChargePerEighth, 'number');
+});
+
+test('a contract is settled at the rates it was issued under, not the current ones', () => {
+  settings.set('fuel_charge_per_eighth', 25);
+  settings.set('late_day_multiplier', 1.25);
+  const issued = issueRental('RC-TEST-0010');
+  assert.equal(issued.fuel_charge_per_eighth, 25);
+  assert.equal(issued.late_day_multiplier, 1.25);
+
+  // The business doubles its fuel charge and raises the late penalty afterwards.
+  settings.set('fuel_charge_per_eighth', 50);
+  settings.set('late_day_multiplier', 2);
+
+  const ret = { returnDate: '2026-03-07', returnOdometer: 11000, returnFuel: 5, damageCharge: 0, otherCharges: 0 };
+  const atIssuedRates = settlement(issued, ret, {
+    fuelChargePerEighth: issued.fuel_charge_per_eighth,
+    lateDayMultiplier: issued.late_day_multiplier
+  });
+  const atCurrentRates = settlement(issued, ret, settings.policy());
+
+  assert.equal(atIssuedRates.lateFee, 375, '2 late days x 150 x 1.25');
+  assert.equal(atIssuedRates.fuelFee, 75, '3 eighths x 25');
+  assert.equal(atCurrentRates.lateFee, 600, 'current rates would bill 2 x 150 x 2');
+  assert.equal(atCurrentRates.fuelFee, 150, 'current rates would bill 3 x 50');
+  assert.notEqual(atIssuedRates.total, atCurrentRates.total,
+    'the rate change must be visible, proving the snapshot is what protects the customer');
 });

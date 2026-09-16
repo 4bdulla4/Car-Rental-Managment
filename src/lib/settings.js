@@ -51,9 +51,22 @@ function company() {
   };
 }
 
+/** Return charges applied when a car is checked back in. */
+function policy() {
+  const stored = all();
+  const num = (key, fallback) => {
+    const parsed = Number(stored[key]);
+    return stored[key] !== undefined && Number.isFinite(parsed) ? parsed : fallback;
+  };
+  return {
+    fuelChargePerEighth: num('fuel_charge_per_eighth', config.fuelChargePerEighth),
+    lateDayMultiplier: num('late_day_multiplier', config.lateDayMultiplier)
+  };
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
-module.exports = { get, set, all, currency, company, isValidCurrency, clearCache: () => { cache = null; } };
+module.exports = { get, set, all, currency, company, policy, isValidCurrency, clearCache: () => { cache = null; } };

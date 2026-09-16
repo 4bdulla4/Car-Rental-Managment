@@ -13,7 +13,16 @@ router.use(requireAuth);
 
 const today = () => new Date().toISOString().slice(0, 10);
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
-const policy = { fuelChargePerEighth: config.fuelChargePerEighth, lateDayMultiplier: config.lateDayMultiplier };
+/**
+ * Rates a rental is settled against: the ones recorded when it was issued, which
+ * are the rates printed on the signed agreement. Older rows fall back to config.
+ */
+function rentalPolicy(rental) {
+  return {
+    fuelChargePerEighth: rental.fuel_charge_per_eighth ?? config.fuelChargePerEighth,
+    lateDayMultiplier: rental.late_day_multiplier ?? config.lateDayMultiplier
+  };
+}
 
 const RENTAL_SELECT = `
   SELECT r.*,
@@ -121,19 +130,22 @@ router.post('/', (req, res) => {
   }
 
   const q = quote(form);
+  const issuePolicy = settings.policy();
   const contractNo = transaction(() => {
     const contract_no = nextContractNo();
     db.prepare(
       `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
                             km_allowance_per_day, excess_km_rate, deposit, discount, pickup_odometer,
                             pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
-                            currency, status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
+                            currency, fuel_charge_per_eighth, late_day_multiplier,
+                            status, created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
     ).run(
       contract_no, form.car_id, form.customer_id, form.start_date, form.end_date, form.daily_rate,
       form.km_allowance_per_day, form.excess_km_rate, form.deposit, form.discount, form.pickup_odometer,
       form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue,
-      settings.currency(), req.user.id
+      settings.currency(), issuePolicy.fuelChargePerEighth, issuePolicy.lateDayMultiplier,
+      req.user.id
     );
     db.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
       .run(form.pickup_odometer, form.pickup_fuel, form.car_id);
@@ -169,7 +181,7 @@ router.get('/:id/contract', (req, res) => {
     discount: rental.discount,
     deposit: rental.deposit
   });
-  res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: config, ...inCurrency(rental) });
+  res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: rentalPolicy(rental), ...inCurrency(rental) });
 });
 
 router.post('/:id/sign', (req, res) => {
@@ -201,8 +213,8 @@ router.get('/:id/return', (req, res) => {
     rental,
     form,
     errors: [],
-    preview: settlement(rental, form, policy),
-    policy: config,
+    preview: settlement(rental, form, rentalPolicy(rental)),
+    policy: rentalPolicy(rental),
     ...inCurrency(rental)
   });
 });
@@ -238,13 +250,13 @@ router.post('/:id/return', (req, res) => {
       rental,
       form,
       errors,
-      preview: settlement(rental, { ...form, returnOdometer: Math.max(form.returnOdometer, rental.pickup_odometer) }, policy),
-      policy: config,
+      preview: settlement(rental, { ...form, returnOdometer: Math.max(form.returnOdometer, rental.pickup_odometer) }, rentalPolicy(rental)),
+      policy: rentalPolicy(rental),
       ...inCurrency(rental)
     });
   }
 
-  const s = settlement(rental, form, policy);
+  const s = settlement(rental, form, rentalPolicy(rental));
   transaction(() => {
     db.prepare(
       `UPDATE rentals SET status = 'closed', return_date = ?, return_odometer = ?, return_fuel = ?,
@@ -282,9 +294,9 @@ router.get('/:id/receipt', (req, res) => {
       damageCharge: rental.damage_charge,
       otherCharges: rental.other_charges
     },
-    policy
+    rentalPolicy(rental)
   );
-  res.render('contracts/receipt', { title: `Return ${rental.contract_no}`, rental, s, policy: config, ...inCurrency(rental) });
+  res.render('contracts/receipt', { title: `Return ${rental.contract_no}`, rental, s, policy: rentalPolicy(rental), ...inCurrency(rental) });
 });
 
 router.post('/:id/cancel', (req, res) => {

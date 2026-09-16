@@ -114,4 +114,17 @@ if (!hasColumn('rentals', 'currency')) {
     .run(config.currency);
 }
 
+// The fuel and late-return rates are terms printed on the agreement, so each
+// rental keeps the rates it was issued under and is settled against those.
+if (!hasColumn('rentals', 'fuel_charge_per_eighth')) {
+  db.exec('ALTER TABLE rentals ADD COLUMN fuel_charge_per_eighth REAL');
+  db.prepare('UPDATE rentals SET fuel_charge_per_eighth = ? WHERE fuel_charge_per_eighth IS NULL')
+    .run(config.fuelChargePerEighth);
+}
+if (!hasColumn('rentals', 'late_day_multiplier')) {
+  db.exec('ALTER TABLE rentals ADD COLUMN late_day_multiplier REAL');
+  db.prepare('UPDATE rentals SET late_day_multiplier = ? WHERE late_day_multiplier IS NULL')
+    .run(config.lateDayMultiplier);
+}
+
 module.exports = db;

@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('../db');
 const settings = require('../lib/settings');
+const { round2 } = require('../lib/money');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -24,6 +25,7 @@ function render(res, status, extra = {}) {
     title: 'Settings',
     currency: settings.currency(),
     details: settings.company(),
+    policy: settings.policy(),
     common: COMMON,
     inUse,
     errors: [],
@@ -90,6 +92,37 @@ router.post('/company', (req, res) => {
 
   for (const field of FIELDS) settings.set(field.key, values[field.key]);
   req.session.flash = { type: 'success', message: 'Company details updated. They appear on contracts issued from now on.' };
+  res.redirect('/settings');
+});
+
+router.post('/policy', (req, res) => {
+  const fuel = Number(req.body.fuel_charge_per_eighth);
+  const late = Number(req.body.late_day_multiplier);
+  const errors = [];
+
+  if (!Number.isFinite(fuel) || fuel < 0 || fuel > 10000) {
+    errors.push('Fuel charge must be a number between 0 and 10,000.');
+  }
+  if (!Number.isFinite(late) || late < 0 || late > 10) {
+    errors.push('Late day multiplier must be a number between 0 and 10.');
+  }
+
+  if (errors.length) {
+    return render(res, 400, {
+      errors,
+      policy: {
+        fuelChargePerEighth: req.body.fuel_charge_per_eighth,
+        lateDayMultiplier: req.body.late_day_multiplier
+      }
+    });
+  }
+
+  settings.set('fuel_charge_per_eighth', round2(fuel));
+  settings.set('late_day_multiplier', round2(late));
+  req.session.flash = {
+    type: 'success',
+    message: 'Return charges updated. Contracts already issued are still settled at the rates printed on them.'
+  };
   res.redirect('/settings');
 });
 
