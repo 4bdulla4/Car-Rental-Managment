@@ -236,6 +236,12 @@ select {
   background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
 }
 textarea { min-height: 78px; resize: vertical; }
+input[type="checkbox"] { width: auto; }
+.check {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  font-size: 14px; color: var(--text); margin: 16px 0 5px;
+}
+.check input { width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
 .field { margin-bottom: 15px; }
 .field:last-child { margin-bottom: 0; }
 .row { display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); }

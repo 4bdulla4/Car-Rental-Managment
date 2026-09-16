@@ -26,6 +26,8 @@ function render(res, status, extra = {}) {
     currency: settings.currency(),
     details: settings.company(),
     policy: settings.policy(),
+    mileage: settings.mileage(),
+    carCount: db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
     common: COMMON,
     inUse,
     errors: [],
@@ -123,6 +125,42 @@ router.post('/policy', (req, res) => {
     type: 'success',
     message: 'Return charges updated. Contracts already issued are still settled at the rates printed on them.'
   };
+  res.redirect('/settings');
+});
+
+router.post('/mileage', (req, res) => {
+  const allowance = Number(req.body.km_allowance_per_day);
+  const rate = Number(req.body.excess_km_rate);
+  const applyToFleet = req.body.apply_to_fleet === '1';
+  const errors = [];
+
+  if (!Number.isInteger(allowance) || allowance < 0 || allowance > 10000) {
+    errors.push('Km included per day must be a whole number between 0 and 10,000 (0 means unlimited).');
+  }
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1000) {
+    errors.push('Excess km rate must be a number between 0 and 1,000.');
+  }
+
+  if (errors.length) {
+    return render(res, 400, {
+      errors,
+      mileage: { kmAllowancePerDay: req.body.km_allowance_per_day, excessKmRate: req.body.excess_km_rate }
+    });
+  }
+
+  settings.set('km_allowance_per_day', allowance);
+  settings.set('excess_km_rate', round2(rate));
+
+  let message = 'Mileage defaults saved. They apply to cars you add from now on.';
+  if (applyToFleet) {
+    // Only the fleet is rewritten. Rentals keep the terms they were issued with.
+    const updated = db
+      .prepare('UPDATE cars SET km_allowance_per_day = ?, excess_km_rate = ?')
+      .run(allowance, round2(rate)).changes;
+    message = `Mileage defaults saved and applied to ${updated} car${updated === 1 ? '' : 's'}. Contracts already issued are unchanged.`;
+  }
+
+  req.session.flash = { type: 'success', message };
   res.redirect('/settings');
 });
 

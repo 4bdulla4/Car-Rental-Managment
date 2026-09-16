@@ -64,9 +64,22 @@ function policy() {
   };
 }
 
+/** Mileage terms a newly added car starts with. */
+function mileage() {
+  const stored = all();
+  const num = (key, fallback) => {
+    const parsed = Number(stored[key]);
+    return stored[key] !== undefined && Number.isFinite(parsed) ? parsed : fallback;
+  };
+  return {
+    kmAllowancePerDay: num('km_allowance_per_day', config.defaultKmAllowance),
+    excessKmRate: num('excess_km_rate', config.defaultExcessKmRate)
+  };
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
-module.exports = { get, set, all, currency, company, policy, isValidCurrency, clearCache: () => { cache = null; } };
+module.exports = { get, set, all, currency, company, policy, mileage, isValidCurrency, clearCache: () => { cache = null; } };

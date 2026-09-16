@@ -27,5 +27,8 @@ module.exports = {
   // Charge applied per missing 1/8 of a tank at return.
   fuelChargePerEighth: num(process.env.FUEL_CHARGE_PER_EIGHTH, 25),
   // Each late day is billed at daily rate x this multiplier.
-  lateDayMultiplier: num(process.env.LATE_DAY_MULTIPLIER, 1.25)
+  lateDayMultiplier: num(process.env.LATE_DAY_MULTIPLIER, 1.25),
+  // Mileage terms a newly added car starts with. 0 allowance means unlimited.
+  defaultKmAllowance: num(process.env.DEFAULT_KM_ALLOWANCE, 250),
+  defaultExcessKmRate: num(process.env.DEFAULT_EXCESS_KM_RATE, 0.5)
 };

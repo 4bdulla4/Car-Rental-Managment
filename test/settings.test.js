@@ -141,3 +141,47 @@ test('a contract is settled at the rates it was issued under, not the current on
   assert.notEqual(atIssuedRates.total, atCurrentRates.total,
     'the rate change must be visible, proving the snapshot is what protects the customer');
 });
+
+test('mileage defaults fall back to the environment until set', () => {
+  db.prepare("DELETE FROM settings WHERE key IN ('km_allowance_per_day','excess_km_rate')").run();
+  settings.clearCache();
+  const m = settings.mileage();
+  assert.equal(m.kmAllowancePerDay, 250);
+  assert.equal(m.excessKmRate, 0.5);
+});
+
+test('mileage defaults are stored and read back as numbers', () => {
+  settings.set('km_allowance_per_day', 400);
+  settings.set('excess_km_rate', 0.75);
+  const m = settings.mileage();
+  assert.equal(m.kmAllowancePerDay, 400);
+  assert.equal(m.excessKmRate, 0.75);
+  assert.equal(typeof m.kmAllowancePerDay, 'number');
+});
+
+test('a zero allowance is honoured as unlimited, not treated as unset', () => {
+  settings.set('km_allowance_per_day', 0);
+  assert.equal(settings.mileage().kmAllowancePerDay, 0, '0 must not fall back to the default');
+});
+
+test('changing mileage defaults never re-prices an issued contract', () => {
+  settings.set('km_allowance_per_day', 250);
+  settings.set('excess_km_rate', 0.5);
+  const issued = issueRental('RC-TEST-0020');
+  assert.equal(issued.km_allowance_per_day, 250);
+
+  settings.set('km_allowance_per_day', 100);
+  settings.set('excess_km_rate', 2);
+
+  const reread = db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
+  assert.equal(reread.km_allowance_per_day, 250, 'the contract keeps its own allowance');
+  assert.equal(reread.excess_km_rate, 0.5, 'the contract keeps its own excess rate');
+
+  // 4 contracted days x 250 km = 1000 included; 1400 driven leaves 400 over at 0.50
+  const s = settlement(reread, {
+    returnDate: '2026-03-05', returnOdometer: 11400, returnFuel: 8, damageCharge: 0, otherCharges: 0
+  }, { fuelChargePerEighth: 25, lateDayMultiplier: 1.25 });
+  assert.equal(s.kmAllowed, 1000);
+  assert.equal(s.excessKm, 400);
+  assert.equal(s.excessKmFee, 200, 'billed at the rate on the contract, not the new one');
+});

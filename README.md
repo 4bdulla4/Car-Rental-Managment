@@ -35,6 +35,8 @@ not want the sample cars and customers.
 | `CURRENCY` | Starting currency. Once changed in **Settings** the stored value wins |
 | `FUEL_CHARGE_PER_EIGHTH` | Starting fuel charge per missing 1/8 tank. Editable in **Settings** |
 | `LATE_DAY_MULTIPLIER` | Starting late-day multiplier. Editable in **Settings** |
+| `DEFAULT_KM_ALLOWANCE` | Starting km included per day for a new car (0 = unlimited) |
+| `DEFAULT_EXCESS_KM_RATE` | Starting excess km rate for a new car |
 
 `.env` and the database in `data/` are gitignored. Never commit real credentials.
 
@@ -131,6 +133,20 @@ Seeding is skipped on every later boot because a user already exists.
 `PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+
+## Mileage
+
+The km included per day and the excess km rate are set in three places, most general
+first:
+
+1. **Settings → Mileage defaults** — what a newly added car starts with
+2. **The car** — each car can be tuned individually on its edit page
+3. **The rental** — the car's terms are copied onto the contract when it is issued
+
+Changing the default only affects cars added afterwards. To push it across the fleet
+as well, tick **Also apply to all existing cars** when saving; that rewrites every
+car, but never a contract. An allowance of 0 means unlimited mileage, and is stored
+as a real value rather than treated as unset.
 
 ## Return charges
 

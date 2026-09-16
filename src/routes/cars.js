@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const settings = require('../lib/settings');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -61,9 +62,17 @@ router.get('/', (req, res) => {
 });
 
 router.get('/new', (req, res) => {
+  const defaults = settings.mileage();
   res.render('cars/form', {
     title: 'Add car',
-    car: { transmission: 'automatic', seats: 5, fuel_level: 8, status: 'available', km_allowance_per_day: 250, excess_km_rate: 0.5 },
+    car: {
+      transmission: 'automatic',
+      seats: 5,
+      fuel_level: 8,
+      status: 'available',
+      km_allowance_per_day: defaults.kmAllowancePerDay,
+      excess_km_rate: defaults.excessKmRate
+    },
     errors: [],
     statuses: CAR_STATUSES,
     action: '/cars'
