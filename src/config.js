@@ -30,5 +30,7 @@ module.exports = {
   lateDayMultiplier: num(process.env.LATE_DAY_MULTIPLIER, 1.25),
   // Mileage terms a newly added car starts with. 0 allowance means unlimited.
   defaultKmAllowance: num(process.env.DEFAULT_KM_ALLOWANCE, 250),
-  defaultExcessKmRate: num(process.env.DEFAULT_EXCESS_KM_RATE, 0.5)
+  defaultExcessKmRate: num(process.env.DEFAULT_EXCESS_KM_RATE, 0.5),
+  // Security deposit pre-filled on a new rental.
+  defaultDeposit: num(process.env.DEFAULT_DEPOSIT, 0)
 };

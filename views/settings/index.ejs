@@ -171,6 +171,37 @@
     <button class="btn primary" type="submit">Save mileage defaults</button>
   </form>
 </div>
+
+<div class="card">
+  <h3>Deposit</h3>
+  <p class="small muted" style="margin:-8px 0 16px">
+    Pre-filled on a new rental. Staff can still change it on any individual contract.
+  </p>
+  <form method="post" action="/settings/deposit">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="default_deposit">Default deposit (<%= currency %>)</label>
+      <input id="default_deposit" name="default_deposit" type="number"
+             step="0.01" min="0" max="1000000" value="<%= deposit %>" required>
+      <div class="hint">Set 0 if you do not normally take a deposit.</div>
+    </div>
+
+    <div class="field">
+      <label>Worked example</label>
+      <div class="lines">
+        <div class="line"><span>5-day rental at <%= money(150) %>/day</span><span><%= money(750) %></span></div>
+        <div class="line"><span>Deposit taken at handover</span><span data-d="held"></span></div>
+        <div class="line total"><span>Payable at handover</span><span class="amount" data-d="due"></span></div>
+      </div>
+      <div class="hint">
+        The deposit is held, then offset against the final settlement when the car
+        comes back. A deposit larger than the total is refunded.
+      </div>
+    </div>
+
+    <button class="btn primary" type="submit">Save deposit</button>
+  </form>
+</div>
 </div>
 
 <script>
@@ -190,6 +221,26 @@
     };
     f.fuel_charge_per_eighth.addEventListener('input', paint);
     f.late_day_multiplier.addEventListener('input', paint);
+    paint();
+  })();
+</script>
+
+<script>
+  // Worked example for the deposit.
+  (function () {
+    var f = document.querySelector('form[action="/settings/deposit"]');
+    var currency = <%- JSON.stringify(currency) %>;
+    var money = function (n) {
+      var fixed = Math.abs(Math.round(n * 100) / 100).toFixed(2).split('.');
+      var whole = fixed[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return (n < 0 ? '-' : '') + whole + '.' + fixed[1] + ' ' + currency;
+    };
+    var paint = function () {
+      var held = Number(f.default_deposit.value) || 0;
+      f.querySelector('[data-d="held"]').textContent = money(held);
+      f.querySelector('[data-d="due"]').textContent = money(750 - held);
+    };
+    f.default_deposit.addEventListener('input', paint);
     paint();
   })();
 </script>

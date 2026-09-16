@@ -86,7 +86,7 @@ router.get('/new', (req, res) => {
       customer_id: Number(req.query.customer_id) || '',
       start_date: today(),
       end_date: today(),
-      deposit: 0,
+      deposit: settings.deposit(),
       discount: 0
     }
   });

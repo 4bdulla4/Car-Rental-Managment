@@ -37,6 +37,7 @@ not want the sample cars and customers.
 | `LATE_DAY_MULTIPLIER` | Starting late-day multiplier. Editable in **Settings** |
 | `DEFAULT_KM_ALLOWANCE` | Starting km included per day for a new car (0 = unlimited) |
 | `DEFAULT_EXCESS_KM_RATE` | Starting excess km rate for a new car |
+| `DEFAULT_DEPOSIT` | Starting security deposit pre-filled on a new rental |
 
 `.env` and the database in `data/` are gitignored. Never commit real credentials.
 
@@ -133,6 +134,17 @@ Seeding is skipped on every later boot because a user already exists.
 `PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+
+## Deposit
+
+**Settings → Deposit** sets the security deposit pre-filled on the New rental form.
+Staff can still change it on any individual contract, so it is a starting point rather
+than a fixed rule. Set it to 0 if you do not normally take a deposit.
+
+The deposit is held at handover and offset against the final settlement when the car
+comes back; if it exceeds the total, the return sheet shows a refund. Each rental
+stores the deposit it was issued with, so changing the default never alters an
+existing contract.
 
 ## Mileage
 

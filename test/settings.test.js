@@ -185,3 +185,30 @@ test('changing mileage defaults never re-prices an issued contract', () => {
   assert.equal(s.excessKm, 400);
   assert.equal(s.excessKmFee, 200, 'billed at the rate on the contract, not the new one');
 });
+
+test('default deposit falls back to the environment until set', () => {
+  db.prepare("DELETE FROM settings WHERE key = 'default_deposit'").run();
+  settings.clearCache();
+  assert.equal(settings.deposit(), 0);
+});
+
+test('default deposit is stored and read back as a number', () => {
+  settings.set('default_deposit', 500);
+  assert.equal(settings.deposit(), 500);
+  assert.equal(typeof settings.deposit(), 'number');
+});
+
+test('a zero default deposit is honoured, not treated as unset', () => {
+  settings.set('default_deposit', 0);
+  assert.equal(settings.deposit(), 0);
+});
+
+test('changing the default deposit never alters an existing contract', () => {
+  settings.set('default_deposit', 500);
+  db.prepare("UPDATE rentals SET deposit = 500 WHERE contract_no = 'RC-TEST-0020'").run();
+
+  settings.set('default_deposit', 2000);
+
+  const reread = db.prepare('SELECT deposit FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
+  assert.equal(reread.deposit, 500, 'the contract keeps the deposit it was issued with');
+});

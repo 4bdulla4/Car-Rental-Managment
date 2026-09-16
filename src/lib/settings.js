@@ -77,9 +77,18 @@ function mileage() {
   };
 }
 
+/** Security deposit pre-filled on a new rental; staff can still override it. */
+function deposit() {
+  const stored = all();
+  const parsed = Number(stored.default_deposit);
+  return stored.default_deposit !== undefined && Number.isFinite(parsed)
+    ? parsed
+    : config.defaultDeposit;
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
-module.exports = { get, set, all, currency, company, policy, mileage, isValidCurrency, clearCache: () => { cache = null; } };
+module.exports = { get, set, all, currency, company, policy, mileage, deposit, isValidCurrency, clearCache: () => { cache = null; } };

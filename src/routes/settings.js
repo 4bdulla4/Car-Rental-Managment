@@ -27,6 +27,7 @@ function render(res, status, extra = {}) {
     details: settings.company(),
     policy: settings.policy(),
     mileage: settings.mileage(),
+    deposit: settings.deposit(),
     carCount: db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
     common: COMMON,
     inUse,
@@ -161,6 +162,24 @@ router.post('/mileage', (req, res) => {
   }
 
   req.session.flash = { type: 'success', message };
+  res.redirect('/settings');
+});
+
+router.post('/deposit', (req, res) => {
+  const amount = Number(req.body.default_deposit);
+
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1000000) {
+    return render(res, 400, {
+      errors: ['Default deposit must be a number between 0 and 1,000,000.'],
+      deposit: req.body.default_deposit
+    });
+  }
+
+  settings.set('default_deposit', round2(amount));
+  req.session.flash = {
+    type: 'success',
+    message: 'Default deposit saved. It pre-fills new rentals and can still be changed on each one.'
+  };
   res.redirect('/settings');
 });
 
