@@ -159,6 +159,8 @@ tbody tr { transition: background 0.12s; }
 tbody tr:hover { background: var(--card-2); }
 tbody tr:last-child td { border-bottom: none; }
 td.num, th.num { text-align: right; font-family: var(--mono); }
+td.mono, td.num, th.num { white-space: nowrap; }
+td .actions { flex-wrap: nowrap; }
 td .sub { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
 .empty { padding: 46px 20px; text-align: center; color: var(--muted); }
 .empty svg { width: 30px; height: 30px; color: var(--faint); margin-bottom: 10px; }
