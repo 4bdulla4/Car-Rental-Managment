@@ -124,7 +124,7 @@ router.post('/', (req, res) => {
   if (isDate(form.start_date) && isDate(form.end_date) && form.daily_rate > 0) {
     const gross = quoteRental({ ...form, discount: 0 }).baseCharge;
     if (form.discount > gross) {
-      errors.push(`Discount cannot be more than the rental charge of ${gross.toFixed(2)}.`);
+      errors.push(`Discount cannot be more than the rental charge of ${formatMoney(gross, settings.currency())}.`);
     }
   }
   if (car && form.pickup_odometer < 0) errors.push('Odometer reading cannot be negative.');
