@@ -1,0 +1,67 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>Settings</h1>
+    <p class="sub">Options that apply across <%= company.name %>.</p>
+  </div>
+</div>
+<%- include('../partials/errors') %>
+
+<div class="grid users-grid">
+  <div class="card">
+    <h3>Currency</h3>
+    <form method="post" action="/settings/currency">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="row">
+        <div class="field">
+          <label for="currency">Currency code</label>
+          <input id="currency" name="currency" list="currency-codes" value="<%= currency %>"
+                 maxlength="5" pattern="[A-Za-z]{2,5}" required autocomplete="off"
+                 oninput="document.getElementById('preview').textContent =
+                          '1,234.50 ' + (this.value.toUpperCase() || '<%= currency %>')">
+          <datalist id="currency-codes">
+            <% common.forEach(function (c) { %><option value="<%= c[0] %>"><%= c[1] %></option><% }); %>
+          </datalist>
+          <div class="hint">Pick from the list or type any 2–5 letter code.</div>
+        </div>
+        <div class="field">
+          <label>Preview</label>
+          <div class="preview-box mono" id="preview">1,234.50 <%= currency %></div>
+          <div class="hint">Amounts always show two decimal places.</div>
+        </div>
+      </div>
+      <button class="btn primary" type="submit">Save currency</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>What changes</h3>
+    <p class="small muted">
+      The new currency applies to rates, deposits and every rental issued from now on.
+    </p>
+    <p class="small muted" style="margin-top:10px">
+      Contracts that already exist keep the currency they were written in, so a signed
+      agreement never changes meaning. That is why a list can show more than one code.
+    </p>
+
+    <% if (inUse.length) { %>
+      <h3 style="margin-top:20px">In use on contracts</h3>
+      <div class="lines">
+        <% inUse.forEach(function (row) { %>
+          <div class="line">
+            <span><%= row.currency || '—' %></span>
+            <span><%= row.n %> contract<%= row.n === 1 ? '' : 's' %></span>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <p class="hint" style="margin-top:16px">
+      Company name, address and the fuel and late-return policy are set with environment
+      variables — see the README.
+    </p>
+  </div>
+</div>
+<%- include('../partials/foot') %>

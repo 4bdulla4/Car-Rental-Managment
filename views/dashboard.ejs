@@ -44,7 +44,13 @@
   <div class="card stat">
     <svg class="stat-ico" viewBox="0 0 24 24"><path d="M12 3v18M16.5 7.5H9.8a2.4 2.4 0 0 0 0 4.8h4.4a2.4 2.4 0 0 1 0 4.8H7"/></svg>
     <div class="label">Closed revenue</div>
-    <div class="value sm"><%= money(stats.revenue) %></div>
+    <% if (!stats.revenue.length) { %>
+      <div class="value sm"><%= money(0) %></div>
+    <% } else { %>
+      <% stats.revenue.forEach(function (r, i) { %>
+        <div class="value sm" style="<%= i ? 'margin-top:2px' : '' %>"><%= moneyIn(r.total, r.currency) %></div>
+      <% }); %>
+    <% } %>
   </div>
 </div>
 
@@ -75,7 +81,7 @@
             <%= r.end_date %>
             <% if (r.end_date < today) { %><br><span class="badge overdue">Overdue</span><% } %>
           </td>
-          <td class="num"><%= money(r.total_amount) %></td>
+          <td class="num"><%= moneyIn(r.total_amount, r.currency) %></td>
           <td><a class="btn sm" href="/rentals/<%= r.id %>/return">Return</a></td>
         </tr>
         <% }); %>

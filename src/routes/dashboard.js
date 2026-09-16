@@ -23,9 +23,13 @@ router.get('/', requireAuth, (req, res) => {
     overdue: db
       .prepare("SELECT COUNT(*) AS n FROM rentals WHERE status = 'active' AND end_date < ?")
       .get(today).n,
+    // Grouped, because totals in different currencies must never be added together.
     revenue: db
-      .prepare("SELECT COALESCE(SUM(total_amount), 0) AS total FROM rentals WHERE status = 'closed'")
-      .get().total
+      .prepare(
+        `SELECT currency, SUM(total_amount) AS total FROM rentals
+         WHERE status = 'closed' GROUP BY currency ORDER BY total DESC`
+      )
+      .all()
   };
 
   const active = db

@@ -6,6 +6,7 @@ const config = require('./config');
 const { loadUser, csrf } = require('./middleware/auth');
 const { formatMoney } = require('./lib/money');
 const { fuelLabel, FUEL_LABELS } = require('./lib/contracts');
+const settings = require('./lib/settings');
 
 const app = express();
 
@@ -38,8 +39,11 @@ app.use((req, res, next) => {
   res.locals.flash = req.session.flash || null;
   if (req.session.flash) req.session.flash = null;
   res.locals.company = config.company;
-  res.locals.currency = config.currency;
-  res.locals.money = (v) => formatMoney(v, config.currency);
+  const activeCurrency = settings.currency();
+  res.locals.currency = activeCurrency;
+  res.locals.money = (v) => formatMoney(v, activeCurrency);
+  // For records that carry their own currency, such as an issued contract.
+  res.locals.moneyIn = (v, code) => formatMoney(v, code || activeCurrency);
   res.locals.fuelLabel = fuelLabel;
   res.locals.FUEL_LABELS = FUEL_LABELS;
   res.locals.path = req.path;
@@ -56,6 +60,7 @@ app.use('/cars', require('./routes/cars'));
 app.use('/customers', require('./routes/customers'));
 app.use('/rentals', require('./routes/rentals'));
 app.use('/users', require('./routes/users'));
+app.use('/settings', require('./routes/settings'));
 
 app.use((req, res) => {
   res.status(404).render('error', { title: 'Not found', message: 'That page does not exist.' });

@@ -36,7 +36,7 @@
           <span class="badge <%= r.status %>"><%= r.status %></span>
           <% if (r.status === 'active' && r.end_date < today) { %><span class="badge overdue">Overdue</span><% } %>
         </td>
-        <td class="num"><%= money(r.total_amount) %></td>
+        <td class="num"><%= moneyIn(r.total_amount, r.currency) %></td>
         <td>
           <div class="actions">
             <a class="btn sm" href="/rentals/<%= r.id %>/contract">Contract</a>

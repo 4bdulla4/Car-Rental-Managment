@@ -5,7 +5,8 @@ const config = require('../config');
 const { requireAuth } = require('../middleware/auth');
 const { nextContractNo } = require('../lib/contracts');
 const { quote, settlement, rentalDays } = require('../lib/pricing');
-const { round2 } = require('../lib/money');
+const { round2, formatMoney } = require('../lib/money');
+const settings = require('../lib/settings');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -23,6 +24,12 @@ const RENTAL_SELECT = `
   JOIN cars c ON c.id = r.car_id
   JOIN customers cu ON cu.id = r.customer_id
   LEFT JOIN users u ON u.id = r.created_by`;
+
+/** Render locals so a single rental always displays in the currency it was issued in. */
+function inCurrency(rental) {
+  const code = rental.currency || settings.currency();
+  return { currency: code, money: (v) => formatMoney(v, code) };
+}
 
 function findRental(id) {
   return db.prepare(`${RENTAL_SELECT} WHERE r.id = ?`).get(Number(id));
@@ -120,12 +127,13 @@ router.post('/', (req, res) => {
       `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
                             km_allowance_per_day, excess_km_rate, deposit, discount, pickup_odometer,
                             pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
-                            status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
+                            currency, status, created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
     ).run(
       contract_no, form.car_id, form.customer_id, form.start_date, form.end_date, form.daily_rate,
       form.km_allowance_per_day, form.excess_km_rate, form.deposit, form.discount, form.pickup_odometer,
-      form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue, req.user.id
+      form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue,
+      settings.currency(), req.user.id
     );
     db.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
       .run(form.pickup_odometer, form.pickup_fuel, form.car_id);
@@ -147,7 +155,7 @@ router.get('/:id', (req, res) => {
     discount: rental.discount,
     deposit: rental.deposit
   });
-  res.render('rentals/show', { title: rental.contract_no, rental, quote: q, today: today() });
+  res.render('rentals/show', { title: rental.contract_no, rental, quote: q, today: today(), ...inCurrency(rental) });
 });
 
 // Printable handover contract, generated straight from the rental record.
@@ -161,7 +169,7 @@ router.get('/:id/contract', (req, res) => {
     discount: rental.discount,
     deposit: rental.deposit
   });
-  res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: config });
+  res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: config, ...inCurrency(rental) });
 });
 
 router.post('/:id/sign', (req, res) => {
@@ -194,7 +202,8 @@ router.get('/:id/return', (req, res) => {
     form,
     errors: [],
     preview: settlement(rental, form, policy),
-    policy: config
+    policy: config,
+    ...inCurrency(rental)
   });
 });
 
@@ -230,7 +239,8 @@ router.post('/:id/return', (req, res) => {
       form,
       errors,
       preview: settlement(rental, { ...form, returnOdometer: Math.max(form.returnOdometer, rental.pickup_odometer) }, policy),
-      policy: config
+      policy: config,
+      ...inCurrency(rental)
     });
   }
 
@@ -251,7 +261,7 @@ router.post('/:id/return', (req, res) => {
       .run(form.returnOdometer, form.returnFuel, rental.car_id);
   });
 
-  req.session.flash = { type: 'success', message: `${rental.contract_no} closed. Balance due ${round2(s.balanceDue)} ${config.currency}.` };
+  req.session.flash = { type: 'success', message: `${rental.contract_no} closed. Balance due ${round2(s.balanceDue)} ${rental.currency || settings.currency()}.` };
   res.redirect(`/rentals/${rental.id}/receipt`);
 });
 
@@ -274,7 +284,7 @@ router.get('/:id/receipt', (req, res) => {
     },
     policy
   );
-  res.render('contracts/receipt', { title: `Return ${rental.contract_no}`, rental, s, policy: config });
+  res.render('contracts/receipt', { title: `Return ${rental.contract_no}`, rental, s, policy: config, ...inCurrency(rental) });
 });
 
 router.post('/:id/cancel', (req, res) => {

@@ -93,4 +93,25 @@ CREATE INDEX IF NOT EXISTS idx_rentals_car ON rentals(car_id);
 CREATE INDEX IF NOT EXISTS idx_rentals_customer ON rentals(customer_id);
 `);
 
+// --- migrations -------------------------------------------------------------
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`);
+
+const hasColumn = (table, column) =>
+  db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+
+// Each rental records the currency it was written in, so changing the currency
+// later never rewrites the amounts on contracts that are already signed.
+if (!hasColumn('rentals', 'currency')) {
+  db.exec('ALTER TABLE rentals ADD COLUMN currency TEXT');
+  db.prepare('UPDATE rentals SET currency = ? WHERE currency IS NULL OR currency = \'\'')
+    .run(config.currency);
+}
+
 module.exports = db;

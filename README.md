@@ -32,7 +32,7 @@ not want the sample cars and customers.
 | `PORT` | HTTP port (default 3210) |
 | `SESSION_SECRET` | Signs the session cookie. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `COMPANY_*` | Name, address, phone, email and registration number printed on contracts |
-| `CURRENCY` | Currency label shown throughout (default `SAR`) |
+| `CURRENCY` | Starting currency. Once changed in **Settings** the stored value wins |
 | `FUEL_CHARGE_PER_EIGHTH` | Charged per missing 1/8 tank at return |
 | `LATE_DAY_MULTIPLIER` | Late days bill at daily rate × this (default 1.25) |
 
@@ -131,6 +131,19 @@ Seeding is skipped on every later boot because a user already exists.
 `PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+
+## Currency
+
+An admin can change the currency under **Settings**. Any 2–5 letter code works; the
+common ones are offered in a picker. `CURRENCY` in `.env` only sets the starting
+value — once changed in the app, the stored setting takes over.
+
+Each rental records the currency it was issued in. Changing the currency applies to
+new rentals only: contracts already issued keep their original code, so a signed
+agreement never silently changes meaning, and a printed document is never a mix of
+two currencies. Because of that a list can legitimately show more than one code, and
+closed revenue on the dashboard is grouped per currency rather than summed across
+them. Amounts always use two decimal places.
 
 ## Branding
 

@@ -167,6 +167,11 @@ td .sub { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
 .empty { padding: 46px 20px; text-align: center; color: var(--muted); }
 .empty svg { width: 30px; height: 30px; color: var(--faint); margin-bottom: 10px; }
 
+.preview-box {
+  padding: 10px 12px; border: 1px dashed var(--border-lit); border-radius: 9px;
+  background: #0c0c12; color: var(--accent-lit); font-size: 15px;
+}
+
 /* ---------- Users page ---------- */
 .users-grid { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
 .user-cell { display: flex; align-items: center; gap: 11px; }
