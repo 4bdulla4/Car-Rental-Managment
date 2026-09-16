@@ -84,34 +84,51 @@ between invocations — there the database would vanish seconds after each write
 ```bash
 npm i -g @railway/cli
 railway login
-railway init            # or: railway link  (to attach to an existing project)
-railway volume add --mount-path /data
+railway init                      # or: railway link, to attach to an existing project
+railway volume add -m /data       # persistent disk for the SQLite file
 ```
 
-Then set the variables (the volume path is what makes the data survive restarts):
+Set the variables. `DB_FILE` must point inside the volume — that is what makes
+the data survive restarts and redeploys:
 
 ```bash
-railway variables \
-  --set "NODE_ENV=production" \
-  --set "DB_FILE=/data/car-renter.db" \
-  --set "SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" \
-  --set "SEED_ADMIN_EMAIL=you@yourcompany.com" \
-  --set "SEED_ADMIN_PASSWORD=<choose a strong password>" \
-  --set "COMPANY_NAME=Your Company" \
-  --set "CURRENCY=SAR"
+railway variable set \
+  NODE_ENV=production \
+  DB_FILE=/data/car-renter.db \
+  SEED_ADMIN_EMAIL=you@yourcompany.com \
+  COMPANY_NAME="Your Company" \
+  CURRENCY=SAR
 ```
+
+Set the two secrets from stdin so they never land in your shell history:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" \
+  | railway variable set --stdin SESSION_SECRET
+```
+
+```bash
+railway variable set --stdin SEED_ADMIN_PASSWORD
+```
+
+Then deploy and get the URL:
 
 ```bash
 railway up
-railway domain          # prints the public URL
+railway domain
 ```
 
-On first boot the app creates the admin account from `SEED_ADMIN_*` and prints
-the email (never the password). Sign in, change the password under **Users →
-Reset password**, then delete the `SEED_ADMIN_PASSWORD` variable. The seeding
-step is skipped on every later boot, because a user already exists.
+On first boot the app creates the admin account from `SEED_ADMIN_*` and logs the
+email only, never the password. Sign in, change it under **Users → Reset
+password**, then remove the variable:
 
-`PORT` is provided by the platform — do not set it. In production the app
+```bash
+railway variable delete SEED_ADMIN_PASSWORD
+```
+
+Seeding is skipped on every later boot because a user already exists.
+
+`PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
 
