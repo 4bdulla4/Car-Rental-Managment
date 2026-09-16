@@ -10,7 +10,7 @@ process.env.DB_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'carrenter
 
 const db = require('../src/db');
 const settings = require('../src/lib/settings');
-const { settlement } = require('../src/lib/pricing');
+const { settlement, quote } = require('../src/lib/pricing');
 
 function issueRental(contractNo) {
   const car = db
@@ -211,4 +211,33 @@ test('changing the default deposit never alters an existing contract', () => {
 
   const reread = db.prepare('SELECT deposit FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
   assert.equal(reread.deposit, 500, 'the contract keeps the deposit it was issued with');
+});
+
+test('discount default falls back to the environment until set', () => {
+  db.prepare("DELETE FROM settings WHERE key LIKE 'default_discount%'").run();
+  settings.clearCache();
+  assert.deepEqual({ ...settings.discount() }, { value: 0, mode: 'amount' });
+});
+
+test('discount stores both the figure and the mode', () => {
+  settings.set('default_discount', 10);
+  settings.set('default_discount_mode', 'percent');
+  const d = settings.discount();
+  assert.equal(d.value, 10);
+  assert.equal(d.mode, 'percent');
+
+  settings.set('default_discount_mode', 'amount');
+  assert.equal(settings.discount().mode, 'amount');
+});
+
+test('an unrecognised discount mode falls back to a fixed amount', () => {
+  settings.set('default_discount_mode', 'nonsense');
+  assert.equal(settings.discount().mode, 'amount');
+});
+
+test('a percentage resolves to the amount recorded on the contract', () => {
+  // 10% of a 4-day rental at 150/day is 60, leaving a total of 540.
+  const q = quote({ dailyRate: 150, startDate: '2026-03-01', endDate: '2026-03-05', discount: 60 });
+  assert.equal(q.baseCharge, 600);
+  assert.equal(q.total, 540);
 });

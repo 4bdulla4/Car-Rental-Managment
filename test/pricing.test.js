@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { rentalDays, quote, settlement } = require('../src/lib/pricing');
+const { rentalDays, quote, quoteRental, settlement } = require('../src/lib/pricing');
 const { round2, formatMoney } = require('../src/lib/money');
 
 const POLICY = { fuelChargePerEighth: 25, lateDayMultiplier: 1.25 };
@@ -107,4 +107,24 @@ test('money helpers round and format consistently', () => {
   assert.equal(round2(0.1 + 0.2), 0.3);
   assert.equal(formatMoney(1234.5, 'SAR'), '1,234.50 SAR');
   assert.equal(formatMoney(-400, 'SAR'), '-400.00 SAR');
+});
+
+test('quoteRental reads the database column names, not camelCase', () => {
+  // Regression: quote() was once called with a snake_case row, which silently
+  // produced a zero total and stored it on every active rental.
+  const row = {
+    start_date: '2026-03-01',
+    end_date: '2026-03-05',
+    daily_rate: 150,
+    discount: 100,
+    deposit: 500
+  };
+  const q = quoteRental(row);
+  assert.equal(q.days, 4);
+  assert.equal(q.baseCharge, 600);
+  assert.equal(q.total, 500);
+  assert.equal(q.balanceDue, 0);
+
+  // The shape that caused the bug still returns zero, which is why the helper exists.
+  assert.equal(quote(row).baseCharge, 0);
 });

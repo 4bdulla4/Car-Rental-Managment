@@ -4,7 +4,7 @@ const db = require('../db');
 const config = require('../config');
 const { requireAuth } = require('../middleware/auth');
 const { nextContractNo } = require('../lib/contracts');
-const { quote, settlement, rentalDays } = require('../lib/pricing');
+const { quote, quoteRental, settlement, rentalDays } = require('../lib/pricing');
 const { round2, formatMoney } = require('../lib/money');
 const settings = require('../lib/settings');
 
@@ -76,18 +76,20 @@ router.get('/', (req, res) => {
 router.get('/new', (req, res) => {
   const cars = db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
   const customers = db.prepare('SELECT * FROM customers ORDER BY full_name').all();
+  const standingDiscount = settings.discount();
   res.render('rentals/new', {
     title: 'New rental',
     cars,
     customers,
     errors: [],
+    standingDiscount,
     form: {
       car_id: Number(req.query.car_id) || '',
       customer_id: Number(req.query.customer_id) || '',
       start_date: today(),
       end_date: today(),
       deposit: settings.deposit(),
-      discount: 0
+      discount: standingDiscount.mode === 'amount' ? standingDiscount.value : 0
     }
   });
 });
@@ -118,6 +120,13 @@ router.post('/', (req, res) => {
   if (!isDate(form.start_date) || !isDate(form.end_date)) errors.push('Start and end dates are required.');
   else if (form.end_date < form.start_date) errors.push('End date cannot be before the start date.');
   if (form.daily_rate <= 0) errors.push('Daily rate must be greater than zero.');
+  if (form.discount < 0) errors.push('Discount cannot be negative.');
+  if (isDate(form.start_date) && isDate(form.end_date) && form.daily_rate > 0) {
+    const gross = quoteRental({ ...form, discount: 0 }).baseCharge;
+    if (form.discount > gross) {
+      errors.push(`Discount cannot be more than the rental charge of ${gross.toFixed(2)}.`);
+    }
+  }
   if (car && form.pickup_odometer < 0) errors.push('Odometer reading cannot be negative.');
   if (customer && customer.license_expiry && customer.license_expiry < form.end_date) {
     errors.push(`${customer.full_name}'s licence expires on ${customer.license_expiry}, before the rental ends.`);
@@ -126,10 +135,12 @@ router.post('/', (req, res) => {
   if (errors.length) {
     const cars = db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
     const customers = db.prepare('SELECT * FROM customers ORDER BY full_name').all();
-    return res.status(400).render('rentals/new', { title: 'New rental', cars, customers, errors, form });
+    return res.status(400).render('rentals/new', {
+      title: 'New rental', cars, customers, errors, form, standingDiscount: settings.discount()
+    });
   }
 
-  const q = quote(form);
+  const q = quoteRental(form);
   const issuePolicy = settings.policy();
   const contractNo = transaction(() => {
     const contract_no = nextContractNo();
@@ -160,13 +171,7 @@ router.post('/', (req, res) => {
 router.get('/:id', (req, res) => {
   const rental = findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
-  const q = quote({
-    dailyRate: rental.daily_rate,
-    startDate: rental.start_date,
-    endDate: rental.end_date,
-    discount: rental.discount,
-    deposit: rental.deposit
-  });
+  const q = quoteRental(rental);
   res.render('rentals/show', { title: rental.contract_no, rental, quote: q, today: today(), ...inCurrency(rental) });
 });
 
@@ -174,13 +179,7 @@ router.get('/:id', (req, res) => {
 router.get('/:id/contract', (req, res) => {
   const rental = findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
-  const q = quote({
-    dailyRate: rental.daily_rate,
-    startDate: rental.start_date,
-    endDate: rental.end_date,
-    discount: rental.discount,
-    deposit: rental.deposit
-  });
+  const q = quoteRental(rental);
   res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: rentalPolicy(rental), ...inCurrency(rental) });
 });
 

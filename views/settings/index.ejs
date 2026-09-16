@@ -202,6 +202,45 @@
     <button class="btn primary" type="submit">Save deposit</button>
   </form>
 </div>
+
+<div class="card">
+  <h3>Discount</h3>
+  <p class="small muted" style="margin:-8px 0 16px">
+    A standing discount pre-filled on a new rental. Staff can still change or clear it
+    on any individual contract.
+  </p>
+  <form method="post" action="/settings/discount">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="default_discount_mode">Applied as</label>
+      <select id="default_discount_mode" name="default_discount_mode">
+        <option value="amount" <%= discount.mode === 'amount' ? 'selected' : '' %>>Fixed amount</option>
+        <option value="percent" <%= discount.mode === 'percent' ? 'selected' : '' %>>Percentage of the rental charge</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="default_discount" id="discount-label">Default discount</label>
+      <input id="default_discount" name="default_discount" type="number"
+             step="0.01" min="0" value="<%= discount.value %>" required>
+      <div class="hint">Set 0 for no standing discount.</div>
+    </div>
+
+    <div class="field">
+      <label>Worked example</label>
+      <div class="lines">
+        <div class="line"><span>5-day rental at <%= money(150) %>/day</span><span><%= money(750) %></span></div>
+        <div class="line"><span>Discount applied</span><span data-x="off"></span></div>
+        <div class="line total"><span>Contract total</span><span class="amount" data-x="total"></span></div>
+      </div>
+      <div class="hint">
+        A percentage is worked out against the rental charge when the contract is
+        issued; the contract itself always records a fixed amount.
+      </div>
+    </div>
+
+    <button class="btn primary" type="submit">Save discount</button>
+  </form>
+</div>
 </div>
 
 <script>
@@ -221,6 +260,32 @@
     };
     f.fuel_charge_per_eighth.addEventListener('input', paint);
     f.late_day_multiplier.addEventListener('input', paint);
+    paint();
+  })();
+</script>
+
+<script>
+  // Worked example for the discount, in whichever mode is selected.
+  (function () {
+    var f = document.querySelector('form[action="/settings/discount"]');
+    var currency = <%- JSON.stringify(currency) %>;
+    var money = function (n) {
+      var parts = Math.abs(Math.round(n * 100) / 100).toFixed(2).split('.');
+      return (n < 0 ? '-' : '') + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1] + ' ' + currency;
+    };
+    var paint = function () {
+      var percent = f.default_discount_mode.value === 'percent';
+      var raw = Number(f.default_discount.value) || 0;
+      var off = percent ? Math.round(750 * raw) / 100 : raw;
+      off = Math.min(off, 750);
+      document.getElementById('discount-label').textContent =
+        percent ? 'Default discount (% of rental charge)' : 'Default discount (' + currency + ')';
+      f.default_discount.max = percent ? 100 : 1000000;
+      f.querySelector('[data-x="off"]').textContent = '-' + money(off);
+      f.querySelector('[data-x="total"]').textContent = money(750 - off);
+    };
+    f.default_discount_mode.addEventListener('change', paint);
+    f.default_discount.addEventListener('input', paint);
     paint();
   })();
 </script>

@@ -38,6 +38,8 @@ not want the sample cars and customers.
 | `DEFAULT_KM_ALLOWANCE` | Starting km included per day for a new car (0 = unlimited) |
 | `DEFAULT_EXCESS_KM_RATE` | Starting excess km rate for a new car |
 | `DEFAULT_DEPOSIT` | Starting security deposit pre-filled on a new rental |
+| `DEFAULT_DISCOUNT` | Starting standing discount pre-filled on a new rental |
+| `DEFAULT_DISCOUNT_MODE` | `amount` or `percent` |
 
 `.env` and the database in `data/` are gitignored. Never commit real credentials.
 
@@ -134,6 +136,18 @@ Seeding is skipped on every later boot because a user already exists.
 `PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+
+## Discount
+
+**Settings → Discount** sets a standing discount pre-filled on new rentals, either as
+a fixed amount or as a percentage of the rental charge. A percentage is worked out
+once the car and dates are chosen, and stops updating the moment staff type their own
+figure, so a manual discount is never overwritten.
+
+Whichever mode is used, the contract records a **fixed amount** — a percentage is only
+a convenience for arriving at it, so the agreement is never ambiguous about what was
+taken off. A discount larger than the rental charge is rejected, since it would
+produce a negative total.
 
 ## Deposit
 

@@ -90,4 +90,19 @@ function settlement(rental, ret, policy = {}) {
   };
 }
 
-module.exports = { rentalDays, quote, settlement, dayStamp, DAY_MS };
+/**
+ * Quote for a rental row or form, using the database's column names.
+ * Call this rather than quote() with a rental object: quote() takes camelCase
+ * keys, and passing a snake_case row silently produces a zero total.
+ */
+function quoteRental(row) {
+  return quote({
+    dailyRate: row.daily_rate,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    discount: row.discount,
+    deposit: row.deposit
+  });
+}
+
+module.exports = { rentalDays, quote, quoteRental, settlement, dayStamp, DAY_MS };

@@ -32,5 +32,8 @@ module.exports = {
   defaultKmAllowance: num(process.env.DEFAULT_KM_ALLOWANCE, 250),
   defaultExcessKmRate: num(process.env.DEFAULT_EXCESS_KM_RATE, 0.5),
   // Security deposit pre-filled on a new rental.
-  defaultDeposit: num(process.env.DEFAULT_DEPOSIT, 0)
+  defaultDeposit: num(process.env.DEFAULT_DEPOSIT, 0),
+  // Standing discount pre-filled on a new rental: a flat amount or a percentage.
+  defaultDiscount: num(process.env.DEFAULT_DISCOUNT, 0),
+  defaultDiscountMode: process.env.DEFAULT_DISCOUNT_MODE === 'percent' ? 'percent' : 'amount'
 };

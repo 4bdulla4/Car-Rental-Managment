@@ -28,6 +28,7 @@ function render(res, status, extra = {}) {
     policy: settings.policy(),
     mileage: settings.mileage(),
     deposit: settings.deposit(),
+    discount: settings.discount(),
     carCount: db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
     common: COMMON,
     inUse,
@@ -179,6 +180,33 @@ router.post('/deposit', (req, res) => {
   req.session.flash = {
     type: 'success',
     message: 'Default deposit saved. It pre-fills new rentals and can still be changed on each one.'
+  };
+  res.redirect('/settings');
+});
+
+router.post('/discount', (req, res) => {
+  const mode = req.body.default_discount_mode === 'percent' ? 'percent' : 'amount';
+  const value = Number(req.body.default_discount);
+  const limit = mode === 'percent' ? 100 : 1000000;
+
+  if (!Number.isFinite(value) || value < 0 || value > limit) {
+    return render(res, 400, {
+      errors: [
+        mode === 'percent'
+          ? 'Default discount must be a percentage between 0 and 100.'
+          : 'Default discount must be an amount between 0 and 1,000,000.'
+      ],
+      discount: { value: req.body.default_discount, mode }
+    });
+  }
+
+  settings.set('default_discount', round2(value));
+  settings.set('default_discount_mode', mode);
+  req.session.flash = {
+    type: 'success',
+    message: mode === 'percent'
+      ? `New rentals are pre-filled with a ${round2(value)}% discount, which staff can still change.`
+      : 'Default discount saved. It pre-fills new rentals and can still be changed on each one.'
   };
   res.redirect('/settings');
 });

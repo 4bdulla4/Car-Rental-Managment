@@ -86,9 +86,29 @@ function deposit() {
     : config.defaultDeposit;
 }
 
+/**
+ * Standing discount pre-filled on a new rental.
+ * In percent mode the rate is only a convenience for computing the figure: the
+ * contract always stores a concrete amount, so the agreement stays unambiguous.
+ */
+function discount() {
+  const stored = all();
+  const parsed = Number(stored.default_discount);
+  const value = stored.default_discount !== undefined && Number.isFinite(parsed)
+    ? parsed
+    : config.defaultDiscount;
+  const mode = stored.default_discount_mode === undefined
+    ? config.defaultDiscountMode
+    : (stored.default_discount_mode === 'percent' ? 'percent' : 'amount');
+  return { value, mode };
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
-module.exports = { get, set, all, currency, company, policy, mileage, deposit, isValidCurrency, clearCache: () => { cache = null; } };
+module.exports = {
+  get, set, all, currency, company, policy, mileage, deposit, discount,
+  isValidCurrency, clearCache: () => { cache = null; }
+};
