@@ -1,0 +1,43 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div><h1>Customers</h1><p class="sub"><%= customers.length %> record(s)</p></div>
+  <a class="btn primary" href="/customers/new">Add customer</a>
+</div>
+
+<form class="toolbar" method="get" action="/customers">
+  <input type="search" name="q" placeholder="Search name, phone, ID or licence" value="<%= q %>">
+  <button class="btn" type="submit">Search</button>
+  <% if (q) { %><a class="btn" href="/customers">Clear</a><% } %>
+</form>
+
+<div class="card flush">
+<% if (!customers.length) { %>
+  <div class="empty">No customers yet. <a href="/customers/new">Add one</a>.</div>
+<% } else { %>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Phone</th><th>ID number</th><th>Licence</th><th>Expiry</th><th></th></tr></thead>
+    <tbody>
+      <% customers.forEach(function (c) { %>
+      <tr>
+        <td><%= c.full_name %><% if (c.email) { %><div class="muted small"><%= c.email %></div><% } %></td>
+        <td class="mono small"><%= c.phone %></td>
+        <td class="mono small"><%= c.id_number || '—' %></td>
+        <td class="mono small"><%= c.license_number || '—' %></td>
+        <td class="mono small"><%= c.license_expiry || '—' %></td>
+        <td>
+          <div class="actions">
+            <a class="btn sm" href="/customers/<%= c.id %>/edit">Edit</a>
+            <a class="btn sm" href="/rentals/new?customer_id=<%= c.id %>">Rent</a>
+          </div>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+</div>
+<%- include('../partials/foot') %>

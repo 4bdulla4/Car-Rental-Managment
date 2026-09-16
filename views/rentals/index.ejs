@@ -1,0 +1,53 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div><h1>Rentals</h1><p class="sub"><%= rentals.length %> contract(s)</p></div>
+  <a class="btn primary" href="/rentals/new">New rental</a>
+</div>
+
+<form class="toolbar" method="get" action="/rentals">
+  <input type="search" name="q" placeholder="Search contract, plate or customer" value="<%= q %>">
+  <select name="status">
+    <option value="">All</option>
+    <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+    <option value="closed" <%= status === 'closed' ? 'selected' : '' %>>Closed</option>
+    <option value="cancelled" <%= status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <% if (q || status) { %><a class="btn" href="/rentals">Clear</a><% } %>
+</form>
+
+<div class="card flush">
+<% if (!rentals.length) { %>
+  <div class="empty">No contracts yet. <a href="/rentals/new">Issue the first one</a>.</div>
+<% } else { %>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Contract</th><th>Car</th><th>Customer</th><th>Period</th><th>Status</th><th class="num">Total</th><th></th></tr></thead>
+    <tbody>
+      <% rentals.forEach(function (r) { %>
+      <tr>
+        <td class="mono"><a href="/rentals/<%= r.id %>"><%= r.contract_no %></a></td>
+        <td><span class="mono"><%= r.plate %></span><div class="muted small"><%= r.make %> <%= r.model %></div></td>
+        <td><%= r.full_name %></td>
+        <td class="small mono"><%= r.start_date %> → <%= r.end_date %></td>
+        <td>
+          <span class="badge <%= r.status %>"><%= r.status %></span>
+          <% if (r.status === 'active' && r.end_date < today) { %><span class="badge overdue">Overdue</span><% } %>
+        </td>
+        <td class="num"><%= money(r.total_amount) %></td>
+        <td>
+          <div class="actions">
+            <a class="btn sm" href="/rentals/<%= r.id %>/contract">Contract</a>
+            <% if (r.status === 'active') { %><a class="btn sm" href="/rentals/<%= r.id %>/return">Return</a><% } %>
+          </div>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+</div>
+<%- include('../partials/foot') %>

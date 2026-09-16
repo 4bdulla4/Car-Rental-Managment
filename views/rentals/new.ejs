@@ -1,0 +1,135 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div><h1>New rental</h1><p class="sub">A numbered handover contract is generated as soon as you save.</p></div>
+  <a class="btn" href="/rentals">Back</a>
+</div>
+<%- include('../partials/errors') %>
+
+<% if (!cars.length || !customers.length) { %>
+<div class="alert error">
+  You need at least one available car and one customer.
+  <% if (!cars.length) { %><a href="/cars/new">Add a car</a><% } %>
+  <% if (!customers.length) { %><a href="/customers/new">Add a customer</a><% } %>
+</div>
+<% } %>
+
+<form method="post" action="/rentals" id="rentalForm">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="grid cols-2">
+    <div class="card">
+      <h3>Parties</h3>
+      <div class="field">
+        <label for="car_id">Car *</label>
+        <select id="car_id" name="car_id" required>
+          <option value="">Select an available car…</option>
+          <% cars.forEach(function (c) { %>
+            <option value="<%= c.id %>" <%= Number(form.car_id) === c.id ? 'selected' : '' %>><%= c.plate %> — <%= c.make %> <%= c.model %> (<%= money(c.daily_rate) %>/day)</option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="field">
+        <label for="customer_id">Customer *</label>
+        <select id="customer_id" name="customer_id" required>
+          <option value="">Select a customer…</option>
+          <% customers.forEach(function (c) { %>
+            <option value="<%= c.id %>" <%= Number(form.customer_id) === c.id ? 'selected' : '' %>><%= c.full_name %> — <%= c.phone %></option>
+          <% }); %>
+        </select>
+        <div class="hint"><a href="/customers/new">Add a new customer</a></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="start_date">Start date *</label><input id="start_date" name="start_date" type="date" value="<%= form.start_date %>" required></div>
+        <div class="field"><label for="end_date">End date *</label><input id="end_date" name="end_date" type="date" value="<%= form.end_date %>" required></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Handover condition</h3>
+      <div class="row">
+        <div class="field"><label for="pickup_odometer">Odometer at pickup (km)</label><input id="pickup_odometer" name="pickup_odometer" type="number" min="0" value="<%= form.pickup_odometer || 0 %>"></div>
+        <div class="field"><label for="pickup_fuel">Fuel at pickup</label>
+          <select id="pickup_fuel" name="pickup_fuel">
+            <% FUEL_LABELS.forEach(function (lbl, i) { %><option value="<%= i %>" <%= Number(form.pickup_fuel != null ? form.pickup_fuel : 8) === i ? "selected" : "" %>><%= lbl %></option><% }); %>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="pickup_notes">Condition notes (scratches, dents, accessories)</label><textarea id="pickup_notes" name="pickup_notes"><%= form.pickup_notes || '' %></textarea></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Rates &amp; payment</h3>
+    <div class="row">
+      <div class="field"><label for="daily_rate">Daily rate (<%= currency %>) *</label><input id="daily_rate" name="daily_rate" type="number" step="0.01" min="0" value="<%= form.daily_rate || '' %>" required></div>
+      <div class="field"><label for="km_allowance_per_day">Km included / day</label><input id="km_allowance_per_day" name="km_allowance_per_day" type="number" min="0" value="<%= form.km_allowance_per_day || 0 %>"><div class="hint">0 = unlimited</div></div>
+      <div class="field"><label for="excess_km_rate">Excess km rate</label><input id="excess_km_rate" name="excess_km_rate" type="number" step="0.01" min="0" value="<%= form.excess_km_rate || 0 %>"></div>
+      <div class="field"><label for="deposit">Deposit taken</label><input id="deposit" name="deposit" type="number" step="0.01" min="0" value="<%= form.deposit || 0 %>"></div>
+      <div class="field"><label for="discount">Discount</label><input id="discount" name="discount" type="number" step="0.01" min="0" value="<%= form.discount || 0 %>"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Quote</h3>
+    <div class="lines" id="quote">
+      <div class="line"><span>Rental days</span><span class="amount" data-q="days">—</span></div>
+      <div class="line"><span>Rental charge</span><span class="amount" data-q="base">—</span></div>
+      <div class="line"><span>Discount</span><span class="amount" data-q="discount">—</span></div>
+      <div class="line total"><span>Contract total</span><span class="amount" data-q="total">—</span></div>
+      <div class="line"><span>Deposit held</span><span class="amount" data-q="deposit">—</span></div>
+    </div>
+  </div>
+
+  <div class="actions" style="margin-top:16px">
+    <button class="btn primary" type="submit">Issue contract</button>
+    <a class="btn" href="/rentals">Cancel</a>
+  </div>
+</form>
+
+<script>
+  var CARS = <%- JSON.stringify(cars).replace(/</g, '\\u003c') %>;
+  var CURRENCY = <%- JSON.stringify(currency) %>;
+  var form = document.getElementById('rentalForm');
+  var carSelect = document.getElementById('car_id');
+
+  function fmt(n) {
+    return (Math.round(n * 100) / 100).toFixed(2) + ' ' + CURRENCY;
+  }
+  function days() {
+    var s = Date.parse(form.start_date.value), e = Date.parse(form.end_date.value);
+    if (isNaN(s) || isNaN(e)) return 0;
+    return Math.max(1, Math.round((e - s) / 86400000));
+  }
+  function refreshQuote() {
+    var d = days();
+    var rate = Number(form.daily_rate.value) || 0;
+    var discount = Number(form.discount.value) || 0;
+    var base = d * rate;
+    var set = function (key, val) { document.querySelector('[data-q="' + key + '"]').textContent = val; };
+    set('days', d ? d + (d === 1 ? ' day' : ' days') : '—');
+    set('base', fmt(base));
+    set('discount', (discount > 0 ? '-' : '') + fmt(discount));
+    set('total', fmt(Math.max(0, base - discount)));
+    set('deposit', fmt(Number(form.deposit.value) || 0));
+  }
+
+  // Selecting a car pulls its rate, mileage policy and current condition onto the contract.
+  carSelect.addEventListener('change', function () {
+    var car = CARS.find(function (c) { return String(c.id) === carSelect.value; });
+    if (!car) return;
+    form.daily_rate.value = car.daily_rate;
+    form.km_allowance_per_day.value = car.km_allowance_per_day;
+    form.excess_km_rate.value = car.excess_km_rate;
+    form.pickup_odometer.value = car.odometer;
+    form.pickup_fuel.value = car.fuel_level;
+    refreshQuote();
+  });
+
+  ['start_date', 'end_date', 'daily_rate', 'discount', 'deposit'].forEach(function (name) {
+    form[name].addEventListener('input', refreshQuote);
+  });
+  if (carSelect.value) carSelect.dispatchEvent(new Event('change'));
+  refreshQuote();
+</script>
+<%- include('../partials/foot') %>

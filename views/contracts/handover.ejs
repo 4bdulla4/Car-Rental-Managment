@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= rental.contract_no %> · Handover contract</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/print.css">
+</head>
+<body>
+<div class="toolbar-print">
+  <button onclick="window.print()">Print / Save as PDF</button>
+  <a href="/rentals/<%= rental.id %>">Back to contract</a>
+  <a href="/rentals">All rentals</a>
+</div>
+
+<div class="sheet">
+  <header class="doc">
+    <div class="co">
+      <div class="co-title">
+        <%- include('../partials/logo', { size: 30 }) %>
+        <h1><%= company.name %></h1>
+      </div>
+      <p><%= company.address %></p>
+      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %><%= company.regNo ? ' · CR ' + company.regNo : '' %></p>
+    </div>
+    <div class="meta">
+      <div class="type">Vehicle Handover Agreement</div>
+      <div class="no"><%= rental.contract_no %></div>
+      <div class="date">Issued <%= rental.created_at %></div>
+    </div>
+  </header>
+
+  <h2 class="section">1. Renter</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>Full name</dt><dd><%= rental.full_name %></dd>
+      <dt>Phone</dt><dd class="mono"><%= rental.phone %></dd>
+      <dt>Email</dt><dd><%= rental.email || '—' %></dd>
+    </dl>
+    <dl class="kv">
+      <dt>ID / passport</dt><dd class="mono"><%= rental.id_number || '—' %></dd>
+      <dt>Licence no.</dt><dd class="mono"><%= rental.license_number || '—' %></dd>
+      <dt>Licence expiry</dt><dd class="mono"><%= rental.license_expiry || '—' %></dd>
+    </dl>
+  </div>
+  <% if (rental.address) { %><dl class="kv" style="grid-template-columns:19% 81%;margin-top:3px"><dt>Address</dt><dd><%= rental.address %></dd></dl><% } %>
+
+  <h2 class="section">2. Vehicle</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>Plate</dt><dd class="mono"><%= rental.plate %></dd>
+      <dt>Make &amp; model</dt><dd><%= rental.make %> <%= rental.model %></dd>
+      <dt>Year / colour</dt><dd><%= rental.year || '—' %> · <%= rental.color || '—' %></dd>
+    </dl>
+    <dl class="kv">
+      <dt>VIN / chassis</dt><dd class="mono"><%= rental.vin || '—' %></dd>
+      <dt>Odometer out</dt><dd class="mono"><%= rental.pickup_odometer.toLocaleString('en-US') %> km</dd>
+      <dt>Fuel out</dt><dd class="mono"><%= fuelLabel(rental.pickup_fuel) %></dd>
+    </dl>
+  </div>
+
+  <h2 class="section">3. Rental period &amp; charges</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>From</dt><dd class="mono"><%= rental.start_date %></dd>
+      <dt>To</dt><dd class="mono"><%= rental.end_date %></dd>
+      <dt>Duration</dt><dd><%= quote.days %> day<%= quote.days === 1 ? '' : 's' %></dd>
+    </dl>
+    <dl class="kv">
+      <dt>Daily rate</dt><dd class="mono"><%= money(rental.daily_rate) %></dd>
+      <dt>Mileage included</dt><dd class="mono"><%= rental.km_allowance_per_day ? rental.km_allowance_per_day + ' km/day' : 'Unlimited' %></dd>
+      <dt>Excess km</dt><dd class="mono"><%= rental.km_allowance_per_day ? money(rental.excess_km_rate) + ' / km' : '—' %></dd>
+    </dl>
+  </div>
+
+  <table class="charges">
+    <tr><td><%= quote.days %> day<%= quote.days === 1 ? '' : 's' %> × <%= money(rental.daily_rate) %></td><td class="amt"><%= money(quote.baseCharge) %></td></tr>
+    <% if (rental.discount > 0) { %><tr><td>Discount</td><td class="amt">-<%= money(rental.discount) %></td></tr><% } %>
+    <tr class="total"><td>Contract total</td><td class="amt"><%= money(quote.total) %></td></tr>
+    <tr><td>Security deposit held</td><td class="amt"><%= money(rental.deposit) %></td></tr>
+    <tr class="grand"><td>Payable at handover</td><td class="amt"><%= money(quote.balanceDue) %></td></tr>
+  </table>
+  <p style="font-size:10px;color:var(--soft);margin-top:5px">
+    Late returns are charged at <%= policy.lateDayMultiplier %>× the daily rate per extra day.
+    Fuel returned below the level above is charged at <%= money(policy.fuelChargePerEighth) %> per 1/8 tank.
+  </p>
+
+  <h2 class="section">4. Condition at handover</h2>
+  <div class="checklist">
+    <span>Spare tyre</span><span>Jack &amp; tools</span><span>First-aid kit</span><span>Warning triangle</span>
+    <span>Registration card</span><span>Insurance card</span><span>Floor mats</span><span>Charging cable</span>
+  </div>
+  <div class="note"><%= rental.pickup_notes || 'No pre-existing damage recorded.' %></div>
+
+  <h2 class="section">5. Terms</h2>
+  <div class="terms">
+    <ol>
+      <li>The renter confirms receipt of the vehicle in the condition recorded above and holds a valid driving licence.</li>
+      <li>Only the named renter may drive the vehicle. Any additional driver must be registered with <%= company.name %> in writing.</li>
+      <li>The vehicle may not be used for racing, towing, off-road driving, subletting, or for carrying passengers or goods for hire.</li>
+      <li>Driving under the influence of alcohol or drugs voids all insurance cover and makes the renter fully liable.</li>
+      <li>Traffic fines, tolls and parking violations during the rental period are the renter's responsibility and may be charged after return.</li>
+      <li>The vehicle must be returned on the agreed date with the same fuel level and all accessories listed above.</li>
+      <li>The security deposit is refunded after inspection, less any charges for damage, excess mileage, missing fuel, fines or late return.</li>
+      <li>In the event of an accident the renter must notify <%= company.name %> and the police immediately and obtain an official report.</li>
+      <li>The renter is liable for the insurance excess on any damage caused during the rental period.</li>
+      <li>This agreement is governed by the laws applicable at the place of issue.</li>
+    </ol>
+  </div>
+
+  <div class="signatures">
+    <div class="sign-box">
+      <div class="role">Renter — <%= rental.full_name %></div>
+      <div class="line"></div>
+      <div class="hint">Signature &amp; date · I accept the terms above</div>
+    </div>
+    <div class="sign-box">
+      <div class="role">For <%= company.name %><%= rental.issued_by ? ' — ' + rental.issued_by : '' %></div>
+      <div class="line"></div>
+      <div class="hint">Signature &amp; date</div>
+    </div>
+  </div>
+
+  <footer class="doc">
+    <span><%= rental.contract_no %> · handover</span>
+    <span><%= company.name %></span>
+  </footer>
+</div>
+</body>
+</html>

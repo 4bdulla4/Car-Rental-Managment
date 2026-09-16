@@ -1,0 +1,56 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head"><div><h1>Users</h1><p class="sub">Who can sign in to <%= company.name %>.</p></div></div>
+<%- include('../partials/errors') %>
+
+<div class="grid cols-2">
+  <div class="card flush">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <% users.forEach(function (u) { %>
+          <tr>
+            <td><%= u.name %><div class="muted small"><%= u.email %></div></td>
+            <td><span class="badge <%= u.role === 'admin' ? 'active' : 'retired' %>"><%= u.role %></span></td>
+            <td><span class="badge <%= u.active ? 'available' : 'cancelled' %>"><%= u.active ? 'active' : 'disabled' %></span></td>
+            <td>
+              <div class="actions">
+                <% if (u.id !== currentUser.id) { %>
+                <form method="post" action="/users/<%= u.id %>/toggle">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn sm" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
+                </form>
+                <% } %>
+                <form method="post" action="/users/<%= u.id %>/password" class="actions"
+                      onsubmit="return confirm('Reset this password?')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="password" name="password" placeholder="New password" minlength="10" required style="width:160px" class="small">
+                  <button class="btn sm" type="submit">Reset</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Add user</h3>
+    <form method="post" action="/users">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field"><label for="name">Name</label><input id="name" name="name" required></div>
+      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" required></div>
+      <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" minlength="10" required><div class="hint">At least 10 characters.</div></div>
+      <div class="field"><label for="role">Role</label>
+        <select id="role" name="role"><option value="staff">Staff</option><option value="admin">Admin</option></select>
+        <div class="hint">Admins can manage users; staff manage fleet, customers and contracts.</div>
+      </div>
+      <button class="btn primary" type="submit">Create user</button>
+    </form>
+  </div>
+</div>
+<%- include('../partials/foot') %>

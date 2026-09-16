@@ -1,0 +1,9 @@
+<% if (errors && errors.length) { %>
+<div class="alert error">
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.2v.1"/></svg>
+  <div>
+    <strong>Please fix the following:</strong>
+    <ul><% errors.forEach(function (e) { %><li><%= e %></li><% }); %></ul>
+  </div>
+</div>
+<% } %>

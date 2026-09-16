@@ -1,0 +1,71 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head"><h1><%= title %></h1><a class="btn" href="/cars">Back to fleet</a></div>
+<%- include('../partials/errors') %>
+
+<form method="post" action="<%= action %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="card">
+    <h3>Vehicle</h3>
+    <div class="row">
+      <div class="field"><label for="plate">Plate number *</label><input id="plate" name="plate" value="<%= car.plate || '' %>" required></div>
+      <div class="field"><label for="make">Make *</label><input id="make" name="make" value="<%= car.make || '' %>" required></div>
+      <div class="field"><label for="model">Model *</label><input id="model" name="model" value="<%= car.model || '' %>" required></div>
+      <div class="field"><label for="year">Year</label><input id="year" name="year" type="number" min="1980" max="2100" value="<%= car.year || '' %>"></div>
+      <div class="field"><label for="color">Colour</label><input id="color" name="color" value="<%= car.color || '' %>"></div>
+      <div class="field"><label for="vin">VIN / chassis</label><input id="vin" name="vin" value="<%= car.vin || '' %>"></div>
+      <div class="field"><label for="transmission">Transmission</label>
+        <select id="transmission" name="transmission">
+          <option value="automatic" <%= car.transmission !== 'manual' ? 'selected' : '' %>>Automatic</option>
+          <option value="manual" <%= car.transmission === 'manual' ? 'selected' : '' %>>Manual</option>
+        </select>
+      </div>
+      <div class="field"><label for="seats">Seats</label><input id="seats" name="seats" type="number" min="1" max="20" value="<%= car.seats || 5 %>"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Pricing &amp; policy</h3>
+    <div class="row">
+      <div class="field"><label for="daily_rate">Daily rate (<%= currency %>) *</label><input id="daily_rate" name="daily_rate" type="number" step="0.01" min="0" value="<%= car.daily_rate || '' %>" required></div>
+      <div class="field"><label for="km_allowance_per_day">Km included per day</label><input id="km_allowance_per_day" name="km_allowance_per_day" type="number" min="0" value="<%= car.km_allowance_per_day != null ? car.km_allowance_per_day : 250 %>"><div class="hint">0 = unlimited</div></div>
+      <div class="field"><label for="excess_km_rate">Excess km rate (<%= currency %>)</label><input id="excess_km_rate" name="excess_km_rate" type="number" step="0.01" min="0" value="<%= car.excess_km_rate != null ? car.excess_km_rate : 0.5 %>"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Current condition</h3>
+    <div class="row">
+      <div class="field"><label for="odometer">Odometer (km)</label><input id="odometer" name="odometer" type="number" min="0" value="<%= car.odometer || 0 %>"></div>
+      <div class="field"><label for="fuel_level">Fuel level</label>
+        <select id="fuel_level" name="fuel_level">
+          <% FUEL_LABELS.forEach(function (lbl, i) { %>
+            <option value="<%= i %>" <%= Number(car.fuel_level != null ? car.fuel_level : 8) === i ? 'selected' : '' %>><%= lbl %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="field"><label for="status">Status</label>
+        <select id="status" name="status">
+          <% statuses.forEach(function (s) { %>
+            <option value="<%= s %>" <%= (car.status || 'available') === s ? 'selected' : '' %>><%= s %></option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes"><%= car.notes || '' %></textarea></div>
+  </div>
+
+  <div class="actions" style="margin-top:16px">
+    <button class="btn primary" type="submit">Save car</button>
+    <a class="btn" href="/cars">Cancel</a>
+  </div>
+</form>
+
+<% if (car.id) { %>
+<form method="post" action="/cars/<%= car.id %>/delete" onsubmit="return confirm('Delete this car permanently?')" style="margin-top:14px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <button class="btn danger sm" type="submit">Delete car</button>
+</form>
+<% } %>
+<%- include('../partials/foot') %>

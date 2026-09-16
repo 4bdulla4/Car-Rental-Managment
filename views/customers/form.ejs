@@ -1,0 +1,35 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head"><h1><%= title %></h1><a class="btn" href="/customers">Back</a></div>
+<%- include('../partials/errors') %>
+
+<form method="post" action="<%= action %>">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="card">
+    <div class="row">
+      <div class="field"><label for="full_name">Full name *</label><input id="full_name" name="full_name" value="<%= customer.full_name || '' %>" required></div>
+      <div class="field"><label for="phone">Phone *</label><input id="phone" name="phone" value="<%= customer.phone || '' %>" required></div>
+      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="<%= customer.email || '' %>"></div>
+      <div class="field"><label for="id_number">National ID / passport</label><input id="id_number" name="id_number" value="<%= customer.id_number || '' %>"></div>
+      <div class="field"><label for="license_number">Driving licence no. *</label><input id="license_number" name="license_number" value="<%= customer.license_number || '' %>" required></div>
+      <div class="field"><label for="license_expiry">Licence expiry</label><input id="license_expiry" name="license_expiry" type="date" value="<%= customer.license_expiry || '' %>"></div>
+    </div>
+    <div class="field"><label for="address">Address</label><input id="address" name="address" value="<%= customer.address || '' %>"></div>
+    <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes"><%= customer.notes || '' %></textarea></div>
+  </div>
+
+  <div class="actions" style="margin-top:16px">
+    <button class="btn primary" type="submit">Save customer</button>
+    <% if (!customer.id) { %><button class="btn" type="submit" name="then_rent" value="1">Save &amp; start rental</button><% } %>
+    <a class="btn" href="/customers">Cancel</a>
+  </div>
+</form>
+
+<% if (customer.id) { %>
+<form method="post" action="/customers/<%= customer.id %>/delete" onsubmit="return confirm('Delete this customer?')" style="margin-top:14px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <button class="btn danger sm" type="submit">Delete customer</button>
+</form>
+<% } %>
+<%- include('../partials/foot') %>

@@ -1,0 +1,50 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div><h1>Fleet</h1><p class="sub"><%= cars.length %> car(s)</p></div>
+  <a class="btn primary" href="/cars/new">Add car</a>
+</div>
+
+<form class="toolbar" method="get" action="/cars">
+  <input type="search" name="q" placeholder="Search plate, make, model" value="<%= q %>">
+  <select name="status">
+    <option value="">All statuses</option>
+    <% statuses.forEach(function (s) { %>
+      <option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= s %></option>
+    <% }); %>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <% if (q || status) { %><a class="btn" href="/cars">Clear</a><% } %>
+</form>
+
+<div class="card flush">
+<% if (!cars.length) { %>
+  <div class="empty">No cars match. <a href="/cars/new">Add one</a>.</div>
+<% } else { %>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Plate</th><th>Vehicle</th><th>Status</th><th class="num">Daily rate</th><th class="num">Odometer</th><th>Fuel</th><th></th></tr></thead>
+    <tbody>
+      <% cars.forEach(function (c) { %>
+      <tr>
+        <td class="mono"><%= c.plate %></td>
+        <td><%= c.make %> <%= c.model %> <span class="muted small"><%= c.year || '' %> <%= c.color || '' %></span></td>
+        <td><span class="badge <%= c.status %>"><%= c.status %></span></td>
+        <td class="num"><%= money(c.daily_rate) %></td>
+        <td class="num"><%= c.odometer.toLocaleString('en-US') %> km</td>
+        <td class="mono small"><%= fuelLabel(c.fuel_level) %></td>
+        <td>
+          <div class="actions">
+            <a class="btn sm" href="/cars/<%= c.id %>/edit">Edit</a>
+            <% if (c.status === 'available') { %><a class="btn sm" href="/rentals/new?car_id=<%= c.id %>">Rent</a><% } %>
+          </div>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+</div>
+<%- include('../partials/foot') %>

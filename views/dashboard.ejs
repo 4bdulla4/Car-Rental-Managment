@@ -1,0 +1,87 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="sub">Fleet status and open contracts as of <%= today %>.</p>
+  </div>
+  <div class="actions">
+    <a class="btn primary" href="/rentals/new">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      <span>New rental</span>
+    </a>
+    <a class="btn" href="/cars/new">Add car</a>
+  </div>
+</div>
+
+<div class="grid stats">
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M4 14.5a2.6 2.6 0 0 1 2-2.5l2.4-.5 2-2.8A3.4 3.4 0 0 1 13.1 7h2.8a3.4 3.4 0 0 1 2.8 1.5l1.6 2.4.8.2a2.6 2.6 0 0 1 1.9 2.5v1.6a1 1 0 0 1-1 1h-1.7M4 14.5V16a1 1 0 0 0 1 1h1.3M4 14.5h16"/><circle cx="8.2" cy="16.8" r="2.2"/><circle cx="16.8" cy="16.8" r="2.2"/></svg>
+    <div class="label">Cars available</div>
+    <div class="value accent"><%= stats.available %><small>/<%= stats.cars %></small></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2.5-6H21"/></svg>
+    <div class="label">On rent</div>
+    <div class="value"><%= stats.rented %></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L14 17a2.8 2.8 0 0 1-4-4z"/><path d="M7.5 16.5l-2 2"/></svg>
+    <div class="label">In maintenance</div>
+    <div class="value"><%= stats.maintenance %></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <div class="label">Overdue returns</div>
+    <div class="value <%= stats.overdue ? 'warn' : '' %>"><%= stats.overdue %></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="9.5" cy="8" r="3.4"/><path d="M3 19.5c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/><path d="M16.5 8.4a2.9 2.9 0 0 1 0 5.2"/><path d="M18.4 19.5c0-2.1-.6-3.6-1.7-4.6"/></svg>
+    <div class="label">Customers</div>
+    <div class="value"><%= stats.customers %></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M12 3v18M16.5 7.5H9.8a2.4 2.4 0 0 0 0 4.8h4.4a2.4 2.4 0 0 1 0 4.8H7"/></svg>
+    <div class="label">Closed revenue</div>
+    <div class="value sm"><%= money(stats.revenue) %></div>
+  </div>
+</div>
+
+<div class="card flush" style="margin-top:16px">
+  <div class="card-head" style="padding:20px 20px 0;margin-bottom:14px">
+    <h2>Open contracts</h2>
+    <a class="small" href="/rentals?status=active">View all</a>
+  </div>
+  <% if (!active.length) { %>
+    <div class="empty">
+      <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+      <div>No active rentals right now. <a href="/rentals/new">Issue a contract</a>.</div>
+    </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Contract</th><th>Car</th><th>Customer</th><th>Due back</th><th class="num">Total</th><th></th></tr></thead>
+      <tbody>
+        <% active.forEach(function (r) { %>
+        <tr>
+          <td class="mono"><a href="/rentals/<%= r.id %>"><%= r.contract_no %></a></td>
+          <td>
+            <span class="mono"><%= r.plate %></span>
+            <div class="sub"><%= r.make %> <%= r.model %></div>
+          </td>
+          <td><%= r.full_name %><div class="sub"><%= r.phone %></div></td>
+          <td class="mono small">
+            <%= r.end_date %>
+            <% if (r.end_date < today) { %><br><span class="badge overdue">Overdue</span><% } %>
+          </td>
+          <td class="num"><%= money(r.total_amount) %></td>
+          <td><a class="btn sm" href="/rentals/<%= r.id %>/return">Return</a></td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+<%- include('partials/foot') %>

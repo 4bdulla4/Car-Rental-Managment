@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= rental.contract_no %> · Return &amp; settlement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/print.css">
+</head>
+<body>
+<div class="toolbar-print">
+  <button onclick="window.print()">Print / Save as PDF</button>
+  <a href="/rentals/<%= rental.id %>">Back to contract</a>
+  <a href="/rentals">All rentals</a>
+</div>
+
+<div class="sheet">
+  <header class="doc">
+    <div class="co">
+      <div class="co-title">
+        <%- include('../partials/logo', { size: 30 }) %>
+        <h1><%= company.name %></h1>
+      </div>
+      <p><%= company.address %></p>
+      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %><%= company.regNo ? ' · CR ' + company.regNo : '' %></p>
+    </div>
+    <div class="meta">
+      <div class="type">Vehicle Return &amp; Settlement</div>
+      <div class="no"><%= rental.contract_no %></div>
+      <div class="date">Closed <%= rental.closed_at %></div>
+    </div>
+  </header>
+
+  <h2 class="section">1. Parties</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>Renter</dt><dd><%= rental.full_name %></dd>
+      <dt>Phone</dt><dd class="mono"><%= rental.phone %></dd>
+      <dt>Licence no.</dt><dd class="mono"><%= rental.license_number || '—' %></dd>
+    </dl>
+    <dl class="kv">
+      <dt>Vehicle</dt><dd><%= rental.make %> <%= rental.model %> <%= rental.year || '' %></dd>
+      <dt>Plate</dt><dd class="mono"><%= rental.plate %></dd>
+      <dt>Issued by</dt><dd><%= rental.issued_by || '—' %></dd>
+    </dl>
+  </div>
+
+  <h2 class="section">2. Vehicle movement</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>Contracted</dt><dd class="mono"><%= rental.start_date %> → <%= rental.end_date %> (<%= s.contractedDays %>d)</dd>
+      <dt>Actually returned</dt><dd class="mono"><%= rental.return_date %> (<%= s.actualDays %>d)</dd>
+      <dt>Late days</dt><dd class="mono"><%= s.lateDays %></dd>
+    </dl>
+    <dl class="kv">
+      <dt>Odometer out → in</dt><dd class="mono"><%= rental.pickup_odometer.toLocaleString('en-US') %> → <%= Number(rental.return_odometer).toLocaleString('en-US') %> km</dd>
+      <dt>Distance driven</dt><dd class="mono"><%= s.kmDriven.toLocaleString('en-US') %> km<%= s.kmAllowed > 0 ? ' of ' + s.kmAllowed.toLocaleString('en-US') + ' incl.' : ' (unlimited)' %></dd>
+      <dt>Fuel out → in</dt><dd class="mono"><%= fuelLabel(rental.pickup_fuel) %> → <%= fuelLabel(rental.return_fuel) %></dd>
+    </dl>
+  </div>
+
+  <h2 class="section">3. Settlement</h2>
+  <table class="charges">
+    <tr><td><%= s.contractedDays %> day<%= s.contractedDays === 1 ? '' : 's' %> × <%= money(rental.daily_rate) %></td><td class="amt"><%= money(s.baseCharge) %></td></tr>
+    <tr class="<%= s.lateFee ? '' : 'muted' %>"><td>Late return · <%= s.lateDays %> day(s) @ <%= policy.lateDayMultiplier %>× daily rate</td><td class="amt"><%= money(s.lateFee) %></td></tr>
+    <tr class="<%= s.excessKmFee ? '' : 'muted' %>"><td>Excess mileage · <%= s.excessKm.toLocaleString('en-US') %> km @ <%= money(rental.excess_km_rate) %></td><td class="amt"><%= money(s.excessKmFee) %></td></tr>
+    <tr class="<%= s.fuelFee ? '' : 'muted' %>"><td>Missing fuel · <%= s.fuelMissingEighths %>/8 @ <%= money(policy.fuelChargePerEighth) %></td><td class="amt"><%= money(s.fuelFee) %></td></tr>
+    <tr class="<%= s.damageCharge ? '' : 'muted' %>"><td>Damage</td><td class="amt"><%= money(s.damageCharge) %></td></tr>
+    <tr class="<%= s.otherCharges ? '' : 'muted' %>"><td>Other charges (fines, cleaning, tolls)</td><td class="amt"><%= money(s.otherCharges) %></td></tr>
+    <% if (s.discount > 0) { %><tr><td>Discount</td><td class="amt">-<%= money(s.discount) %></td></tr><% } %>
+    <tr class="total"><td>Total</td><td class="amt"><%= money(s.total) %></td></tr>
+    <tr><td>Security deposit held</td><td class="amt">-<%= money(s.deposit) %></td></tr>
+    <tr class="total"><td><%= s.balanceDue >= 0 ? 'Balance due from renter' : 'Refund due to renter' %></td><td class="amt"><%= money(Math.abs(s.balanceDue)) %></td></tr>
+  </table>
+
+  <h2 class="section">4. Condition on return</h2>
+  <div class="note"><%= rental.return_notes || 'Vehicle returned with no new damage recorded.' %></div>
+  <% if (rental.pickup_notes) { %>
+  <p style="font-size:10px;color:var(--soft);margin-top:5px"><strong>Recorded at handover:</strong> <%= rental.pickup_notes %></p>
+  <% } %>
+
+  <div class="signatures">
+    <div class="sign-box">
+      <div class="role">Renter — <%= rental.full_name %></div>
+      <div class="line"></div>
+      <div class="hint">Signature &amp; date · I agree the settlement above</div>
+    </div>
+    <div class="sign-box">
+      <div class="role">For <%= company.name %></div>
+      <div class="line"></div>
+      <div class="hint">Received &amp; inspected by</div>
+    </div>
+  </div>
+
+  <footer class="doc">
+    <span><%= rental.contract_no %> · return</span>
+    <span><%= company.name %></span>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1 class="mono"><%= rental.contract_no %></h1>
+    <p class="sub">
+      <span class="badge <%= rental.status %>"><%= rental.status %></span>
+      <% if (rental.status === 'active' && rental.end_date < today) { %><span class="badge overdue">Overdue</span><% } %>
+      Issued <%= rental.created_at %><% if (rental.issued_by) { %> by <%= rental.issued_by %><% } %>
+    </p>
+  </div>
+  <div class="actions">
+    <a class="btn primary" href="/rentals/<%= rental.id %>/contract">Handover contract</a>
+    <% if (rental.status === 'active') { %><a class="btn" href="/rentals/<%= rental.id %>/return">Record return</a><% } %>
+    <% if (rental.status === 'closed') { %><a class="btn" href="/rentals/<%= rental.id %>/receipt">Return sheet</a><% } %>
+  </div>
+</div>
+
+<div class="grid cols-2">
+  <div class="card">
+    <h3>Vehicle</h3>
+    <dl class="kv">
+      <dt>Plate</dt><dd class="mono"><%= rental.plate %></dd>
+      <dt>Vehicle</dt><dd><%= rental.make %> <%= rental.model %> <%= rental.year || '' %></dd>
+      <dt>Colour</dt><dd><%= rental.color || '—' %></dd>
+      <dt>VIN</dt><dd class="mono small"><%= rental.vin || '—' %></dd>
+      <dt>Out at</dt><dd class="mono"><%= rental.pickup_odometer.toLocaleString('en-US') %> km · <%= fuelLabel(rental.pickup_fuel) %></dd>
+      <% if (rental.status === 'closed') { %>
+      <dt>Back at</dt><dd class="mono"><%= Number(rental.return_odometer).toLocaleString('en-US') %> km · <%= fuelLabel(rental.return_fuel) %></dd>
+      <% } %>
+    </dl>
+    <% if (rental.pickup_notes) { %><p class="small muted" style="margin-top:12px"><strong>Condition at handover:</strong> <%= rental.pickup_notes %></p><% } %>
+  </div>
+
+  <div class="card">
+    <h3>Customer</h3>
+    <dl class="kv">
+      <dt>Name</dt><dd><%= rental.full_name %></dd>
+      <dt>Phone</dt><dd class="mono"><%= rental.phone %></dd>
+      <dt>Email</dt><dd><%= rental.email || '—' %></dd>
+      <dt>ID number</dt><dd class="mono small"><%= rental.id_number || '—' %></dd>
+      <dt>Licence</dt><dd class="mono small"><%= rental.license_number || '—' %><%= rental.license_expiry ? ' · exp ' + rental.license_expiry : '' %></dd>
+      <dt>Address</dt><dd><%= rental.address || '—' %></dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Contract terms</h3>
+  <dl class="kv">
+    <dt>Period</dt><dd class="mono"><%= rental.start_date %> → <%= rental.end_date %> (<%= quote.days %> day<%= quote.days === 1 ? '' : 's' %>)</dd>
+    <dt>Daily rate</dt><dd class="mono"><%= money(rental.daily_rate) %></dd>
+    <dt>Mileage</dt><dd class="mono"><%= rental.km_allowance_per_day ? rental.km_allowance_per_day + ' km/day, then ' + money(rental.excess_km_rate) + '/km' : 'Unlimited' %></dd>
+    <dt>Deposit</dt><dd class="mono"><%= money(rental.deposit) %></dd>
+    <dt>Handover signed</dt><dd class="mono"><%= rental.handover_signed_at || 'Not recorded' %></dd>
+  </dl>
+
+  <div class="lines" style="margin-top:16px">
+    <% if (rental.status === 'closed') { %>
+      <div class="line"><span>Rental charge</span><span><%= money(rental.base_charge) %></span></div>
+      <% if (rental.late_fee > 0) { %><div class="line"><span>Late return</span><span><%= money(rental.late_fee) %></span></div><% } %>
+      <% if (rental.excess_km_fee > 0) { %><div class="line"><span>Excess kilometres</span><span><%= money(rental.excess_km_fee) %></span></div><% } %>
+      <% if (rental.fuel_fee > 0) { %><div class="line"><span>Missing fuel</span><span><%= money(rental.fuel_fee) %></span></div><% } %>
+      <% if (rental.damage_charge > 0) { %><div class="line"><span>Damage</span><span><%= money(rental.damage_charge) %></span></div><% } %>
+      <% if (rental.other_charges > 0) { %><div class="line"><span>Other charges</span><span><%= money(rental.other_charges) %></span></div><% } %>
+      <% if (rental.discount > 0) { %><div class="line"><span>Discount</span><span>-<%= money(rental.discount) %></span></div><% } %>
+      <div class="line total"><span>Total</span><span class="amount"><%= money(rental.total_amount) %></span></div>
+      <div class="line"><span>Deposit held</span><span>-<%= money(rental.deposit) %></span></div>
+      <div class="line total"><span><%= rental.balance_due >= 0 ? 'Balance due from customer' : 'Refund to customer' %></span><span class="amount"><%= money(Math.abs(rental.balance_due)) %></span></div>
+    <% } else { %>
+      <div class="line"><span>Rental charge (<%= quote.days %> × <%= money(rental.daily_rate) %>)</span><span><%= money(quote.baseCharge) %></span></div>
+      <% if (rental.discount > 0) { %><div class="line"><span>Discount</span><span>-<%= money(rental.discount) %></span></div><% } %>
+      <div class="line total"><span>Contract total</span><span class="amount"><%= money(quote.total) %></span></div>
+      <div class="line"><span>Deposit held</span><span><%= money(rental.deposit) %></span></div>
+    <% } %>
+  </div>
+
+  <% if (rental.return_notes) { %><p class="small muted" style="margin-top:12px"><strong>Return notes:</strong> <%= rental.return_notes %></p><% } %>
+</div>
+
+<% if (rental.status === 'active') { %>
+<div class="actions" style="margin-top:16px">
+  <% if (!rental.handover_signed_at) { %>
+  <form method="post" action="/rentals/<%= rental.id %>/sign">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn" type="submit">Mark handover as signed</button>
+  </form>
+  <% } %>
+  <form method="post" action="/rentals/<%= rental.id %>/cancel" onsubmit="return confirm('Cancel this contract and release the car?')">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn danger" type="submit">Cancel contract</button>
+  </form>
+</div>
+<% } %>
+<%- include('../partials/foot') %>
