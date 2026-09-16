@@ -6,14 +6,24 @@ const config = require('../config');
 // and the cache is dropped whenever a value is written.
 let cache = null;
 
-function all() {
-  if (!cache) {
-    cache = {};
-    for (const row of db.prepare('SELECT key, value FROM settings').all()) {
-      cache[row.key] = row.value;
-    }
+/**
+ * Reads the whole settings table, once per request.
+ * It is deliberately not cached between requests: on serverless each instance
+ * holds its own memory, so a cached copy would keep serving the old currency
+ * after another instance changed it.
+ */
+async function load() {
+  const next = {};
+  for (const row of await db.prepare('SELECT key, value FROM settings').all()) {
+    next[row.key] = row.value;
   }
+  cache = next;
   return cache;
+}
+
+/** Synchronous view of what load() last read. */
+function all() {
+  return cache || {};
 }
 
 function get(key, fallback) {
@@ -21,12 +31,13 @@ function get(key, fallback) {
   return value === undefined ? fallback : value;
 }
 
-function set(key, value) {
-  db.prepare(
-    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+async function set(key, value) {
+  await db.prepare(
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   ).run(key, String(value));
-  cache = null;
+  // Keep the in-request view consistent with what was just written.
+  if (cache) cache[key] = String(value);
 }
 
 /** Currency for new records. Falls back to the CURRENCY env var until changed. */
@@ -121,6 +132,6 @@ function isValidCurrency(code) {
 }
 
 module.exports = {
-  get, set, all, currency, company, policy, mileage, deposit, discount, dailyRate,
+  load, get, set, all, currency, company, policy, mileage, deposit, discount, dailyRate,
   isValidCurrency, clearCache: () => { cache = null; }
 };

@@ -40,23 +40,11 @@ function inCurrency(rental) {
   return { currency: code, money: (v) => formatMoney(v, code) };
 }
 
-function findRental(id) {
+async function findRental(id) {
   return db.prepare(`${RENTAL_SELECT} WHERE r.id = ?`).get(Number(id));
 }
 
-function transaction(fn) {
-  db.exec('BEGIN');
-  try {
-    const result = fn();
-    db.exec('COMMIT');
-    return result;
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
-  }
-}
-
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const status = ['active', 'closed', 'cancelled'].includes(req.query.status) ? req.query.status : '';
   const q = String(req.query.q || '').trim();
   const params = [];
@@ -66,16 +54,16 @@ router.get('/', (req, res) => {
     params.push(status);
   }
   if (q) {
-    sql += ' AND (r.contract_no LIKE ? OR c.plate LIKE ? OR cu.full_name LIKE ?)';
+    sql += ' AND (r.contract_no ILIKE ? OR c.plate ILIKE ? OR cu.full_name ILIKE ?)';
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   sql += ' ORDER BY r.created_at DESC';
-  res.render('rentals/index', { title: 'Rentals', rentals: db.prepare(sql).all(...params), status, q, today: today() });
+  res.render('rentals/index', { title: 'Rentals', rentals: await db.prepare(sql).all(...params), status, q, today: today() });
 });
 
-router.get('/new', (req, res) => {
-  const cars = db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
-  const customers = db.prepare('SELECT * FROM customers ORDER BY full_name').all();
+router.get('/new', async (req, res) => {
+  const cars = await db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
+  const customers = await db.prepare('SELECT * FROM customers ORDER BY full_name').all();
   const standingDiscount = settings.discount();
   res.render('rentals/new', {
     title: 'New rental',
@@ -94,7 +82,7 @@ router.get('/new', (req, res) => {
   });
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const form = {
     car_id: Number(req.body.car_id) || 0,
     customer_id: Number(req.body.customer_id) || 0,
@@ -111,8 +99,8 @@ router.post('/', (req, res) => {
   };
 
   const errors = [];
-  const car = db.prepare('SELECT * FROM cars WHERE id = ?').get(form.car_id);
-  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(form.customer_id);
+  const car = await db.prepare('SELECT * FROM cars WHERE id = ?').get(form.car_id);
+  const customer = await db.prepare('SELECT * FROM customers WHERE id = ?').get(form.customer_id);
 
   if (!car) errors.push('Select a car.');
   else if (car.status !== 'available') errors.push(`${car.plate} is not available (${car.status}).`);
@@ -133,8 +121,8 @@ router.post('/', (req, res) => {
   }
 
   if (errors.length) {
-    const cars = db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
-    const customers = db.prepare('SELECT * FROM customers ORDER BY full_name').all();
+    const cars = await db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
+    const customers = await db.prepare('SELECT * FROM customers ORDER BY full_name').all();
     return res.status(400).render('rentals/new', {
       title: 'New rental', cars, customers, errors, form, standingDiscount: settings.discount()
     });
@@ -142,9 +130,9 @@ router.post('/', (req, res) => {
 
   const q = quoteRental(form);
   const issuePolicy = settings.policy();
-  const contractNo = transaction(() => {
-    const contract_no = nextContractNo();
-    db.prepare(
+  const contractNo = await db.tx(async (t) => {
+    const contract_no = await nextContractNo(t);
+    await t.prepare(
       `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
                             km_allowance_per_day, excess_km_rate, deposit, discount, pickup_odometer,
                             pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
@@ -158,42 +146,42 @@ router.post('/', (req, res) => {
       settings.currency(), issuePolicy.fuelChargePerEighth, issuePolicy.lateDayMultiplier,
       req.user.id
     );
-    db.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
+    await t.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
       .run(form.pickup_odometer, form.pickup_fuel, form.car_id);
     return contract_no;
   });
 
-  const created = db.prepare('SELECT id FROM rentals WHERE contract_no = ?').get(contractNo);
+  const created = await db.prepare('SELECT id FROM rentals WHERE contract_no = ?').get(contractNo);
   req.session.flash = { type: 'success', message: `Contract ${contractNo} issued.` };
   res.redirect(`/rentals/${created.id}/contract`);
 });
 
-router.get('/:id', (req, res) => {
-  const rental = findRental(req.params.id);
+router.get('/:id', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   const q = quoteRental(rental);
   res.render('rentals/show', { title: rental.contract_no, rental, quote: q, today: today(), ...inCurrency(rental) });
 });
 
 // Printable handover contract, generated straight from the rental record.
-router.get('/:id/contract', (req, res) => {
-  const rental = findRental(req.params.id);
+router.get('/:id/contract', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   const q = quoteRental(rental);
   res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: rentalPolicy(rental), ...inCurrency(rental) });
 });
 
-router.post('/:id/sign', (req, res) => {
-  const rental = findRental(req.params.id);
+router.post('/:id/sign', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
-  db.prepare("UPDATE rentals SET handover_signed_at = datetime('now') WHERE id = ? AND handover_signed_at IS NULL")
+  await db.prepare("UPDATE rentals SET handover_signed_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS') WHERE id = ? AND handover_signed_at IS NULL")
     .run(rental.id);
   req.session.flash = { type: 'success', message: 'Handover recorded as signed.' };
   res.redirect(`/rentals/${rental.id}`);
 });
 
-router.get('/:id/return', (req, res) => {
-  const rental = findRental(req.params.id);
+router.get('/:id/return', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   if (rental.status !== 'active') {
     req.session.flash = { type: 'error', message: 'This rental is already closed.' };
@@ -218,8 +206,8 @@ router.get('/:id/return', (req, res) => {
   });
 });
 
-router.post('/:id/return', (req, res) => {
-  const rental = findRental(req.params.id);
+router.post('/:id/return', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   if (rental.status !== 'active') {
     req.session.flash = { type: 'error', message: 'This rental is already closed.' };
@@ -256,19 +244,19 @@ router.post('/:id/return', (req, res) => {
   }
 
   const s = settlement(rental, form, rentalPolicy(rental));
-  transaction(() => {
-    db.prepare(
+  await db.tx(async (t) => {
+    await t.prepare(
       `UPDATE rentals SET status = 'closed', return_date = ?, return_odometer = ?, return_fuel = ?,
                           damage_charge = ?, other_charges = ?, return_notes = ?, late_fee = ?,
                           excess_km_fee = ?, fuel_fee = ?, base_charge = ?, total_amount = ?,
-                          balance_due = ?, closed_at = datetime('now')
+                          balance_due = ?, closed_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
        WHERE id = ?`
     ).run(
       form.returnDate, form.returnOdometer, form.returnFuel, s.damageCharge, s.otherCharges,
       form.returnNotes, s.lateFee, s.excessKmFee, s.fuelFee, s.baseCharge, s.total, s.balanceDue,
       rental.id
     );
-    db.prepare("UPDATE cars SET status = 'available', odometer = ?, fuel_level = ? WHERE id = ?")
+    await t.prepare("UPDATE cars SET status = 'available', odometer = ?, fuel_level = ? WHERE id = ?")
       .run(form.returnOdometer, form.returnFuel, rental.car_id);
   });
 
@@ -277,8 +265,8 @@ router.post('/:id/return', (req, res) => {
 });
 
 // Printable return / settlement sheet.
-router.get('/:id/receipt', (req, res) => {
-  const rental = findRental(req.params.id);
+router.get('/:id/receipt', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   if (rental.status !== 'closed') {
     req.session.flash = { type: 'error', message: 'This rental has not been returned yet.' };
@@ -298,17 +286,17 @@ router.get('/:id/receipt', (req, res) => {
   res.render('contracts/receipt', { title: `Return ${rental.contract_no}`, rental, s, policy: rentalPolicy(rental), ...inCurrency(rental) });
 });
 
-router.post('/:id/cancel', (req, res) => {
-  const rental = findRental(req.params.id);
+router.post('/:id/cancel', async (req, res) => {
+  const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   if (rental.status !== 'active') {
     req.session.flash = { type: 'error', message: 'Only active rentals can be cancelled.' };
     return res.redirect(`/rentals/${rental.id}`);
   }
-  transaction(() => {
-    db.prepare("UPDATE rentals SET status = 'cancelled', closed_at = datetime('now'), total_amount = 0, balance_due = 0 WHERE id = ?")
+  await db.tx(async (t) => {
+    await t.prepare("UPDATE rentals SET status = 'cancelled', closed_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'), total_amount = 0, balance_due = 0 WHERE id = ?")
       .run(rental.id);
-    db.prepare("UPDATE cars SET status = 'available' WHERE id = ?").run(rental.car_id);
+    await t.prepare("UPDATE cars SET status = 'available' WHERE id = ?").run(rental.car_id);
   });
   req.session.flash = { type: 'success', message: `${rental.contract_no} cancelled and ${rental.plate} released.` };
   res.redirect('/rentals');

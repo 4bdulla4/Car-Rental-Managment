@@ -17,9 +17,8 @@ const COMMON = [
   ['INR', 'Indian rupee'], ['PKR', 'Pakistani rupee']
 ];
 
-function render(res, status, extra = {}) {
-  const inUse = db
-    .prepare('SELECT currency, COUNT(*) AS n FROM rentals GROUP BY currency ORDER BY n DESC')
+async function render(res, status, extra = {}) {
+  const inUse = await db.prepare('SELECT currency, COUNT(*) AS n FROM rentals GROUP BY currency ORDER BY n DESC')
     .all();
   return res.status(status).render('settings/index', {
     title: 'Settings',
@@ -30,10 +29,9 @@ function render(res, status, extra = {}) {
     deposit: settings.deposit(),
     discount: settings.discount(),
     dailyRate: settings.dailyRate(),
-    fleetRates: db
-      .prepare('SELECT MIN(daily_rate) AS low, MAX(daily_rate) AS high FROM cars WHERE daily_rate > 0')
+    fleetRates: await db.prepare('SELECT MIN(daily_rate) AS low, MAX(daily_rate) AS high FROM cars WHERE daily_rate > 0')
       .get(),
-    carCount: db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
+    carCount: await db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
     common: COMMON,
     inUse,
     errors: [],
@@ -41,20 +39,20 @@ function render(res, status, extra = {}) {
   });
 }
 
-router.get('/', (req, res) => render(res, 200));
+router.get('/', async (req, res) => { await render(res, 200); });
 
-router.post('/currency', (req, res) => {
+router.post('/currency', async (req, res) => {
   const code = String(req.body.currency || '').trim().toUpperCase();
 
   if (!settings.isValidCurrency(code)) {
-    return render(res, 400, { errors: ['Enter a currency code of 2 to 5 letters, such as SAR, AED or USD.'] });
+    return await render(res, 400, { errors: ['Enter a currency code of 2 to 5 letters, such as SAR, AED or USD.'] });
   }
   if (code === settings.currency()) {
     req.session.flash = { type: 'success', message: `Currency is already ${code}.` };
     return res.redirect('/settings');
   }
 
-  settings.set('currency', code);
+  await settings.set('currency', code);
   req.session.flash = {
     type: 'success',
     message: `Currency changed to ${code}. Contracts already issued keep the currency they were written in.`
@@ -70,7 +68,7 @@ const FIELDS = [
   { key: 'company_reg_no', label: 'Registration number', max: 40 }
 ];
 
-router.post('/company', (req, res) => {
+router.post('/company', async (req, res) => {
   const values = {};
   const errors = [];
 
@@ -86,7 +84,7 @@ router.post('/company', (req, res) => {
 
   if (errors.length) {
     // Keep what was typed on screen rather than discarding it.
-    return render(res, 400, {
+    return await render(res, 400, {
       errors,
       details: {
         name: values.company_name,
@@ -98,12 +96,12 @@ router.post('/company', (req, res) => {
     });
   }
 
-  for (const field of FIELDS) settings.set(field.key, values[field.key]);
+  for (const field of FIELDS) await settings.set(field.key, values[field.key]);
   req.session.flash = { type: 'success', message: 'Company details updated. They appear on contracts issued from now on.' };
   res.redirect('/settings');
 });
 
-router.post('/policy', (req, res) => {
+router.post('/policy', async (req, res) => {
   const fuel = Number(req.body.fuel_charge_per_eighth);
   const late = Number(req.body.late_day_multiplier);
   const errors = [];
@@ -116,7 +114,7 @@ router.post('/policy', (req, res) => {
   }
 
   if (errors.length) {
-    return render(res, 400, {
+    return await render(res, 400, {
       errors,
       policy: {
         fuelChargePerEighth: req.body.fuel_charge_per_eighth,
@@ -125,8 +123,8 @@ router.post('/policy', (req, res) => {
     });
   }
 
-  settings.set('fuel_charge_per_eighth', round2(fuel));
-  settings.set('late_day_multiplier', round2(late));
+  await settings.set('fuel_charge_per_eighth', round2(fuel));
+  await settings.set('late_day_multiplier', round2(late));
   req.session.flash = {
     type: 'success',
     message: 'Return charges updated. Contracts already issued are still settled at the rates printed on them.'
@@ -134,7 +132,7 @@ router.post('/policy', (req, res) => {
   res.redirect('/settings');
 });
 
-router.post('/mileage', (req, res) => {
+router.post('/mileage', async (req, res) => {
   const allowance = Number(req.body.km_allowance_per_day);
   const rate = Number(req.body.excess_km_rate);
   const applyToFleet = req.body.apply_to_fleet === '1';
@@ -148,20 +146,19 @@ router.post('/mileage', (req, res) => {
   }
 
   if (errors.length) {
-    return render(res, 400, {
+    return await render(res, 400, {
       errors,
       mileage: { kmAllowancePerDay: req.body.km_allowance_per_day, excessKmRate: req.body.excess_km_rate }
     });
   }
 
-  settings.set('km_allowance_per_day', allowance);
-  settings.set('excess_km_rate', round2(rate));
+  await settings.set('km_allowance_per_day', allowance);
+  await settings.set('excess_km_rate', round2(rate));
 
   let message = 'Mileage defaults saved. They apply to cars you add from now on.';
   if (applyToFleet) {
     // Only the fleet is rewritten. Rentals keep the terms they were issued with.
-    const updated = db
-      .prepare('UPDATE cars SET km_allowance_per_day = ?, excess_km_rate = ?')
+    const updated = await db.prepare('UPDATE cars SET km_allowance_per_day = ?, excess_km_rate = ?')
       .run(allowance, round2(rate)).changes;
     message = `Mileage defaults saved and applied to ${updated} car${updated === 1 ? '' : 's'}. Contracts already issued are unchanged.`;
   }
@@ -170,17 +167,17 @@ router.post('/mileage', (req, res) => {
   res.redirect('/settings');
 });
 
-router.post('/deposit', (req, res) => {
+router.post('/deposit', async (req, res) => {
   const amount = Number(req.body.default_deposit);
 
   if (!Number.isFinite(amount) || amount < 0 || amount > 1000000) {
-    return render(res, 400, {
+    return await render(res, 400, {
       errors: ['Default deposit must be a number between 0 and 1,000,000.'],
       deposit: req.body.default_deposit
     });
   }
 
-  settings.set('default_deposit', round2(amount));
+  await settings.set('default_deposit', round2(amount));
   req.session.flash = {
     type: 'success',
     message: 'Default deposit saved. It pre-fills new rentals and can still be changed on each one.'
@@ -188,13 +185,13 @@ router.post('/deposit', (req, res) => {
   res.redirect('/settings');
 });
 
-router.post('/discount', (req, res) => {
+router.post('/discount', async (req, res) => {
   const mode = req.body.default_discount_mode === 'percent' ? 'percent' : 'amount';
   const value = Number(req.body.default_discount);
   const limit = mode === 'percent' ? 100 : 1000000;
 
   if (!Number.isFinite(value) || value < 0 || value > limit) {
-    return render(res, 400, {
+    return await render(res, 400, {
       errors: [
         mode === 'percent'
           ? 'Default discount must be a percentage between 0 and 100.'
@@ -204,8 +201,8 @@ router.post('/discount', (req, res) => {
     });
   }
 
-  settings.set('default_discount', round2(value));
-  settings.set('default_discount_mode', mode);
+  await settings.set('default_discount', round2(value));
+  await settings.set('default_discount_mode', mode);
   req.session.flash = {
     type: 'success',
     message: mode === 'percent'
@@ -215,17 +212,17 @@ router.post('/discount', (req, res) => {
   res.redirect('/settings');
 });
 
-router.post('/daily-rate', (req, res) => {
+router.post('/daily-rate', async (req, res) => {
   const rate = Number(req.body.default_daily_rate);
 
   if (!Number.isFinite(rate) || rate < 0 || rate > 1000000) {
-    return render(res, 400, {
+    return await render(res, 400, {
       errors: ['Default daily rate must be a number between 0 and 1,000,000.'],
       dailyRate: req.body.default_daily_rate
     });
   }
 
-  settings.set('default_daily_rate', round2(rate));
+  await settings.set('default_daily_rate', round2(rate));
   req.session.flash = {
     type: 'success',
     message: 'Default daily rate saved. It pre-fills the form when you add a car; existing cars keep their own rates.'
@@ -238,7 +235,7 @@ router.post('/daily-rate', (req, res) => {
  * currency to the active one. It changes the code only and never the amounts,
  * because there is no exchange rate involved.
  */
-router.post('/currency/relabel', (req, res) => {
+router.post('/currency/relabel', async (req, res) => {
   const from = String(req.body.from || '').trim().toUpperCase();
   const to = settings.currency();
 
@@ -247,8 +244,7 @@ router.post('/currency/relabel', (req, res) => {
     return res.redirect('/settings');
   }
 
-  const changed = db
-    .prepare('UPDATE rentals SET currency = ? WHERE currency = ?')
+  const changed = await db.prepare('UPDATE rentals SET currency = ? WHERE currency = ?')
     .run(to, from).changes;
 
   req.session.flash = {

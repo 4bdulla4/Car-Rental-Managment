@@ -5,18 +5,19 @@
   "description": "Rent-a-car management with automated handover contracts",
   "type": "commonjs",
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/seed.js",
-    "test": "node --test test/"
+    "test": "node --test --test-concurrency=1 test/"
   },
   "dependencies": {
     "cookie-session": "^2.1.0",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.23.0"
   }
 }

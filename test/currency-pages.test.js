@@ -1,22 +1,14 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const os = require('os');
-const path = require('path');
-const fs = require('fs');
+const helper = require('./helpers/db');
 
 process.env.CURRENCY = 'SAR';
-process.env.SESSION_SECRET = 'test-secret-not-a-real-key';
-process.env.DB_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'carrenter-cur-')), 'test.db');
 
 const app = require('../src/app');
-const db = require('../src/db');
 const { hashPassword } = require('../src/lib/passwords');
 
-db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
-  .run('admin@test.local', 'Admin', hashPassword('CorrectHorseBattery'));
-db.prepare("INSERT INTO cars (plate, make, model, daily_rate) VALUES ('AAA-1','Toyota','Corolla',150)").run();
-db.prepare("INSERT INTO customers (full_name, phone, license_number) VALUES ('Test','123','DL-1')").run();
+let db;
 
 let base;
 let jar = '';
@@ -46,11 +38,18 @@ async function post(url, fields) {
 
 let server;
 
-test.after(() => {
+test.after(async () => {
   if (server) server.close();
+  if (db) await db.pool.end();
 });
 
 test.before(async () => {
+  db = await helper.reset();
+  await db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
+    .run('admin@test.local', 'Admin', hashPassword('CorrectHorseBattery'));
+  await db.prepare("INSERT INTO cars (plate, make, model, daily_rate) VALUES ('AAA-1','Toyota','Corolla',150)").run();
+  await db.prepare("INSERT INTO customers (full_name, phone, license_number) VALUES ('Test','123','DL-1')").run();
+
   server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -95,7 +94,7 @@ test('changing the currency updates every page that shows a live amount', async 
 });
 
 test('a contract issued earlier keeps its own currency after the change', async () => {
-  db.prepare(
+  await db.prepare(
     `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
                           total_amount, currency, status)
      VALUES ('RC-OLD-1',1,1,'2026-03-01','2026-03-05',150,600,'SAR','closed')`
@@ -118,6 +117,6 @@ test('relabelling brings an old contract onto the current currency', async () =>
   const table = list.body.replace(/<div class="alert[\s\S]*?<\/div>\s*<\/div>/g, '');
   assert.ok(!/600\.00 SAR/.test(table), 'no amount is still shown in the old currency');
 
-  const row = db.prepare("SELECT total_amount FROM rentals WHERE contract_no = 'RC-OLD-1'").get();
-  assert.equal(row.total_amount, 600, 'the amount is never converted');
+  const row = await db.prepare("SELECT total_amount FROM rentals WHERE contract_no = 'RC-OLD-1'").get();
+  assert.equal(Number(row.total_amount), 600, 'the amount is never converted');
 });

@@ -1,26 +1,27 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const os = require('os');
-const path = require('path');
-const fs = require('fs');
+const helper = require('./helpers/db');
 
 process.env.CURRENCY = 'SAR';
-process.env.DB_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'carrenter-set-')), 'test.db');
 
-const db = require('../src/db');
+let db;
 const settings = require('../src/lib/settings');
 const { settlement, quote } = require('../src/lib/pricing');
 
-function issueRental(contractNo) {
-  const car = db
-    .prepare("INSERT INTO cars (plate, make, model, daily_rate) VALUES (?, 'Toyota', 'Corolla', 150)")
+test.before(async () => { db = await helper.reset(); });
+test.beforeEach(async () => { settings.clearCache(); await settings.load(); });
+test.after(async () => { await db.pool.end(); });
+
+async function issueRental(contractNo) {
+  const car = await db
+    .prepare("INSERT INTO cars (plate, make, model, daily_rate) VALUES (?, 'Toyota', 'Corolla', 150) RETURNING id")
     .run('P-' + contractNo);
-  const customer = db
-    .prepare("INSERT INTO customers (full_name, phone, license_number) VALUES ('Test', '123', 'DL-1')")
-    .run();
+  const customer = await db
+    .prepare("INSERT INTO customers (full_name, phone, license_number) VALUES ('Test', '123', ?) RETURNING id")
+    .run('DL-' + contractNo);
   const p = settings.policy();
-  db.prepare(
+  await db.prepare(
     `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
                           pickup_odometer, pickup_fuel, km_allowance_per_day, excess_km_rate,
                           total_amount, currency, fuel_charge_per_eighth, late_day_multiplier, status)
@@ -30,19 +31,19 @@ function issueRental(contractNo) {
   return db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get(contractNo);
 }
 
-test('currency falls back to the environment until it is set', () => {
+test('currency falls back to the environment until it is set', async () => {
   assert.equal(settings.currency(), 'SAR');
   assert.equal(settings.get('nothing-here', 'fallback'), 'fallback');
 });
 
-test('a written setting is read back immediately', () => {
-  settings.set('currency', 'AED');
+test('a written setting is read back immediately', async () => {
+  await settings.set('currency', 'AED');
   assert.equal(settings.currency(), 'AED');
-  settings.set('currency', 'USD');
+  await settings.set('currency', 'USD');
   assert.equal(settings.currency(), 'USD');
 });
 
-test('currency codes are validated', () => {
+test('currency codes are validated', async () => {
   for (const good of ['SAR', 'usd', 'KWD', 'EU', 'BTC']) {
     assert.equal(settings.isValidCurrency(good), true, `${good} should be valid`);
   }
@@ -51,81 +52,80 @@ test('currency codes are validated', () => {
   }
 });
 
-test('changing the currency never rewrites contracts already issued', () => {
-  settings.set('currency', 'SAR');
-  const first = issueRental('RC-TEST-0001');
+test('changing the currency never rewrites contracts already issued', async () => {
+  await settings.set('currency', 'SAR');
+  const first = await issueRental('RC-TEST-0001');
   assert.equal(first.currency, 'SAR');
 
-  settings.set('currency', 'AED');
-  const second = issueRental('RC-TEST-0002');
+  await settings.set('currency', 'AED');
+  const second = await issueRental('RC-TEST-0002');
 
-  const reread = db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get('RC-TEST-0001');
+  const reread = await db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get('RC-TEST-0001');
   assert.equal(reread.currency, 'SAR', 'the existing contract must keep its original currency');
   assert.equal(second.currency, 'AED', 'the new contract uses the new currency');
   assert.equal(reread.total_amount, 600, 'amounts are untouched');
 });
 
-test('closed revenue is grouped by currency, never summed across them', () => {
-  db.prepare("UPDATE rentals SET status = 'closed' WHERE contract_no IN ('RC-TEST-0001','RC-TEST-0002')").run();
-  const rows = db
+test('closed revenue is grouped by currency, never summed across them', async () => {
+  await db.prepare("UPDATE rentals SET status = 'closed' WHERE contract_no IN ('RC-TEST-0001','RC-TEST-0002')").run();
+  const rows = (await db
     .prepare("SELECT currency, SUM(total_amount) AS total FROM rentals WHERE status = 'closed' GROUP BY currency ORDER BY currency")
-    .all()
-    // node:sqlite returns null-prototype rows; compare as plain objects.
-    .map((r) => ({ currency: r.currency, total: r.total }));
+    .all())
+    .map((r) => ({ currency: r.currency, total: Number(r.total) }));
   assert.deepEqual(rows, [
     { currency: 'AED', total: 600 },
     { currency: 'SAR', total: 600 }
   ]);
 });
 
-test('company details fall back to the environment until set', () => {
+test('company details fall back to the environment until set', async () => {
   const before = settings.company();
   assert.equal(before.name, process.env.COMPANY_NAME || 'Car Renter');
 });
 
-test('company details are stored and read back', () => {
-  settings.set('company_name', 'Al Nakheel Rentals');
-  settings.set('company_address', 'King Abdulaziz Rd, Jeddah');
+test('company details are stored and read back', async () => {
+  await settings.set('company_name', 'Al Nakheel Rentals');
+  await settings.set('company_address', 'King Abdulaziz Rd, Jeddah');
   const after = settings.company();
   assert.equal(after.name, 'Al Nakheel Rentals');
   assert.equal(after.address, 'King Abdulaziz Rd, Jeddah');
 });
 
-test('a field cleared on purpose stays empty instead of reverting to the env value', () => {
+test('a field cleared on purpose stays empty instead of reverting to the env value', async () => {
   process.env.COMPANY_PHONE = '+966 11 000 0000';
-  settings.set('company_phone', '');
+  await settings.set('company_phone', '');
   assert.equal(settings.company().phone, '', 'an explicit blank must not fall back');
 });
 
-test('return charges fall back to the environment until set', () => {
-  settings.set('fuel_charge_per_eighth', '');
+test('return charges fall back to the environment until set', async () => {
+  await settings.set('fuel_charge_per_eighth', '');
   settings.clearCache();
-  db.prepare("DELETE FROM settings WHERE key IN ('fuel_charge_per_eighth','late_day_multiplier')").run();
+  await db.prepare("DELETE FROM settings WHERE key IN ('fuel_charge_per_eighth','late_day_multiplier')").run();
   settings.clearCache();
   const p = settings.policy();
   assert.equal(p.fuelChargePerEighth, 25);
   assert.equal(p.lateDayMultiplier, 1.25);
 });
 
-test('return charges are stored and read back as numbers', () => {
-  settings.set('fuel_charge_per_eighth', 40);
-  settings.set('late_day_multiplier', 1.5);
+test('return charges are stored and read back as numbers', async () => {
+  await settings.set('fuel_charge_per_eighth', 40);
+  await settings.set('late_day_multiplier', 1.5);
   const p = settings.policy();
   assert.equal(p.fuelChargePerEighth, 40);
   assert.equal(p.lateDayMultiplier, 1.5);
   assert.equal(typeof p.fuelChargePerEighth, 'number');
 });
 
-test('a contract is settled at the rates it was issued under, not the current ones', () => {
-  settings.set('fuel_charge_per_eighth', 25);
-  settings.set('late_day_multiplier', 1.25);
-  const issued = issueRental('RC-TEST-0010');
+test('a contract is settled at the rates it was issued under, not the current ones', async () => {
+  await settings.set('fuel_charge_per_eighth', 25);
+  await settings.set('late_day_multiplier', 1.25);
+  const issued = await issueRental('RC-TEST-0010');
   assert.equal(issued.fuel_charge_per_eighth, 25);
   assert.equal(issued.late_day_multiplier, 1.25);
 
   // The business doubles its fuel charge and raises the late penalty afterwards.
-  settings.set('fuel_charge_per_eighth', 50);
-  settings.set('late_day_multiplier', 2);
+  await settings.set('fuel_charge_per_eighth', 50);
+  await settings.set('late_day_multiplier', 2);
 
   const ret = { returnDate: '2026-03-07', returnOdometer: 11000, returnFuel: 5, damageCharge: 0, otherCharges: 0 };
   const atIssuedRates = settlement(issued, ret, {
@@ -142,38 +142,38 @@ test('a contract is settled at the rates it was issued under, not the current on
     'the rate change must be visible, proving the snapshot is what protects the customer');
 });
 
-test('mileage defaults fall back to the environment until set', () => {
-  db.prepare("DELETE FROM settings WHERE key IN ('km_allowance_per_day','excess_km_rate')").run();
+test('mileage defaults fall back to the environment until set', async () => {
+  await db.prepare("DELETE FROM settings WHERE key IN ('km_allowance_per_day','excess_km_rate')").run();
   settings.clearCache();
   const m = settings.mileage();
   assert.equal(m.kmAllowancePerDay, 250);
   assert.equal(m.excessKmRate, 0.5);
 });
 
-test('mileage defaults are stored and read back as numbers', () => {
-  settings.set('km_allowance_per_day', 400);
-  settings.set('excess_km_rate', 0.75);
+test('mileage defaults are stored and read back as numbers', async () => {
+  await settings.set('km_allowance_per_day', 400);
+  await settings.set('excess_km_rate', 0.75);
   const m = settings.mileage();
   assert.equal(m.kmAllowancePerDay, 400);
   assert.equal(m.excessKmRate, 0.75);
   assert.equal(typeof m.kmAllowancePerDay, 'number');
 });
 
-test('a zero allowance is honoured as unlimited, not treated as unset', () => {
-  settings.set('km_allowance_per_day', 0);
+test('a zero allowance is honoured as unlimited, not treated as unset', async () => {
+  await settings.set('km_allowance_per_day', 0);
   assert.equal(settings.mileage().kmAllowancePerDay, 0, '0 must not fall back to the default');
 });
 
-test('changing mileage defaults never re-prices an issued contract', () => {
-  settings.set('km_allowance_per_day', 250);
-  settings.set('excess_km_rate', 0.5);
-  const issued = issueRental('RC-TEST-0020');
+test('changing mileage defaults never re-prices an issued contract', async () => {
+  await settings.set('km_allowance_per_day', 250);
+  await settings.set('excess_km_rate', 0.5);
+  const issued = await issueRental('RC-TEST-0020');
   assert.equal(issued.km_allowance_per_day, 250);
 
-  settings.set('km_allowance_per_day', 100);
-  settings.set('excess_km_rate', 2);
+  await settings.set('km_allowance_per_day', 100);
+  await settings.set('excess_km_rate', 2);
 
-  const reread = db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
+  const reread = await db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
   assert.equal(reread.km_allowance_per_day, 250, 'the contract keeps its own allowance');
   assert.equal(reread.excess_km_rate, 0.5, 'the contract keeps its own excess rate');
 
@@ -186,82 +186,82 @@ test('changing mileage defaults never re-prices an issued contract', () => {
   assert.equal(s.excessKmFee, 200, 'billed at the rate on the contract, not the new one');
 });
 
-test('default deposit falls back to the environment until set', () => {
-  db.prepare("DELETE FROM settings WHERE key = 'default_deposit'").run();
+test('default deposit falls back to the environment until set', async () => {
+  await db.prepare("DELETE FROM settings WHERE key = 'default_deposit'").run();
   settings.clearCache();
   assert.equal(settings.deposit(), 0);
 });
 
-test('default deposit is stored and read back as a number', () => {
-  settings.set('default_deposit', 500);
+test('default deposit is stored and read back as a number', async () => {
+  await settings.set('default_deposit', 500);
   assert.equal(settings.deposit(), 500);
   assert.equal(typeof settings.deposit(), 'number');
 });
 
-test('a zero default deposit is honoured, not treated as unset', () => {
-  settings.set('default_deposit', 0);
+test('a zero default deposit is honoured, not treated as unset', async () => {
+  await settings.set('default_deposit', 0);
   assert.equal(settings.deposit(), 0);
 });
 
-test('changing the default deposit never alters an existing contract', () => {
-  settings.set('default_deposit', 500);
-  db.prepare("UPDATE rentals SET deposit = 500 WHERE contract_no = 'RC-TEST-0020'").run();
+test('changing the default deposit never alters an existing contract', async () => {
+  await settings.set('default_deposit', 500);
+  await db.prepare("UPDATE rentals SET deposit = 500 WHERE contract_no = 'RC-TEST-0020'").run();
 
-  settings.set('default_deposit', 2000);
+  await settings.set('default_deposit', 2000);
 
-  const reread = db.prepare('SELECT deposit FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
+  const reread = await db.prepare('SELECT deposit FROM rentals WHERE contract_no = ?').get('RC-TEST-0020');
   assert.equal(reread.deposit, 500, 'the contract keeps the deposit it was issued with');
 });
 
-test('discount default falls back to the environment until set', () => {
-  db.prepare("DELETE FROM settings WHERE key LIKE 'default_discount%'").run();
+test('discount default falls back to the environment until set', async () => {
+  await db.prepare("DELETE FROM settings WHERE key LIKE 'default_discount%'").run();
   settings.clearCache();
   assert.deepEqual({ ...settings.discount() }, { value: 0, mode: 'amount' });
 });
 
-test('discount stores both the figure and the mode', () => {
-  settings.set('default_discount', 10);
-  settings.set('default_discount_mode', 'percent');
+test('discount stores both the figure and the mode', async () => {
+  await settings.set('default_discount', 10);
+  await settings.set('default_discount_mode', 'percent');
   const d = settings.discount();
   assert.equal(d.value, 10);
   assert.equal(d.mode, 'percent');
 
-  settings.set('default_discount_mode', 'amount');
+  await settings.set('default_discount_mode', 'amount');
   assert.equal(settings.discount().mode, 'amount');
 });
 
-test('an unrecognised discount mode falls back to a fixed amount', () => {
-  settings.set('default_discount_mode', 'nonsense');
+test('an unrecognised discount mode falls back to a fixed amount', async () => {
+  await settings.set('default_discount_mode', 'nonsense');
   assert.equal(settings.discount().mode, 'amount');
 });
 
-test('a percentage resolves to the amount recorded on the contract', () => {
+test('a percentage resolves to the amount recorded on the contract', async () => {
   // 10% of a 4-day rental at 150/day is 60, leaving a total of 540.
   const q = quote({ dailyRate: 150, startDate: '2026-03-01', endDate: '2026-03-05', discount: 60 });
   assert.equal(q.baseCharge, 600);
   assert.equal(q.total, 540);
 });
 
-test('default daily rate falls back to the environment until set', () => {
-  db.prepare("DELETE FROM settings WHERE key = 'default_daily_rate'").run();
+test('default daily rate falls back to the environment until set', async () => {
+  await db.prepare("DELETE FROM settings WHERE key = 'default_daily_rate'").run();
   settings.clearCache();
   assert.equal(settings.dailyRate(), 0);
 });
 
-test('default daily rate is stored and read back as a number', () => {
-  settings.set('default_daily_rate', 175.5);
+test('default daily rate is stored and read back as a number', async () => {
+  await settings.set('default_daily_rate', 175.5);
   assert.equal(settings.dailyRate(), 175.5);
   assert.equal(typeof settings.dailyRate(), 'number');
 });
 
-test('changing the default daily rate leaves existing cars and contracts alone', () => {
-  const car = db.prepare('SELECT id, daily_rate FROM cars ORDER BY id LIMIT 1').get();
-  const rental = db.prepare("SELECT daily_rate FROM rentals WHERE contract_no = 'RC-TEST-0020'").get();
+test('changing the default daily rate leaves existing cars and contracts alone', async () => {
+  const car = await db.prepare('SELECT id, daily_rate FROM cars ORDER BY id LIMIT 1').get();
+  const rental = await db.prepare("SELECT daily_rate FROM rentals WHERE contract_no = 'RC-TEST-0020'").get();
 
-  settings.set('default_daily_rate', 999);
+  await settings.set('default_daily_rate', 999);
 
-  const carAfter = db.prepare('SELECT daily_rate FROM cars WHERE id = ?').get(car.id);
-  const rentalAfter = db.prepare("SELECT daily_rate FROM rentals WHERE contract_no = 'RC-TEST-0020'").get();
+  const carAfter = await db.prepare('SELECT daily_rate FROM cars WHERE id = ?').get(car.id);
+  const rentalAfter = await db.prepare("SELECT daily_rate FROM rentals WHERE contract_no = 'RC-TEST-0020'").get();
   assert.equal(carAfter.daily_rate, car.daily_rate, 'the car keeps its own rate');
   assert.equal(rentalAfter.daily_rate, rental.daily_rate, 'the contract keeps the rate it was issued at');
 });

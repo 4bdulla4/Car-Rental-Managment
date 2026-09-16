@@ -45,7 +45,9 @@ async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL || 'admin@example.com').trim().toLowerCase();
   const name = process.env.SEED_ADMIN_NAME || 'Fleet Admin';
 
-  if (db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {
+  await db.ready();
+
+  if (await db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {
     console.log('Admin ' + email + ' already exists - skipping user creation.');
   } else {
     let password = process.env.SEED_ADMIN_PASSWORD || '';
@@ -56,24 +58,24 @@ async function main() {
       console.error('Password must be at least 10 characters. Nothing was created.');
       process.exit(1);
     }
-    db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
+    await db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
       .run(email, name, hashPassword(password));
     console.log('Created admin account: ' + email);
   }
 
   if (process.argv.includes('--demo')) {
     const carStmt = db.prepare(
-      `INSERT OR IGNORE INTO cars (plate, make, model, year, color, vin, transmission, seats,
-                                   daily_rate, km_allowance_per_day, excess_km_rate, odometer, fuel_level)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO cars (plate, make, model, year, color, vin, transmission, seats,
+                         daily_rate, km_allowance_per_day, excess_km_rate, odometer, fuel_level)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (plate) DO NOTHING`
     );
-    DEMO_CARS.forEach((car) => carStmt.run(...car));
+    for (const car of DEMO_CARS) await carStmt.run(...car);
 
     const customerStmt = db.prepare(
       `INSERT INTO customers (full_name, phone, email, id_number, license_number, license_expiry, address)
        SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE license_number = ?)`
     );
-    DEMO_CUSTOMERS.forEach((c) => customerStmt.run(...c, c[4]));
+    for (const c of DEMO_CUSTOMERS) await customerStmt.run(...c, c[4]);
 
     console.log('Demo data loaded: ' + DEMO_CARS.length + ' cars, ' + DEMO_CUSTOMERS.length + ' customers.');
   }

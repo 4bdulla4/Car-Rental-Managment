@@ -7,6 +7,8 @@ const { loadUser, csrf } = require('./middleware/auth');
 const { formatMoney } = require('./lib/money');
 const { fuelLabel, FUEL_LABELS } = require('./lib/contracts');
 const settings = require('./lib/settings');
+const db = require('./db');
+const { ensureFirstAdmin } = require('./lib/bootstrap');
 
 const app = express();
 
@@ -30,6 +32,25 @@ app.use(
     secure: process.env.NODE_ENV === 'production'
   })
 );
+
+// Schema and first-admin creation happen once per process, before any request is
+// served. On serverless this runs on a cold start; afterwards it is a no-op.
+let bootstrapped = null;
+const bootstrap = () => {
+  if (!bootstrapped) bootstrapped = db.ready().then(() => ensureFirstAdmin());
+  return bootstrapped;
+};
+
+app.use(async (req, res, next) => {
+  try {
+    await bootstrap();
+    await settings.load();
+    next();
+  } catch (err) {
+    bootstrapped = null;
+    next(err);
+  }
+});
 
 app.use(loadUser);
 

@@ -38,13 +38,13 @@ function validate(car) {
   return errors;
 }
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim();
   const status = CAR_STATUSES.includes(req.query.status) ? req.query.status : '';
   const params = [];
   let sql = 'SELECT * FROM cars WHERE 1 = 1';
   if (q) {
-    sql += ' AND (plate LIKE ? OR make LIKE ? OR model LIKE ?)';
+    sql += ' AND (plate ILIKE ? OR make ILIKE ? OR model ILIKE ?)';
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (status) {
@@ -54,14 +54,14 @@ router.get('/', (req, res) => {
   sql += ' ORDER BY plate';
   res.render('cars/index', {
     title: 'Fleet',
-    cars: db.prepare(sql).all(...params),
+    cars: await db.prepare(sql).all(...params),
     q,
     status,
     statuses: CAR_STATUSES
   });
 });
 
-router.get('/new', (req, res) => {
+router.get('/new', async (req, res) => {
   const defaults = settings.mileage();
   res.render('cars/form', {
     title: 'Add car',
@@ -80,16 +80,16 @@ router.get('/new', (req, res) => {
   });
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const car = readCarForm(req.body);
   const errors = validate(car);
-  if (db.prepare('SELECT 1 FROM cars WHERE plate = ?').get(car.plate)) {
+  if (await db.prepare('SELECT 1 FROM cars WHERE plate = ?').get(car.plate)) {
     errors.push('A car with that plate already exists.');
   }
   if (errors.length) {
     return res.status(400).render('cars/form', { title: 'Add car', car, errors, statuses: CAR_STATUSES, action: '/cars' });
   }
-  db.prepare(
+  await db.prepare(
     `INSERT INTO cars (plate, make, model, year, color, vin, transmission, seats, daily_rate,
                        km_allowance_per_day, excess_km_rate, odometer, fuel_level, status, notes)
      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
@@ -102,20 +102,20 @@ router.post('/', (req, res) => {
   res.redirect('/cars');
 });
 
-router.get('/:id/edit', (req, res) => {
-  const car = db.prepare('SELECT * FROM cars WHERE id = ?').get(Number(req.params.id));
+router.get('/:id/edit', async (req, res) => {
+  const car = await db.prepare('SELECT * FROM cars WHERE id = ?').get(Number(req.params.id));
   if (!car) return res.status(404).render('error', { title: 'Not found', message: 'Car not found.' });
   res.render('cars/form', { title: `Edit ${car.plate}`, car, errors: [], statuses: CAR_STATUSES, action: `/cars/${car.id}` });
 });
 
-router.post('/:id', (req, res) => {
+router.post('/:id', async (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
+  const existing = await db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
   if (!existing) return res.status(404).render('error', { title: 'Not found', message: 'Car not found.' });
 
   const car = readCarForm(req.body);
   const errors = validate(car);
-  const clash = db.prepare('SELECT 1 FROM cars WHERE plate = ? AND id <> ?').get(car.plate, id);
+  const clash = await db.prepare('SELECT 1 FROM cars WHERE plate = ? AND id <> ?').get(car.plate, id);
   if (clash) errors.push('Another car already uses that plate.');
   if (existing.status === 'rented' && car.status !== 'rented') {
     errors.push('This car is on an active rental — close the rental before changing its status.');
@@ -124,7 +124,7 @@ router.post('/:id', (req, res) => {
     return res.status(400).render('cars/form', { title: `Edit ${existing.plate}`, car: { ...car, id }, errors, statuses: CAR_STATUSES, action: `/cars/${id}` });
   }
 
-  db.prepare(
+  await db.prepare(
     `UPDATE cars SET plate=?, make=?, model=?, year=?, color=?, vin=?, transmission=?, seats=?,
                      daily_rate=?, km_allowance_per_day=?, excess_km_rate=?, odometer=?, fuel_level=?,
                      status=?, notes=?
@@ -138,14 +138,14 @@ router.post('/:id', (req, res) => {
   res.redirect('/cars');
 });
 
-router.post('/:id/delete', (req, res) => {
+router.post('/:id/delete', async (req, res) => {
   const id = Number(req.params.id);
-  const used = db.prepare('SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?').get(id).n;
+  const used = await db.prepare('SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?').get(id).n;
   if (used > 0) {
     req.session.flash = { type: 'error', message: 'This car has rental history and cannot be deleted. Set it to "retired" instead.' };
     return res.redirect('/cars');
   }
-  db.prepare('DELETE FROM cars WHERE id = ?').run(id);
+  await db.prepare('DELETE FROM cars WHERE id = ?').run(id);
   req.session.flash = { type: 'success', message: 'Car removed.' };
   res.redirect('/cars');
 });

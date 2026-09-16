@@ -7,8 +7,9 @@ const { hashPassword } = require('./passwords');
  * Hosted deployments have no interactive shell to run `npm run seed` in, so this
  * runs at startup. It is a no-op once any user exists, and never logs the password.
  */
-function ensureFirstAdmin() {
-  if (db.prepare('SELECT COUNT(*) AS n FROM users').get().n > 0) return false;
+async function ensureFirstAdmin() {
+  const { n } = await db.prepare('SELECT COUNT(*) AS n FROM users').get();
+  if (Number(n) > 0) return false;
 
   const email = String(process.env.SEED_ADMIN_EMAIL || '').trim().toLowerCase();
   const password = String(process.env.SEED_ADMIN_PASSWORD || '');
@@ -23,7 +24,7 @@ function ensureFirstAdmin() {
     return false;
   }
 
-  db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
+  await db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
     .run(email, name, hashPassword(password));
   console.log(`Created first admin account: ${email}`);
   return true;

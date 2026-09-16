@@ -3,11 +3,11 @@ const crypto = require('crypto');
 const db = require('../db');
 
 /** Loads the signed-in user onto req.user for every request. */
-function loadUser(req, res, next) {
+async function loadUser(req, res, next) {
   req.user = null;
   const userId = req.session && req.session.userId;
   if (userId) {
-    const user = db
+    const user = await db
       .prepare('SELECT id, email, name, role, active FROM users WHERE id = ?')
       .get(userId);
     if (user && user.active) req.user = user;

@@ -34,7 +34,7 @@ router.get('/login', (req, res) => {
   res.render('login', { title: 'Sign in', error: null, email: '', next: req.query.next || '/' });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   const next = String(req.body.next || '/');
@@ -47,7 +47,7 @@ router.post('/login', (req, res) => {
     return fail('Too many failed attempts. Try again in a few minutes.');
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!user || !user.active || !verifyPassword(password, user.password_hash)) {
     recordFailure(email);
     return fail('Incorrect email or password.');

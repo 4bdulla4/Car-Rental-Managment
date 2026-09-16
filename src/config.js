@@ -1,6 +1,5 @@
 'use strict';
 require('dotenv').config();
-const path = require('path');
 
 const num = (value, fallback) => {
   const parsed = Number(value);
@@ -15,7 +14,8 @@ if (isProduction && !process.env.SESSION_SECRET) {
 module.exports = {
   port: num(process.env.PORT, 3000),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-insecure-secret-change-me',
-  dbFile: process.env.DB_FILE || path.join(__dirname, '..', 'data', 'car-renter.db'),
+  databaseUrl: process.env.DATABASE_URL || '',
+  pgPoolMax: num(process.env.PG_POOL_MAX, 3),
   company: {
     name: process.env.COMPANY_NAME || 'Car Renter',
     address: process.env.COMPANY_ADDRESS || '',

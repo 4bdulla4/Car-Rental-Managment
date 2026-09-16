@@ -3,18 +3,21 @@
 A small rent-a-car management app: manage the fleet and customers, issue numbered
 handover contracts, and close them with an automatically calculated settlement.
 
-Built to stay small — Node's built-in SQLite and crypto, Express, EJS. Four npm
-dependencies, no build step, no native modules. Requires **Node 24 or newer**
-(`node:sqlite` needs a runtime flag on older versions).
+Built to stay small — Express, EJS, Postgres and Node's built-in crypto. No build
+step and no native modules. Requires **Node 20 or newer** and a Postgres database.
 
 ## Quick start
 
 ```bash
 npm install
-cp .env.example .env     # then edit it (see below)
+cp .env.example .env     # then set DATABASE_URL and a password (see below)
 npm run seed -- --demo   # creates the admin account + sample fleet
 npm start
 ```
+
+You need a Postgres database. For local work, either a Postgres you already run or a
+free hosted one (Neon, Supabase) both work — put its connection string in
+`DATABASE_URL`. The schema is created automatically on first start.
 
 Open http://localhost:3210.
 
@@ -30,6 +33,8 @@ not want the sample cars and customers.
 | Key | Purpose |
 | --- | --- |
 | `PORT` | HTTP port (default 3210) |
+| `DATABASE_URL` | Postgres connection string. Required |
+| `TEST_DATABASE_URL` | Throwaway database for `npm test`; its tables are truncated on every run |
 | `SESSION_SECRET` | Signs the session cookie. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `COMPANY_*` | Starting name, address, phone, email and registration number. Editable in **Settings**, where the stored value then wins |
 | `CURRENCY` | Starting currency. Once changed in **Settings** the stored value wins |
@@ -80,63 +85,53 @@ A day is counted as any started day, and a rental always bills at least one day.
 
 ## Deploying
 
-The app keeps its data in a SQLite file, so it needs a host that gives it a
-**persistent disk**. Railway, Render and Fly.io all do. It will *not* work on
-serverless platforms such as Vercel, where the filesystem is read-only and wiped
-between invocations — there the database would vanish seconds after each write.
+The app needs a Postgres database; it holds no state on disk, so it runs equally well
+on a serverless platform or a normal server.
 
-### Railway
+### Vercel
 
-```bash
-npm i -g @railway/cli
-railway login
-railway init                      # or: railway link, to attach to an existing project
-railway volume add -m /data       # persistent disk for the SQLite file
-```
+1. Create a Postgres database — [Neon](https://neon.tech), Supabase and Vercel Postgres
+   all have a free tier. Copy its **pooled** connection string.
+2. Import the GitHub repo at [vercel.com/new](https://vercel.com/new).
+3. Under **Settings → Environment Variables**, add:
 
-Set the variables. `DB_FILE` must point inside the volume — that is what makes
-the data survive restarts and redeploys:
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL` | the pooled Postgres connection string |
+   | `SESSION_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+   | `SEED_ADMIN_EMAIL` | your email |
+   | `SEED_ADMIN_PASSWORD` | a strong password |
+   | `COMPANY_NAME`, `CURRENCY` | optional starting values |
 
-```bash
-railway variable set \
-  NODE_ENV=production \
-  DB_FILE=/data/car-renter.db \
-  SEED_ADMIN_EMAIL=you@yourcompany.com \
-  COMPANY_NAME="Your Company" \
-  CURRENCY=SAR
-```
+4. Deploy. On the first request the app creates its schema and the admin account, then
+   logs the email only.
+5. Sign in, change the password under **Users → Reset password**, then delete
+   `SEED_ADMIN_PASSWORD`.
 
-Set the two secrets from stdin so they never land in your shell history:
+`vercel.json` routes every path to `api/index.js`, which exports the Express app.
+Sessions are signed cookies, so no server-side session store is needed, and the app
+trusts the platform's `X-Forwarded-Proto` so the cookie can be marked `Secure`.
 
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" \
-  | railway variable set --stdin SESSION_SECRET
-```
+Use the **pooled** connection string. A serverless deployment opens a connection per
+instance, and a direct (unpooled) string will exhaust the database's connection limit
+under load. `PG_POOL_MAX` (default 3) caps the pool inside each instance.
 
-```bash
-railway variable set --stdin SEED_ADMIN_PASSWORD
-```
+### Anywhere else
 
-Then deploy and get the URL:
+Railway, Render, Fly.io and a plain VPS all work the same way: set `DATABASE_URL` and
+`SESSION_SECRET`, then run `npm start`.
 
-```bash
-railway up
-railway domain
-```
+### Moving an existing SQLite database
 
-On first boot the app creates the admin account from `SEED_ADMIN_*` and logs the
-email only, never the password. Sign in, change it under **Users → Reset
-password**, then remove the variable:
+Earlier versions stored data in a local SQLite file. To carry it over, set
+`DATABASE_URL` and run:
 
 ```bash
-railway variable delete SEED_ADMIN_PASSWORD
+node scripts/migrate-sqlite-to-postgres.js data/car-renter.db
 ```
 
-Seeding is skipped on every later boot because a user already exists.
-
-`PORT` is supplied by the platform — do not set it. In production the app
-refuses to start without `SESSION_SECRET`, and trusts the proxy's
-`X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+It copies users, cars, customers, settings and rentals, remapping the foreign keys,
+and refuses to run if the Postgres database already holds cars.
 
 ## Daily rate
 
@@ -245,12 +240,19 @@ CSRF tokens, and repeated failed logins are throttled per email address.
 npm test
 ```
 
-Covers the pricing and settlement rules — day counting, late fees, excess mileage,
-unlimited mileage, fuel charges, refunds and rounding.
+The pricing tests need no database. The rest do, and use `TEST_DATABASE_URL` — a
+database whose tables are truncated on every run, which is why it is deliberately
+separate from `DATABASE_URL` rather than derived from it.
+
+Covers the pricing and settlement rules (day counting, late fees, excess mileage,
+unlimited mileage, fuel charges, refunds, rounding), the settings and their
+per-contract snapshots, sign-in behind a TLS-terminating proxy, and that a currency
+change reaches every page.
 
 ## Layout
 
 ```
+api/index.js    (Vercel entry point)
 src/
   app.js server.js config.js db.js seed.js
   lib/        pricing.js  money.js  passwords.js  contracts.js
@@ -259,7 +261,7 @@ src/
 views/
   contracts/  handover.ejs  receipt.ejs   (printable A4 documents)
 test/         pricing.test.js
-data/         car-renter.db (gitignored)
+scripts/      migrate-sqlite-to-postgres.js
 ```
 
 ## Notes

@@ -1,23 +1,25 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const os = require('os');
-const path = require('path');
-const fs = require('fs');
+const helper = require('./helpers/db');
 
 // Production mode marks the session cookie Secure. Behind a TLS-terminating
 // proxy (Railway, Render, Fly) the app itself receives plain HTTP, so Express
 // must trust X-Forwarded-Proto or the cookie is refused and login fails.
 process.env.NODE_ENV = 'production';
-process.env.SESSION_SECRET = 'test-secret-not-a-real-key';
-process.env.DB_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'carrenter-')), 'test.db');
 
 const app = require('../src/app');
-const db = require('../src/db');
 const { hashPassword } = require('../src/lib/passwords');
 
-db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
-  .run('proxy@test.local', 'Proxy Test', hashPassword('CorrectHorseBattery'));
+let db;
+
+test.before(async () => {
+  db = await helper.reset();
+  await db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
+    .run('proxy@test.local', 'Proxy Test', hashPassword('CorrectHorseBattery'));
+});
+
+test.after(async () => { await db.pool.end(); });
 
 function listen() {
   return new Promise((resolve) => {
