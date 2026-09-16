@@ -103,12 +103,24 @@ function discount() {
   return { value, mode };
 }
 
+/**
+ * Daily rate pre-filled when a car is added. It is only a starting point: the
+ * rate that matters lives on each car, and is copied onto a rental when issued.
+ */
+function dailyRate() {
+  const stored = all();
+  const parsed = Number(stored.default_daily_rate);
+  return stored.default_daily_rate !== undefined && Number.isFinite(parsed)
+    ? parsed
+    : config.defaultDailyRate;
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
 module.exports = {
-  get, set, all, currency, company, policy, mileage, deposit, discount,
+  get, set, all, currency, company, policy, mileage, deposit, discount, dailyRate,
   isValidCurrency, clearCache: () => { cache = null; }
 };

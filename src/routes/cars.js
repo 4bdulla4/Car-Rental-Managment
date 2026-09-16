@@ -70,6 +70,7 @@ router.get('/new', (req, res) => {
       seats: 5,
       fuel_level: 8,
       status: 'available',
+      daily_rate: settings.dailyRate() || '',
       km_allowance_per_day: defaults.kmAllowancePerDay,
       excess_km_rate: defaults.excessKmRate
     },

@@ -40,6 +40,7 @@ not want the sample cars and customers.
 | `DEFAULT_DEPOSIT` | Starting security deposit pre-filled on a new rental |
 | `DEFAULT_DISCOUNT` | Starting standing discount pre-filled on a new rental |
 | `DEFAULT_DISCOUNT_MODE` | `amount` or `percent` |
+| `DEFAULT_DAILY_RATE` | Starting daily rate pre-filled when a car is added |
 
 `.env` and the database in `data/` are gitignored. Never commit real credentials.
 
@@ -137,6 +138,13 @@ Seeding is skipped on every later boot because a user already exists.
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
 
+## Daily rate
+
+**Settings → Daily rate** only pre-fills the form when you add a car; it is not a
+fleet-wide price. The rate that applies lives on each car, and is copied onto a rental
+when the contract is issued, so changing the default never touches an existing car or
+contract. To change what a car actually costs, edit that car under **Fleet**.
+
 ## Discount
 
 **Settings → Discount** sets a standing discount pre-filled on new rentals, either as
@@ -210,6 +218,12 @@ agreement never silently changes meaning, and a printed document is never a mix 
 two currencies. Because of that a list can legitimately show more than one code, and
 closed revenue on the dashboard is grouped per currency rather than summed across
 them. Amounts always use two decimal places.
+
+If a figure still shows an old code after you switch, that is a contract issued
+before the change rather than a bug, and the dashboard and rentals list say so. When
+the old code was simply a setup mistake, **Settings → Currency** offers a one-off
+"relabel" for each old code. It rewrites the code on those contracts and nothing
+else: amounts are never converted, because no exchange rate is involved.
 
 ## Branding
 

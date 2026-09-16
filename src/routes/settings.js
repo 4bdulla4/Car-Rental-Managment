@@ -29,6 +29,10 @@ function render(res, status, extra = {}) {
     mileage: settings.mileage(),
     deposit: settings.deposit(),
     discount: settings.discount(),
+    dailyRate: settings.dailyRate(),
+    fleetRates: db
+      .prepare('SELECT MIN(daily_rate) AS low, MAX(daily_rate) AS high FROM cars WHERE daily_rate > 0')
+      .get(),
     carCount: db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
     common: COMMON,
     inUse,
@@ -207,6 +211,49 @@ router.post('/discount', (req, res) => {
     message: mode === 'percent'
       ? `New rentals are pre-filled with a ${round2(value)}% discount, which staff can still change.`
       : 'Default discount saved. It pre-fills new rentals and can still be changed on each one.'
+  };
+  res.redirect('/settings');
+});
+
+router.post('/daily-rate', (req, res) => {
+  const rate = Number(req.body.default_daily_rate);
+
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1000000) {
+    return render(res, 400, {
+      errors: ['Default daily rate must be a number between 0 and 1,000,000.'],
+      dailyRate: req.body.default_daily_rate
+    });
+  }
+
+  settings.set('default_daily_rate', round2(rate));
+  req.session.flash = {
+    type: 'success',
+    message: 'Default daily rate saved. It pre-fills the form when you add a car; existing cars keep their own rates.'
+  };
+  res.redirect('/settings');
+});
+
+/**
+ * One-off correction for a setup mistake: relabel contracts recorded in an old
+ * currency to the active one. It changes the code only and never the amounts,
+ * because there is no exchange rate involved.
+ */
+router.post('/currency/relabel', (req, res) => {
+  const from = String(req.body.from || '').trim().toUpperCase();
+  const to = settings.currency();
+
+  if (!settings.isValidCurrency(from) || from === to) {
+    req.session.flash = { type: 'error', message: 'Nothing to relabel.' };
+    return res.redirect('/settings');
+  }
+
+  const changed = db
+    .prepare('UPDATE rentals SET currency = ? WHERE currency = ?')
+    .run(to, from).changes;
+
+  req.session.flash = {
+    type: 'success',
+    message: `${changed} contract${changed === 1 ? '' : 's'} relabelled from ${from} to ${to}. Amounts were not converted.`
   };
   res.redirect('/settings');
 });

@@ -50,6 +50,11 @@
       <% stats.revenue.forEach(function (r, i) { %>
         <div class="value sm" style="<%= i ? 'margin-top:2px' : '' %>"><%= moneyIn(r.total, r.currency) %></div>
       <% }); %>
+      <% if (stats.revenue.some(function (r) { return r.currency && r.currency !== currency; })) { %>
+        <div class="hint" style="margin-top:6px">
+          Shown per contract currency. Yours is now <%= currency %>.
+        </div>
+      <% } %>
     <% } %>
   </div>
 </div>

@@ -18,6 +18,14 @@
   <% if (q || status) { %><a class="btn" href="/rentals">Clear</a><% } %>
 </form>
 
+<% var otherCurrency = rentals.some(function (r) { return r.currency && r.currency !== currency; }); %>
+<% if (otherCurrency) { %>
+  <p class="hint" style="margin:-8px 0 14px">
+    Totals show the currency each contract was issued in, which is why some differ
+    from your current <%= currency %>. Settings can relabel them if the old code was a mistake.
+  </p>
+<% } %>
+
 <div class="card flush">
 <% if (!rentals.length) { %>
   <div class="empty">No contracts yet. <a href="/rentals/new">Issue the first one</a>.</div>

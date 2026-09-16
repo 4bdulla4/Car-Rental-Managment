@@ -35,5 +35,7 @@ module.exports = {
   defaultDeposit: num(process.env.DEFAULT_DEPOSIT, 0),
   // Standing discount pre-filled on a new rental: a flat amount or a percentage.
   defaultDiscount: num(process.env.DEFAULT_DISCOUNT, 0),
-  defaultDiscountMode: process.env.DEFAULT_DISCOUNT_MODE === 'percent' ? 'percent' : 'amount'
+  defaultDiscountMode: process.env.DEFAULT_DISCOUNT_MODE === 'percent' ? 'percent' : 'amount',
+  // Daily rate pre-filled when a car is added. Real rates live on each car.
+  defaultDailyRate: num(process.env.DEFAULT_DAILY_RATE, 0)
 };

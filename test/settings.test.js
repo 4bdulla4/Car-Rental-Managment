@@ -241,3 +241,27 @@ test('a percentage resolves to the amount recorded on the contract', () => {
   assert.equal(q.baseCharge, 600);
   assert.equal(q.total, 540);
 });
+
+test('default daily rate falls back to the environment until set', () => {
+  db.prepare("DELETE FROM settings WHERE key = 'default_daily_rate'").run();
+  settings.clearCache();
+  assert.equal(settings.dailyRate(), 0);
+});
+
+test('default daily rate is stored and read back as a number', () => {
+  settings.set('default_daily_rate', 175.5);
+  assert.equal(settings.dailyRate(), 175.5);
+  assert.equal(typeof settings.dailyRate(), 'number');
+});
+
+test('changing the default daily rate leaves existing cars and contracts alone', () => {
+  const car = db.prepare('SELECT id, daily_rate FROM cars ORDER BY id LIMIT 1').get();
+  const rental = db.prepare("SELECT daily_rate FROM rentals WHERE contract_no = 'RC-TEST-0020'").get();
+
+  settings.set('default_daily_rate', 999);
+
+  const carAfter = db.prepare('SELECT daily_rate FROM cars WHERE id = ?').get(car.id);
+  const rentalAfter = db.prepare("SELECT daily_rate FROM rentals WHERE contract_no = 'RC-TEST-0020'").get();
+  assert.equal(carAfter.daily_rate, car.daily_rate, 'the car keeps its own rate');
+  assert.equal(rentalAfter.daily_rate, rental.daily_rate, 'the contract keeps the rate it was issued at');
+});
