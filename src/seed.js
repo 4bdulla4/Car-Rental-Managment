@@ -67,7 +67,7 @@ async function main() {
     const carStmt = db.prepare(
       `INSERT INTO cars (plate, make, model, year, color, vin, transmission, seats,
                          daily_rate, km_allowance_per_day, excess_km_rate, odometer, fuel_level)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (plate) DO NOTHING`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(plate) DO NOTHING`
     );
     for (const car of DEMO_CARS) await carStmt.run(...car);
 

@@ -1,100 +1,81 @@
 'use strict';
-const { Pool } = require('pg');
+const { createClient } = require('@libsql/client');
 const config = require('./config');
 
-// One pool per process, created on first use so that a deployment missing
-// DATABASE_URL can render a setup page instead of crashing at import.
-let _pool = null;
-function getPool() {
-  if (!_pool) {
+// One client per process, created on first use so a deployment missing its
+// database configuration can render the setup page instead of crashing.
+let _client = null;
+function getClient() {
+  if (!_client) {
     if (!config.databaseUrl) {
       throw new Error('DATABASE_URL is not set. See the Deploying section of the README.');
     }
-    const isLocal = /@(localhost|127\.0\.0\.1)/.test(config.databaseUrl);
-    _pool = new Pool({
-      connectionString: config.databaseUrl,
-      max: config.pgPoolMax,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 10000,
-      ssl: isLocal ? false : { rejectUnauthorized: false }
+    _client = createClient({
+      url: config.databaseUrl,
+      authToken: config.databaseAuthToken || undefined
     });
-    _pool.on('error', (err) => console.error('Unexpected database pool error:', err));
   }
-  return _pool;
+  return _client;
 }
 
-const pool = {
-  query: (...args) => getPool().query(...args),
-  connect: (...args) => getPool().connect(...args),
-  end: (...args) => (_pool ? _pool.end(...args) : Promise.resolve())
-};
-
-/** Rewrites the `?` placeholders used throughout the queries into $1, $2, … */
-function toPlaceholders(sql) {
-  let n = 0;
-  return sql.replace(/\?/g, () => `$${++n}`);
-}
+const toNumber = (v) => (typeof v === 'bigint' ? Number(v) : v);
 
 /**
- * Mirrors the small statement API the routes use, but asynchronously.
- * `run` reports `changes`, and `lastInsertRowid` when the statement RETURNs an id.
+ * The small statement API the routes use. libSQL is asynchronous, so every call
+ * returns a promise; the SQL itself is plain SQLite with `?` placeholders.
  */
 function statement(runner, sql) {
-  const text = toPlaceholders(sql);
   return {
-    async get(...params) {
-      const { rows } = await runner.query(text, params);
+    async get(...args) {
+      const { rows } = await runner.execute({ sql, args });
       return rows[0];
     },
-    async all(...params) {
-      const { rows } = await runner.query(text, params);
+    async all(...args) {
+      const { rows } = await runner.execute({ sql, args });
       return rows;
     },
-    async run(...params) {
-      const result = await runner.query(text, params);
+    async run(...args) {
+      const result = await runner.execute({ sql, args });
       return {
-        changes: result.rowCount,
-        lastInsertRowid: result.rows[0] ? result.rows[0].id : undefined
+        changes: toNumber(result.rowsAffected),
+        // A RETURNING clause reports the id in the row rather than lastInsertRowid.
+        lastInsertRowid: result.rows[0] && result.rows[0].id !== undefined
+          ? toNumber(result.rows[0].id)
+          : toNumber(result.lastInsertRowid)
       };
     }
   };
 }
 
-const prepare = (sql) => statement(pool, sql);
-const exec = (sql) => pool.query(sql);
+const prepare = (sql) => statement(getClient(), sql);
+const exec = (sql) => getClient().executeMultiple(sql);
 
-/** Runs fn inside a transaction on a single dedicated connection. */
+/** Runs fn inside a write transaction. */
 async function tx(fn) {
-  const client = await pool.connect();
+  const transaction = await getClient().transaction('write');
   try {
-    await client.query('BEGIN');
-    const result = await fn({ prepare: (sql) => statement(client, sql) });
-    await client.query('COMMIT');
+    const result = await fn({ prepare: (sql) => statement(transaction, sql) });
+    await transaction.commit();
     return result;
   } catch (err) {
-    await client.query('ROLLBACK');
+    await transaction.rollback();
     throw err;
-  } finally {
-    client.release();
   }
 }
 
-// Timestamps are stored as text in the same shape the views render.
-const NOW = "to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')";
-
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
-  id            SERIAL PRIMARY KEY,
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
   email         TEXT NOT NULL UNIQUE,
   name          TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   role          TEXT NOT NULL DEFAULT 'staff',
   active        INTEGER NOT NULL DEFAULT 1,
-  created_at    TEXT NOT NULL DEFAULT ${NOW}
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS cars (
-  id                   SERIAL PRIMARY KEY,
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   plate                TEXT NOT NULL UNIQUE,
   make                 TEXT NOT NULL,
   model                TEXT NOT NULL,
@@ -103,18 +84,18 @@ CREATE TABLE IF NOT EXISTS cars (
   vin                  TEXT,
   transmission         TEXT DEFAULT 'automatic',
   seats                INTEGER DEFAULT 5,
-  daily_rate           DOUBLE PRECISION NOT NULL DEFAULT 0,
+  daily_rate           REAL NOT NULL DEFAULT 0,
   km_allowance_per_day INTEGER NOT NULL DEFAULT 250,
-  excess_km_rate       DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+  excess_km_rate       REAL NOT NULL DEFAULT 0.5,
   odometer             INTEGER NOT NULL DEFAULT 0,
   fuel_level           INTEGER NOT NULL DEFAULT 8,
   status               TEXT NOT NULL DEFAULT 'available',
   notes                TEXT,
-  created_at           TEXT NOT NULL DEFAULT ${NOW}
+  created_at           TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS customers (
-  id              SERIAL PRIMARY KEY,
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
   full_name       TEXT NOT NULL,
   phone           TEXT NOT NULL,
   email           TEXT,
@@ -123,21 +104,21 @@ CREATE TABLE IF NOT EXISTS customers (
   license_expiry  TEXT,
   address         TEXT,
   notes           TEXT,
-  created_at      TEXT NOT NULL DEFAULT ${NOW}
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS rentals (
-  id                     SERIAL PRIMARY KEY,
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
   contract_no            TEXT NOT NULL UNIQUE,
   car_id                 INTEGER NOT NULL REFERENCES cars(id),
   customer_id            INTEGER NOT NULL REFERENCES customers(id),
   start_date             TEXT NOT NULL,
   end_date               TEXT NOT NULL,
-  daily_rate             DOUBLE PRECISION NOT NULL,
+  daily_rate             REAL NOT NULL,
   km_allowance_per_day   INTEGER NOT NULL DEFAULT 0,
-  excess_km_rate         DOUBLE PRECISION NOT NULL DEFAULT 0,
-  deposit                DOUBLE PRECISION NOT NULL DEFAULT 0,
-  discount               DOUBLE PRECISION NOT NULL DEFAULT 0,
+  excess_km_rate         REAL NOT NULL DEFAULT 0,
+  deposit                REAL NOT NULL DEFAULT 0,
+  discount               REAL NOT NULL DEFAULT 0,
   pickup_odometer        INTEGER NOT NULL DEFAULT 0,
   pickup_fuel            INTEGER NOT NULL DEFAULT 8,
   pickup_notes           TEXT,
@@ -146,21 +127,21 @@ CREATE TABLE IF NOT EXISTS rentals (
   return_date            TEXT,
   return_odometer        INTEGER,
   return_fuel            INTEGER,
-  damage_charge          DOUBLE PRECISION DEFAULT 0,
-  other_charges          DOUBLE PRECISION DEFAULT 0,
+  damage_charge          REAL DEFAULT 0,
+  other_charges          REAL DEFAULT 0,
   return_notes           TEXT,
-  late_fee               DOUBLE PRECISION DEFAULT 0,
-  excess_km_fee          DOUBLE PRECISION DEFAULT 0,
-  fuel_fee               DOUBLE PRECISION DEFAULT 0,
-  base_charge            DOUBLE PRECISION DEFAULT 0,
-  total_amount           DOUBLE PRECISION DEFAULT 0,
-  balance_due            DOUBLE PRECISION DEFAULT 0,
+  late_fee               REAL DEFAULT 0,
+  excess_km_fee          REAL DEFAULT 0,
+  fuel_fee               REAL DEFAULT 0,
+  base_charge            REAL DEFAULT 0,
+  total_amount           REAL DEFAULT 0,
+  balance_due            REAL DEFAULT 0,
   currency               TEXT,
-  fuel_charge_per_eighth DOUBLE PRECISION,
-  late_day_multiplier    DOUBLE PRECISION,
+  fuel_charge_per_eighth REAL,
+  late_day_multiplier    REAL,
   closed_at              TEXT,
   created_by             INTEGER REFERENCES users(id),
-  created_at             TEXT NOT NULL DEFAULT ${NOW}
+  created_at             TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_rentals_status ON rentals(status);
@@ -170,7 +151,7 @@ CREATE INDEX IF NOT EXISTS idx_rentals_customer ON rentals(customer_id);
 CREATE TABLE IF NOT EXISTS settings (
   key        TEXT PRIMARY KEY,
   value      TEXT NOT NULL,
-  updated_at TEXT NOT NULL DEFAULT ${NOW}
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `;
 
@@ -178,19 +159,30 @@ CREATE TABLE IF NOT EXISTS settings (
 let schemaReady = null;
 function ready() {
   if (!schemaReady) {
-    schemaReady = pool.query(SCHEMA).then(async () => {
-      await pool.query('UPDATE rentals SET currency = $1 WHERE currency IS NULL', [config.currency]);
-      await pool.query(
-        'UPDATE rentals SET fuel_charge_per_eighth = $1 WHERE fuel_charge_per_eighth IS NULL',
-        [config.fuelChargePerEighth]
-      );
-      await pool.query(
-        'UPDATE rentals SET late_day_multiplier = $1 WHERE late_day_multiplier IS NULL',
-        [config.lateDayMultiplier]
-      );
-    });
+    schemaReady = (async () => {
+      const client = getClient();
+      await client.executeMultiple(SCHEMA);
+      await client.execute({
+        sql: 'UPDATE rentals SET currency = ? WHERE currency IS NULL',
+        args: [config.currency]
+      });
+      await client.execute({
+        sql: 'UPDATE rentals SET fuel_charge_per_eighth = ? WHERE fuel_charge_per_eighth IS NULL',
+        args: [config.fuelChargePerEighth]
+      });
+      await client.execute({
+        sql: 'UPDATE rentals SET late_day_multiplier = ? WHERE late_day_multiplier IS NULL',
+        args: [config.lateDayMultiplier]
+      });
+    })();
   }
   return schemaReady;
 }
 
-module.exports = { prepare, exec, tx, ready, pool, NOW };
+const close = async () => {
+  if (_client) _client.close();
+  _client = null;
+  schemaReady = null;
+};
+
+module.exports = { prepare, exec, tx, ready, close };

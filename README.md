@@ -3,8 +3,8 @@
 A small rent-a-car management app: manage the fleet and customers, issue numbered
 handover contracts, and close them with an automatically calculated settlement.
 
-Built to stay small — Express, EJS, Postgres and Node's built-in crypto. No build
-step and no native modules. Requires **Node 20 or newer** and a Postgres database.
+Built to stay small — Express, EJS, libSQL/SQLite and Node's built-in crypto. No
+build step and no native modules. Requires **Node 20 or newer**.
 
 ## Quick start
 
@@ -15,9 +15,9 @@ npm run seed -- --demo   # creates the admin account + sample fleet
 npm start
 ```
 
-You need a Postgres database. For local work, either a Postgres you already run or a
-free hosted one (Neon, Supabase) both work — put its connection string in
-`DATABASE_URL`. The schema is created automatically on first start.
+Locally the database is just a file — the default `DATABASE_URL=file:./data/car-renter.db`
+needs nothing installed. In production point it at a [Turso](https://turso.tech)
+database instead. The schema is created automatically on first start.
 
 Open http://localhost:3210.
 
@@ -33,8 +33,8 @@ not want the sample cars and customers.
 | Key | Purpose |
 | --- | --- |
 | `PORT` | HTTP port (default 3210) |
-| `DATABASE_URL` | Postgres connection string. Required |
-| `TEST_DATABASE_URL` | Throwaway database for `npm test`; its tables are truncated on every run |
+| `DATABASE_URL` | `file:./data/car-renter.db` locally, or a `libsql://` URL from Turso. Required |
+| `DATABASE_AUTH_TOKEN` | Turso auth token. Only needed for a hosted database |
 | `SESSION_SECRET` | Signs the session cookie. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `COMPANY_*` | Starting name, address, phone, email and registration number. Editable in **Settings**, where the stored value then wins |
 | `CURRENCY` | Starting currency. Once changed in **Settings** the stored value wins |
@@ -85,53 +85,57 @@ A day is counted as any started day, and a rental always bills at least one day.
 
 ## Deploying
 
-The app needs a Postgres database; it holds no state on disk, so it runs equally well
-on a serverless platform or a normal server.
+The app keeps no state on disk in production, so it runs on serverless platforms as
+well as ordinary servers. The database is [Turso](https://turso.tech), which is SQLite
+over HTTP — a good fit for serverless, where a normal database connection pool
+struggles.
+
+### Set up the database
+
+```bash
+brew install tursodatabase/tap/turso   # or: curl -sSfL https://get.tur.so/install.sh | bash
+turso auth signup
+turso db create car-renter
+turso db show car-renter --url          # DATABASE_URL
+turso db tokens create car-renter       # DATABASE_AUTH_TOKEN
+```
+
+Already have a local `data/car-renter.db`? Turso can take it as the starting point:
+
+```bash
+turso db create car-renter --from-file data/car-renter.db
+```
 
 ### Vercel
 
-1. Create a Postgres database — [Neon](https://neon.tech), Supabase and Vercel Postgres
-   all have a free tier. Copy its **pooled** connection string.
-2. Import the GitHub repo at [vercel.com/new](https://vercel.com/new).
-3. Under **Settings → Environment Variables**, add:
+Import the repo at [vercel.com/new](https://vercel.com/new), choose the **Other**
+preset, and add these under **Settings → Environment Variables**:
 
-   | Variable | Value |
-   | --- | --- |
-   | `DATABASE_URL` | the pooled Postgres connection string |
-   | `SESSION_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-   | `SEED_ADMIN_EMAIL` | your email |
-   | `SEED_ADMIN_PASSWORD` | a strong password |
-   | `COMPANY_NAME`, `CURRENCY` | optional starting values |
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | the `libsql://...` URL |
+| `DATABASE_AUTH_TOKEN` | the token |
+| `SESSION_SECRET` | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `SEED_ADMIN_EMAIL` | your email |
+| `SEED_ADMIN_PASSWORD` | a strong password |
 
-4. Deploy. On the first request the app creates its schema and the admin account, then
-   logs the email only.
-5. Sign in, change the password under **Users → Reset password**, then delete
-   `SEED_ADMIN_PASSWORD`.
+Then redeploy — Vercel does not pick up variable changes on its own. On the first
+request the app creates its schema and the admin account, logging the email only.
+Sign in, change the password under **Users → Reset password**, then delete
+`SEED_ADMIN_PASSWORD`.
+
+A deployment missing `DATABASE_URL` or `SESSION_SECRET` serves a page naming exactly
+what is missing rather than failing with an opaque error.
 
 `vercel.json` routes every path to `api/index.js`, which exports the Express app.
-Sessions are signed cookies, so no server-side session store is needed, and the app
+Sessions are signed cookies, so there is no session store to configure, and the app
 trusts the platform's `X-Forwarded-Proto` so the cookie can be marked `Secure`.
-
-Use the **pooled** connection string. A serverless deployment opens a connection per
-instance, and a direct (unpooled) string will exhaust the database's connection limit
-under load. `PG_POOL_MAX` (default 3) caps the pool inside each instance.
 
 ### Anywhere else
 
-Railway, Render, Fly.io and a plain VPS all work the same way: set `DATABASE_URL` and
-`SESSION_SECRET`, then run `npm start`.
-
-### Moving an existing SQLite database
-
-Earlier versions stored data in a local SQLite file. To carry it over, set
-`DATABASE_URL` and run:
-
-```bash
-node scripts/migrate-sqlite-to-postgres.js data/car-renter.db
-```
-
-It copies users, cars, customers, settings and rentals, remapping the foreign keys,
-and refuses to run if the Postgres database already holds cars.
+Railway, Render, Fly.io and a plain VPS work the same way: set `DATABASE_URL` and
+`SESSION_SECRET`, then run `npm start`. With a persistent disk you can keep using a
+`file:` database instead of Turso.
 
 ## Daily rate
 
@@ -240,9 +244,7 @@ CSRF tokens, and repeated failed logins are throttled per email address.
 npm test
 ```
 
-The pricing tests need no database. The rest do, and use `TEST_DATABASE_URL` — a
-database whose tables are truncated on every run, which is why it is deliberately
-separate from `DATABASE_URL` rather than derived from it.
+No database service is needed: each test file gets its own temporary libSQL file.
 
 Covers the pricing and settlement rules (day counting, late fees, excess mileage,
 unlimited mileage, fuel charges, refunds, rounding), the settings and their
@@ -261,7 +263,6 @@ src/
 views/
   contracts/  handover.ejs  receipt.ejs   (printable A4 documents)
 test/         pricing.test.js
-scripts/      migrate-sqlite-to-postgres.js
 ```
 
 ## Notes

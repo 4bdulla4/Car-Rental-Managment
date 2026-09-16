@@ -19,7 +19,7 @@ test.before(async () => {
     .run('proxy@test.local', 'Proxy Test', hashPassword('CorrectHorseBattery'));
 });
 
-test.after(async () => { await db.pool.end(); });
+test.after(async () => { await db.close(); });
 
 function listen() {
   return new Promise((resolve) => {

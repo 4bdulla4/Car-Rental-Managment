@@ -11,7 +11,7 @@ const { settlement, quote } = require('../src/lib/pricing');
 
 test.before(async () => { db = await helper.reset(); });
 test.beforeEach(async () => { settings.clearCache(); await settings.load(); });
-test.after(async () => { await db.pool.end(); });
+test.after(async () => { await db.close(); });
 
 async function issueRental(contractNo) {
   const car = await db

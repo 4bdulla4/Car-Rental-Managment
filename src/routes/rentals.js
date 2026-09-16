@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
     params.push(status);
   }
   if (q) {
-    sql += ' AND (r.contract_no ILIKE ? OR c.plate ILIKE ? OR cu.full_name ILIKE ?)';
+    sql += ' AND (r.contract_no LIKE ? OR c.plate LIKE ? OR cu.full_name LIKE ?)';
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   sql += ' ORDER BY r.created_at DESC';
@@ -174,7 +174,7 @@ router.get('/:id/contract', async (req, res) => {
 router.post('/:id/sign', async (req, res) => {
   const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
-  await db.prepare("UPDATE rentals SET handover_signed_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS') WHERE id = ? AND handover_signed_at IS NULL")
+  await db.prepare("UPDATE rentals SET handover_signed_at = datetime('now') WHERE id = ? AND handover_signed_at IS NULL")
     .run(rental.id);
   req.session.flash = { type: 'success', message: 'Handover recorded as signed.' };
   res.redirect(`/rentals/${rental.id}`);
@@ -249,7 +249,7 @@ router.post('/:id/return', async (req, res) => {
       `UPDATE rentals SET status = 'closed', return_date = ?, return_odometer = ?, return_fuel = ?,
                           damage_charge = ?, other_charges = ?, return_notes = ?, late_fee = ?,
                           excess_km_fee = ?, fuel_fee = ?, base_charge = ?, total_amount = ?,
-                          balance_due = ?, closed_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
+                          balance_due = ?, closed_at = datetime('now')
        WHERE id = ?`
     ).run(
       form.returnDate, form.returnOdometer, form.returnFuel, s.damageCharge, s.otherCharges,
@@ -294,7 +294,7 @@ router.post('/:id/cancel', async (req, res) => {
     return res.redirect(`/rentals/${rental.id}`);
   }
   await db.tx(async (t) => {
-    await t.prepare("UPDATE rentals SET status = 'cancelled', closed_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'), total_amount = 0, balance_due = 0 WHERE id = ?")
+    await t.prepare("UPDATE rentals SET status = 'cancelled', closed_at = datetime('now'), total_amount = 0, balance_due = 0 WHERE id = ?")
       .run(rental.id);
     await t.prepare("UPDATE cars SET status = 'available' WHERE id = ?").run(rental.car_id);
   });

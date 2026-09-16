@@ -33,8 +33,8 @@ function get(key, fallback) {
 
 async function set(key, value) {
   await db.prepare(
-    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))
-     ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   ).run(key, String(value));
   // Keep the in-request view consistent with what was just written.
   if (cache) cache[key] = String(value);

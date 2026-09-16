@@ -11,8 +11,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 const settings = {
   port: num(process.env.PORT, 3000),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-insecure-secret-change-me',
-  databaseUrl: process.env.DATABASE_URL || '',
-  pgPoolMax: num(process.env.PG_POOL_MAX, 3),
+  databaseUrl: process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || '',
+  databaseAuthToken: process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || '',
   company: {
     name: process.env.COMPANY_NAME || 'Car Renter',
     address: process.env.COMPANY_ADDRESS || '',
@@ -47,7 +47,7 @@ settings.missingConfig = function missingConfig() {
   if (!settings.databaseUrl) {
     missing.push({
       name: 'DATABASE_URL',
-      hint: 'Postgres connection string. On Vercel use your provider\'s pooled string.'
+      hint: 'Turso database URL, e.g. libsql://your-db.turso.io (with DATABASE_AUTH_TOKEN).'
     });
   }
   if (isProduction && !process.env.SESSION_SECRET) {

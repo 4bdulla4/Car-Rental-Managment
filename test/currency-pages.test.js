@@ -40,7 +40,7 @@ let server;
 
 test.after(async () => {
   if (server) server.close();
-  if (db) await db.pool.end();
+  if (db) await db.close();
 });
 
 test.before(async () => {

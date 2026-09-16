@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
   const params = [];
   let sql = 'SELECT * FROM cars WHERE 1 = 1';
   if (q) {
-    sql += ' AND (plate ILIKE ? OR make ILIKE ? OR model ILIKE ?)';
+    sql += ' AND (plate LIKE ? OR make LIKE ? OR model LIKE ?)';
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (status) {

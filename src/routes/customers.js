@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
   let sql = 'SELECT * FROM customers';
   const params = [];
   if (q) {
-    sql += ' WHERE full_name ILIKE ? OR phone ILIKE ? OR id_number ILIKE ? OR license_number ILIKE ?';
+    sql += ' WHERE full_name LIKE ? OR phone LIKE ? OR id_number LIKE ? OR license_number LIKE ?';
     params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
   sql += ' ORDER BY full_name';
