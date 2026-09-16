@@ -38,7 +38,7 @@ app.use((req, res, next) => {
   // Flash messages survive exactly one redirect.
   res.locals.flash = req.session.flash || null;
   if (req.session.flash) req.session.flash = null;
-  res.locals.company = config.company;
+  res.locals.company = settings.company();
   const activeCurrency = settings.currency();
   res.locals.currency = activeCurrency;
   res.locals.money = (v) => formatMoney(v, activeCurrency);

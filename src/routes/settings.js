@@ -16,13 +16,14 @@ const COMMON = [
   ['INR', 'Indian rupee'], ['PKR', 'Pakistani rupee']
 ];
 
-function view(res, extra = {}) {
+function render(res, status, extra = {}) {
   const inUse = db
     .prepare('SELECT currency, COUNT(*) AS n FROM rentals GROUP BY currency ORDER BY n DESC')
     .all();
-  res.render('settings/index', {
+  return res.status(status).render('settings/index', {
     title: 'Settings',
     currency: settings.currency(),
+    details: settings.company(),
     common: COMMON,
     inUse,
     errors: [],
@@ -30,21 +31,14 @@ function view(res, extra = {}) {
   });
 }
 
-router.get('/', (req, res) => view(res));
+router.get('/', (req, res) => render(res, 200));
 
 router.post('/currency', (req, res) => {
   const code = String(req.body.currency || '').trim().toUpperCase();
 
   if (!settings.isValidCurrency(code)) {
-    return res.status(400).render('settings/index', {
-      title: 'Settings',
-      currency: settings.currency(),
-      common: COMMON,
-      inUse: db.prepare('SELECT currency, COUNT(*) AS n FROM rentals GROUP BY currency ORDER BY n DESC').all(),
-      errors: ['Enter a currency code of 2 to 5 letters, such as SAR, AED or USD.']
-    });
+    return render(res, 400, { errors: ['Enter a currency code of 2 to 5 letters, such as SAR, AED or USD.'] });
   }
-
   if (code === settings.currency()) {
     req.session.flash = { type: 'success', message: `Currency is already ${code}.` };
     return res.redirect('/settings');
@@ -55,6 +49,47 @@ router.post('/currency', (req, res) => {
     type: 'success',
     message: `Currency changed to ${code}. Contracts already issued keep the currency they were written in.`
   };
+  res.redirect('/settings');
+});
+
+const FIELDS = [
+  { key: 'company_name', label: 'Company name', max: 80, required: true },
+  { key: 'company_address', label: 'Address', max: 160 },
+  { key: 'company_phone', label: 'Phone', max: 40 },
+  { key: 'company_email', label: 'Email', max: 120, email: true },
+  { key: 'company_reg_no', label: 'Registration number', max: 40 }
+];
+
+router.post('/company', (req, res) => {
+  const values = {};
+  const errors = [];
+
+  for (const field of FIELDS) {
+    const value = String(req.body[field.key] || '').trim().replace(/\s+/g, ' ');
+    if (field.required && !value) errors.push(`${field.label} is required.`);
+    if (value.length > field.max) errors.push(`${field.label} must be ${field.max} characters or fewer.`);
+    if (field.email && value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+      errors.push(`${field.label} must be a valid email address, or left blank.`);
+    }
+    values[field.key] = value;
+  }
+
+  if (errors.length) {
+    // Keep what was typed on screen rather than discarding it.
+    return render(res, 400, {
+      errors,
+      details: {
+        name: values.company_name,
+        address: values.company_address,
+        phone: values.company_phone,
+        email: values.company_email,
+        regNo: values.company_reg_no
+      }
+    });
+  }
+
+  for (const field of FIELDS) settings.set(field.key, values[field.key]);
+  req.session.flash = { type: 'success', message: 'Company details updated. They appear on contracts issued from now on.' };
   res.redirect('/settings');
 });
 

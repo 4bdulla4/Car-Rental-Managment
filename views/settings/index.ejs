@@ -11,57 +11,104 @@
 
 <div class="grid users-grid">
   <div class="card">
-    <h3>Currency</h3>
-    <form method="post" action="/settings/currency">
+    <h3>Company</h3>
+    <p class="small muted" style="margin:-8px 0 16px">
+      Printed in the header of every handover contract and return sheet.
+    </p>
+    <form method="post" action="/settings/company">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="company_name">Company name *</label>
+        <input id="company_name" name="company_name" value="<%= details.name %>" maxlength="80" required>
+      </div>
+      <div class="field">
+        <label for="company_address">Address</label>
+        <input id="company_address" name="company_address" value="<%= details.address %>" maxlength="160"
+               placeholder="Street, district, city">
+      </div>
       <div class="row">
         <div class="field">
-          <label for="currency">Currency code</label>
-          <input id="currency" name="currency" list="currency-codes" value="<%= currency %>"
-                 maxlength="5" pattern="[A-Za-z]{2,5}" required autocomplete="off"
-                 oninput="document.getElementById('preview').textContent =
-                          '1,234.50 ' + (this.value.toUpperCase() || '<%= currency %>')">
-          <datalist id="currency-codes">
-            <% common.forEach(function (c) { %><option value="<%= c[0] %>"><%= c[1] %></option><% }); %>
-          </datalist>
-          <div class="hint">Pick from the list or type any 2–5 letter code.</div>
+          <label for="company_phone">Phone</label>
+          <input id="company_phone" name="company_phone" value="<%= details.phone %>" maxlength="40">
         </div>
         <div class="field">
-          <label>Preview</label>
-          <div class="preview-box mono" id="preview">1,234.50 <%= currency %></div>
-          <div class="hint">Amounts always show two decimal places.</div>
+          <label for="company_email">Email</label>
+          <input id="company_email" name="company_email" type="email" value="<%= details.email %>" maxlength="120">
+        </div>
+        <div class="field">
+          <label for="company_reg_no">Registration no.</label>
+          <input id="company_reg_no" name="company_reg_no" value="<%= details.regNo %>" maxlength="40">
+          <div class="hint">Printed after "CR" on contracts.</div>
         </div>
       </div>
-      <button class="btn primary" type="submit">Save currency</button>
+      <button class="btn primary" type="submit">Save company details</button>
     </form>
+
+    <h3 style="margin-top:24px">Contract header preview</h3>
+    <div class="doc-preview">
+      <strong id="pv-name"><%= details.name %></strong>
+      <span id="pv-address"><%= details.address || '—' %></span>
+      <span id="pv-contact"></span>
+    </div>
   </div>
 
   <div class="card">
-    <h3>What changes</h3>
-    <p class="small muted">
-      The new currency applies to rates, deposits and every rental issued from now on.
-    </p>
-    <p class="small muted" style="margin-top:10px">
-      Contracts that already exist keep the currency they were written in, so a signed
-      agreement never changes meaning. That is why a list can show more than one code.
+    <h3>Currency</h3>
+    <form method="post" action="/settings/currency">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="currency">Currency code</label>
+        <input id="currency" name="currency" list="currency-codes" value="<%= currency %>"
+               maxlength="5" pattern="[A-Za-z]{2,5}" required autocomplete="off"
+               oninput="document.getElementById('preview').textContent =
+                        '1,234.50 ' + (this.value.toUpperCase() || '<%= currency %>')">
+        <datalist id="currency-codes">
+          <% common.forEach(function (c) { %><option value="<%= c[0] %>"><%= c[1] %></option><% }); %>
+        </datalist>
+        <div class="hint">Pick from the list or type any 2–5 letter code.</div>
+      </div>
+      <div class="field">
+        <label>Preview</label>
+        <div class="preview-box mono" id="preview">1,234.50 <%= currency %></div>
+        <div class="hint">Amounts always show two decimal places.</div>
+      </div>
+      <button class="btn primary" type="submit">Save currency</button>
+    </form>
+
+    <p class="small muted" style="margin-top:18px">
+      Applies to new rentals. Contracts already issued keep the currency they were
+      written in, so a list can show more than one code.
     </p>
 
     <% if (inUse.length) { %>
       <h3 style="margin-top:20px">In use on contracts</h3>
       <div class="lines">
         <% inUse.forEach(function (row) { %>
-          <div class="line">
-            <span><%= row.currency || '—' %></span>
-            <span><%= row.n %> contract<%= row.n === 1 ? '' : 's' %></span>
-          </div>
+          <div class="line"><span><%= row.currency || '—' %></span><span><%= row.n %></span></div>
         <% }); %>
       </div>
     <% } %>
-
-    <p class="hint" style="margin-top:16px">
-      Company name, address and the fuel and late-return policy are set with environment
-      variables — see the README.
-    </p>
   </div>
 </div>
+
+<script>
+  // Live preview of the contract header as the details are typed.
+  (function () {
+    var f = document.querySelector('form[action="/settings/company"]');
+    var name = document.getElementById('pv-name');
+    var address = document.getElementById('pv-address');
+    var contact = document.getElementById('pv-contact');
+    var paint = function () {
+      name.textContent = f.company_name.value.trim() || 'Company name';
+      address.textContent = f.company_address.value.trim() || '—';
+      var bits = [f.company_phone.value.trim(), f.company_email.value.trim()];
+      var reg = f.company_reg_no.value.trim();
+      if (reg) bits.push('CR ' + reg);
+      contact.textContent = bits.filter(Boolean).join(' · ');
+    };
+    ['company_name', 'company_address', 'company_phone', 'company_email', 'company_reg_no']
+      .forEach(function (n) { f[n].addEventListener('input', paint); });
+    paint();
+  })();
+</script>
 <%- include('../partials/foot') %>

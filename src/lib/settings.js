@@ -34,9 +34,26 @@ function currency() {
   return get('currency', config.currency);
 }
 
+/**
+ * Company details printed on contracts and shown in the UI.
+ * A stored empty string is kept as-is; only an unset key falls back to the
+ * environment, so a field can be deliberately cleared.
+ */
+function company() {
+  const stored = all();
+  const pick = (key, fallback) => (stored[key] === undefined ? fallback : stored[key]);
+  return {
+    name: pick('company_name', config.company.name),
+    address: pick('company_address', config.company.address),
+    phone: pick('company_phone', config.company.phone),
+    email: pick('company_email', config.company.email),
+    regNo: pick('company_reg_no', config.company.regNo)
+  };
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
-module.exports = { get, set, all, currency, isValidCurrency, clearCache: () => { cache = null; } };
+module.exports = { get, set, all, currency, company, isValidCurrency, clearCache: () => { cache = null; } };

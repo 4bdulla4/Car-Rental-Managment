@@ -31,7 +31,7 @@ not want the sample cars and customers.
 | --- | --- |
 | `PORT` | HTTP port (default 3210) |
 | `SESSION_SECRET` | Signs the session cookie. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `COMPANY_*` | Name, address, phone, email and registration number printed on contracts |
+| `COMPANY_*` | Starting name, address, phone, email and registration number. Editable in **Settings**, where the stored value then wins |
 | `CURRENCY` | Starting currency. Once changed in **Settings** the stored value wins |
 | `FUEL_CHARGE_PER_EIGHTH` | Charged per missing 1/8 tank at return |
 | `LATE_DAY_MULTIPLIER` | Late days bill at daily rate × this (default 1.25) |
@@ -131,6 +131,18 @@ Seeding is skipped on every later boot because a user already exists.
 `PORT` is supplied by the platform — do not set it. In production the app
 refuses to start without `SESSION_SECRET`, and trusts the proxy's
 `X-Forwarded-Proto` so the session cookie can be marked `Secure`.
+
+## Company details
+
+An admin edits the company name, address, phone, email and registration number under
+**Settings**; they appear in the header of every handover contract and return sheet,
+and the name is used throughout the UI. A live preview shows the contract header as it
+will print. The `COMPANY_*` env vars only seed the initial values.
+
+Unlike the currency, these are not snapshotted per contract — reprinting an old
+contract shows your current details. That is usually what you want for a rename or a
+move, but if you need a reprint to match exactly what was signed, say so and the
+details can be stored per rental the way the currency is.
 
 ## Currency
 

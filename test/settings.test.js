@@ -73,3 +73,22 @@ test('closed revenue is grouped by currency, never summed across them', () => {
     { currency: 'SAR', total: 600 }
   ]);
 });
+
+test('company details fall back to the environment until set', () => {
+  const before = settings.company();
+  assert.equal(before.name, process.env.COMPANY_NAME || 'Car Renter');
+});
+
+test('company details are stored and read back', () => {
+  settings.set('company_name', 'Al Nakheel Rentals');
+  settings.set('company_address', 'King Abdulaziz Rd, Jeddah');
+  const after = settings.company();
+  assert.equal(after.name, 'Al Nakheel Rentals');
+  assert.equal(after.address, 'King Abdulaziz Rd, Jeddah');
+});
+
+test('a field cleared on purpose stays empty instead of reverting to the env value', () => {
+  process.env.COMPANY_PHONE = '+966 11 000 0000';
+  settings.set('company_phone', '');
+  assert.equal(settings.company().phone, '', 'an explicit blank must not fall back');
+});
