@@ -106,10 +106,45 @@ app.use((req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).render('error', {
-    title: 'Something went wrong',
-    message: err.message || 'Unexpected error.'
-  });
+
+  // A failure during start-up happens before the view locals are set, so they
+  // are filled in here; otherwise rendering the error page would itself throw
+  // and Express would fall back to a bare "Internal Server Error".
+  res.locals.company = res.locals.company || config.company;
+  res.locals.currency = res.locals.currency || config.currency;
+  res.locals.currentUser = res.locals.currentUser || null;
+  res.locals.csrfToken = res.locals.csrfToken || '';
+  res.locals.flash = res.locals.flash || null;
+  res.locals.path = req.path;
+  res.locals.money = res.locals.money || ((v) => String(v));
+  res.locals.fuelLabel = res.locals.fuelLabel || (() => '');
+  res.locals.FUEL_LABELS = res.locals.FUEL_LABELS || [];
+
+  // The useful part of a libSQL failure is in the error's name and code, not
+  // only its message, so all three are examined.
+  const text = err
+    ? `${err.name || ''} ${err.code || ''} ${err.message || err}`
+    : String(err);
+  const databaseProblem =
+    /libsql|sqlite|server_error|unauthorized|forbidden|401|403|404|econnrefused|enotfound|fetch failed|auth token/i
+      .test(text);
+
+  const message = databaseProblem
+    ? 'The app could not reach its database. Check that DATABASE_URL and DATABASE_AUTH_TOKEN are set correctly for this environment, then redeploy. Your host\'s runtime logs have the details.'
+    : 'Something went wrong handling that request. Your host\'s runtime logs have the details.';
+
+  res.status(500).render(
+    'error',
+    { title: databaseProblem ? 'Database unavailable' : 'Something went wrong', message },
+    (renderErr, html) => {
+      if (renderErr) {
+        console.error('Could not render the error page:', renderErr);
+        res.type('text/plain').send(message);
+        return;
+      }
+      res.send(html);
+    }
+  );
 });
 
 module.exports = app;
