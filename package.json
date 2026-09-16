@@ -4,7 +4,9 @@
   "private": true,
   "description": "Rent-a-car management with automated handover contracts",
   "type": "commonjs",
-  "engines": { "node": ">=22.5.0" },
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",

@@ -4,7 +4,8 @@ A small rent-a-car management app: manage the fleet and customers, issue numbere
 handover contracts, and close them with an automatically calculated settlement.
 
 Built to stay small — Node's built-in SQLite and crypto, Express, EJS. Four npm
-dependencies, no build step, no native modules.
+dependencies, no build step, no native modules. Requires **Node 24 or newer**
+(`node:sqlite` needs a runtime flag on older versions).
 
 ## Quick start
 
@@ -70,6 +71,49 @@ value is what gets stored. Closing the contract releases the car back to the fle
 its new odometer and fuel reading, and produces the printable return & settlement sheet.
 
 A day is counted as any started day, and a rental always bills at least one day.
+
+## Deploying
+
+The app keeps its data in a SQLite file, so it needs a host that gives it a
+**persistent disk**. Railway, Render and Fly.io all do. It will *not* work on
+serverless platforms such as Vercel, where the filesystem is read-only and wiped
+between invocations — there the database would vanish seconds after each write.
+
+### Railway
+
+```bash
+npm i -g @railway/cli
+railway login
+railway init            # or: railway link  (to attach to an existing project)
+railway volume add --mount-path /data
+```
+
+Then set the variables (the volume path is what makes the data survive restarts):
+
+```bash
+railway variables \
+  --set "NODE_ENV=production" \
+  --set "DB_FILE=/data/car-renter.db" \
+  --set "SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" \
+  --set "SEED_ADMIN_EMAIL=you@yourcompany.com" \
+  --set "SEED_ADMIN_PASSWORD=<choose a strong password>" \
+  --set "COMPANY_NAME=Your Company" \
+  --set "CURRENCY=SAR"
+```
+
+```bash
+railway up
+railway domain          # prints the public URL
+```
+
+On first boot the app creates the admin account from `SEED_ADMIN_*` and prints
+the email (never the password). Sign in, change the password under **Users →
+Reset password**, then delete the `SEED_ADMIN_PASSWORD` variable. The seeding
+step is skipped on every later boot, because a user already exists.
+
+`PORT` is provided by the platform — do not set it. In production the app
+refuses to start without `SESSION_SECRET`, and trusts the proxy's
+`X-Forwarded-Proto` so the session cookie can be marked `Secure`.
 
 ## Branding
 

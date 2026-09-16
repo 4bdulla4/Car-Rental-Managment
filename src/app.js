@@ -9,6 +9,11 @@ const { fuelLabel, FUEL_LABELS } = require('./lib/contracts');
 
 const app = express();
 
+// Hosts like Railway, Render and Fly terminate TLS at the edge and forward plain
+// HTTP, so Express must trust X-Forwarded-Proto. Without this the Secure session
+// cookie below is refused and every sign-in fails. See test/session.test.js.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));

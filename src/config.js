@@ -7,6 +7,11 @@ const num = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production — sessions would otherwise be forgeable.');
+}
+
 module.exports = {
   port: num(process.env.PORT, 3000),
   sessionSecret: process.env.SESSION_SECRET || 'dev-only-insecure-secret-change-me',
