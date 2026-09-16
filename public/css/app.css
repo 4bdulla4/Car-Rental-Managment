@@ -126,7 +126,9 @@ main {
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--r); padding: 20px;
 }
-.card + .card { margin-top: 16px; }
+/* Stacked cards in normal flow need spacing; inside a grid the gap handles it,
+   so exclude grid children or the second card is pushed out of alignment. */
+:not(.grid) > .card + .card { margin-top: 16px; }
 .card.flush { padding: 0; }
 .grid { display: grid; gap: 14px; }
 .grid.stats { grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); }
