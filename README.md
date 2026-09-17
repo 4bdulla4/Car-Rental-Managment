@@ -232,6 +232,13 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Settings
+
+Settings is split into four tabs: **Company**, **Currency**, **Pricing** (daily rate,
+deposit, discount) and **Charges** (return charges, mileage defaults). Switching is
+instant and the tab is kept in the address bar, so saving a form returns you to the
+tab you were on rather than the top of the page.
+
 ## Changing your own password
 
 Every signed-in user has **My account** (the name at the bottom of the sidebar), where

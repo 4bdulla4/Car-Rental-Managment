@@ -17,11 +17,26 @@ const COMMON = [
   ['INR', 'Indian rupee'], ['PKR', 'Pakistani rupee']
 ];
 
+const TAB_FOR = {
+  '/company': 'company',
+  '/currency': 'currency',
+  '/currency/relabel': 'currency',
+  '/daily-rate': 'pricing',
+  '/deposit': 'pricing',
+  '/discount': 'pricing',
+  '/policy': 'charges',
+  '/mileage': 'charges'
+};
+
+/** Send the user back to the tab they saved from. */
+const backTo = (req) => `/settings?tab=${TAB_FOR[req.route.path] || 'company'}`;
+
 async function render(res, status, extra = {}) {
   const inUse = await db.prepare('SELECT currency, COUNT(*) AS n FROM rentals GROUP BY currency ORDER BY n DESC')
     .all();
   return res.status(status).render('settings/index', {
     title: 'Settings',
+    tab: String((res.req.query && res.req.query.tab) || ''),
     currency: settings.currency(),
     details: settings.company(),
     policy: settings.policy(),
@@ -49,7 +64,7 @@ router.post('/currency', async (req, res) => {
   }
   if (code === settings.currency()) {
     req.session.flash = { type: 'success', message: `Currency is already ${code}.` };
-    return res.redirect('/settings');
+    return res.redirect(backTo(req));
   }
 
   await settings.set('currency', code);
@@ -57,7 +72,7 @@ router.post('/currency', async (req, res) => {
     type: 'success',
     message: `Currency changed to ${code}. Contracts already issued keep the currency they were written in.`
   };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 const FIELDS = [
@@ -98,7 +113,7 @@ router.post('/company', async (req, res) => {
 
   for (const field of FIELDS) await settings.set(field.key, values[field.key]);
   req.session.flash = { type: 'success', message: 'Company details updated. They appear on contracts issued from now on.' };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 router.post('/policy', async (req, res) => {
@@ -129,7 +144,7 @@ router.post('/policy', async (req, res) => {
     type: 'success',
     message: 'Return charges updated. Contracts already issued are still settled at the rates printed on them.'
   };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 router.post('/mileage', async (req, res) => {
@@ -164,7 +179,7 @@ router.post('/mileage', async (req, res) => {
   }
 
   req.session.flash = { type: 'success', message };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 router.post('/deposit', async (req, res) => {
@@ -182,7 +197,7 @@ router.post('/deposit', async (req, res) => {
     type: 'success',
     message: 'Default deposit saved. It pre-fills new rentals and can still be changed on each one.'
   };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 router.post('/discount', async (req, res) => {
@@ -209,7 +224,7 @@ router.post('/discount', async (req, res) => {
       ? `New rentals are pre-filled with a ${round2(value)}% discount, which staff can still change.`
       : 'Default discount saved. It pre-fills new rentals and can still be changed on each one.'
   };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 router.post('/daily-rate', async (req, res) => {
@@ -227,7 +242,7 @@ router.post('/daily-rate', async (req, res) => {
     type: 'success',
     message: 'Default daily rate saved. It pre-fills the form when you add a car; existing cars keep their own rates.'
   };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 /**
@@ -241,7 +256,7 @@ router.post('/currency/relabel', async (req, res) => {
 
   if (!settings.isValidCurrency(from) || from === to) {
     req.session.flash = { type: 'error', message: 'Nothing to relabel.' };
-    return res.redirect('/settings');
+    return res.redirect(backTo(req));
   }
 
   const changed = await db.prepare('UPDATE rentals SET currency = ? WHERE currency = ?')
@@ -251,7 +266,7 @@ router.post('/currency/relabel', async (req, res) => {
     type: 'success',
     message: `${changed} contract${changed === 1 ? '' : 's'} relabelled from ${from} to ${to}. Amounts were not converted.`
   };
-  res.redirect('/settings');
+  res.redirect(backTo(req));
 });
 
 module.exports = router;
