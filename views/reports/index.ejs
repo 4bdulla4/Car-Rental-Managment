@@ -1,0 +1,167 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>Reports</h1>
+    <p class="sub">Closed contracts · <%= periods[period].label %> · amounts in <%= currency %></p>
+  </div>
+</div>
+
+<nav class="tabs">
+  <% Object.keys(periods).forEach(function (key) { %>
+    <a href="/reports?period=<%= key %>" class="<%= period === key ? 'active' : '' %>"><%= periods[key].label %></a>
+  <% }); %>
+</nav>
+
+<% if (otherCurrencies.length) { %>
+<div class="alert note">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8v.1"/></svg>
+  <div>
+    <strong>Left out of these totals:</strong>
+    <% otherCurrencies.forEach(function (c, i) { %><%= (i ? ', ' : '') %><%= c.n %> closed contract<%= Number(c.n) === 1 ? '' : 's' %> in <%= c.currency %><% }); %>.
+    Amounts in different currencies cannot be added together.
+    <% if (currentUser && currentUser.role === 'admin') { %>
+      <a href="/settings?tab=currency">Relabel them</a> if the code was a mistake.
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<div class="grid stats">
+  <div class="card stat">
+    <div class="label">Revenue</div>
+    <div class="value accent sm"><%= money(stats.revenue) %></div>
+  </div>
+  <div class="card stat">
+    <div class="label">Contracts closed</div>
+    <div class="value"><%= stats.contracts %></div>
+  </div>
+  <div class="card stat">
+    <div class="label">Average contract</div>
+    <div class="value sm"><%= money(stats.average) %></div>
+  </div>
+  <div class="card stat">
+    <div class="label">Average length</div>
+    <div class="value"><%= stats.avgDays %><small> days</small></div>
+  </div>
+</div>
+
+<% if (!stats.contracts) { %>
+  <div class="card" style="margin-top:16px">
+    <div class="empty">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      <div>
+        No contract was closed in this period, so there is nothing to chart yet.<br>
+        <a href="/reports?period=all">Look at all time</a> instead.
+      </div>
+    </div>
+  </div>
+<% } else { %>
+
+<div class="card viz" style="margin-top:16px">
+  <div class="card-head">
+    <h2>Revenue by month</h2>
+    <span class="small muted">Closed <%= currency %> contracts</span>
+  </div>
+  <div class="chart-scroll">
+    <svg viewBox="0 0 720 210" width="720" height="210" class="chart" role="img"
+         aria-label="Revenue by month, in <%= currency %>. <% monthChart.bars.forEach(function (b) { %><%= b.label %> <%= b.value %>. <% }); %>">
+      <% monthChart.ticks.forEach(function (t) { %>
+        <line class="gridline" x1="54" x2="712" y1="<%= t.y.toFixed(1) %>" y2="<%= t.y.toFixed(1) %>"/>
+        <text class="axis" x="46" y="<%= (t.y + 4).toFixed(1) %>" text-anchor="end"><%= Math.round(t.value).toLocaleString('en-US') %></text>
+      <% }); %>
+      <line class="axis-line" x1="54" x2="712" y1="<%= monthChart.baseline %>" y2="<%= monthChart.baseline %>"/>
+      <% monthChart.bars.forEach(function (b, i) { %>
+        <g class="col">
+          <rect class="hit" x="<%= (b.x - 6).toFixed(1) %>" y="14" width="<%= (b.w + 12).toFixed(1) %>" height="<%= (monthChart.baseline - 14).toFixed(1) %>"/>
+          <rect class="mark" x="<%= b.x.toFixed(1) %>" y="<%= b.y.toFixed(1) %>"
+                width="<%= b.w.toFixed(1) %>" height="<%= b.h.toFixed(1) %>" rx="4"/>
+          <% if (i === monthChart.bars.length - 1 && b.value > 0) { %>
+            <text class="value-label" x="<%= Math.min(668, Math.max(98, b.x + b.w / 2)).toFixed(1) %>" y="<%= (b.y - 7).toFixed(1) %>"
+                  text-anchor="middle"><%= money(b.value) %></text>
+          <% } %>
+          <text class="axis" x="<%= (b.x + b.w / 2).toFixed(1) %>" y="<%= (monthChart.baseline + 16) %>" text-anchor="middle"><%= b.label %></text>
+          <title><%= b.label %> — <%= money(b.value) %> from <%= b.n %> contract<%= b.n === 1 ? '' : 's' %></title>
+        </g>
+      <% }); %>
+    </svg>
+  </div>
+  <details class="table-view">
+    <summary>Show the numbers</summary>
+    <table>
+      <thead><tr><th>Month</th><th class="num">Contracts</th><th class="num">Revenue</th></tr></thead>
+      <tbody>
+        <% monthChart.bars.forEach(function (b) { %>
+          <tr><td><%= b.label %></td><td class="num"><%= b.n %></td><td class="num mono"><%= money(b.value) %></td></tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<div class="card viz">
+  <div class="card-head">
+    <h2>Revenue by car</h2>
+    <span class="small muted"><%= carChart.rows.length === 8 ? 'Top 8 earners' : 'Every car with a closed contract' %></span>
+  </div>
+  <div class="chart-scroll">
+    <svg viewBox="0 0 720 <%= carChart.height %>" width="720" height="<%= carChart.height %>" class="chart" role="img"
+         aria-label="Revenue by car, in <%= currency %>. <% carChart.rows.forEach(function (r) { %><%= r.label %> <%= r.value %>. <% }); %>">
+      <% carChart.rows.forEach(function (r) { %>
+        <g class="row">
+          <rect class="hit" x="0" y="<%= (r.textY - 15).toFixed(1) %>" width="720" height="30"/>
+          <text class="row-label" x="0" y="<%= (r.textY - 1).toFixed(1) %>"><%= r.label %></text>
+          <text class="row-sub" x="0" y="<%= (r.textY + 11).toFixed(1) %>"><%= r.sub %></text>
+          <rect class="mark" x="<%= r.labelW %>" y="<%= r.y.toFixed(1) %>"
+                width="<%= r.w.toFixed(1) %>" height="<%= r.h %>" rx="4"/>
+          <text class="value-label" x="<%= (r.labelW + r.w + 10).toFixed(1) %>" y="<%= (r.textY + 4).toFixed(1) %>"><%= money(r.value) %></text>
+          <title><%= r.label %>, <%= r.sub %> — <%= money(r.value) %> from <%= r.n %> rental<%= r.n === 1 ? '' : 's' %></title>
+        </g>
+      <% }); %>
+    </svg>
+  </div>
+  <details class="table-view">
+    <summary>Show the numbers</summary>
+    <table>
+      <thead><tr><th>Car</th><th>Plate</th><th class="num">Rentals</th><th class="num">Revenue</th></tr></thead>
+      <tbody>
+        <% carChart.rows.forEach(function (r) { %>
+          <tr><td><%= r.sub %></td><td class="mono"><%= r.label %></td><td class="num"><%= r.n %></td><td class="num mono"><%= money(r.value) %></td></tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<div class="card viz">
+  <div class="card-head">
+    <h2>What the revenue is made of</h2>
+    <span class="small muted"><%= money(breakdown.total) %> charged</span>
+  </div>
+  <% if (!breakdown.segments.length) { %>
+    <p class="small muted">No charges were recorded in this period.</p>
+  <% } else { %>
+    <svg viewBox="0 0 720 26" width="720" height="26" class="chart stack" preserveAspectRatio="none" role="img"
+         aria-label="Share of revenue by charge type. <% breakdown.segments.forEach(function (s) { %><%= s.label %> <%= (s.share * 100).toFixed(0) %> percent. <% }); %>">
+      <% breakdown.segments.forEach(function (s) { %>
+        <rect class="seg seg-<%= s.key %>" x="<%= s.x.toFixed(1) %>" y="0"
+              width="<%= s.w.toFixed(1) %>" height="26" rx="4"><title><%= s.label %> — <%= money(s.value) %> (<%= (s.share * 100).toFixed(1) %>%)</title></rect>
+      <% }); %>
+    </svg>
+    <ul class="legend">
+      <% breakdown.segments.forEach(function (s) { %>
+        <li>
+          <span class="key seg-<%= s.key %>" aria-hidden="true"></span>
+          <span class="legend-label"><%= s.label %></span>
+          <span class="legend-value"><%= money(s.value) %> · <%= (s.share * 100).toFixed(0) %>%</span>
+        </li>
+      <% }); %>
+    </ul>
+    <% if (discount > 0) { %>
+      <p class="hint">Discounts of <%= money(discount) %> were given in this period and are already taken off these figures.</p>
+    <% } %>
+  <% } %>
+</div>
+<% } %>
+<%- include('../partials/foot') %>

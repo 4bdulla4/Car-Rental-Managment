@@ -111,6 +111,7 @@ app.use('/', require('./routes/dashboard'));
 app.use('/cars', require('./routes/cars'));
 app.use('/customers', require('./routes/customers'));
 app.use('/rentals', require('./routes/rentals'));
+app.use('/reports', require('./routes/reports'));
 app.use('/users', require('./routes/users'));
 app.use('/settings', require('./routes/settings'));
 app.use('/sign', require('./routes/sign'));
