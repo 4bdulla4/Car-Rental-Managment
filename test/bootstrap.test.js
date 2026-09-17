@@ -15,6 +15,7 @@ test.beforeEach(async () => {
   await db.prepare('DELETE FROM users').run();
   delete process.env.SEED_ADMIN_EMAIL;
   delete process.env.SEED_ADMIN_PASSWORD;
+  delete process.env.SEED_ADMIN_RESET;
 });
 
 test('creates the admin on an empty database', async () => {
@@ -65,4 +66,32 @@ test('refuses a password shorter than ten characters', async () => {
 
 test('does nothing when the variables are absent', async () => {
   assert.equal(await ensureFirstAdmin(), false);
+});
+
+test('SEED_ADMIN_RESET restores access when the password is lost', async () => {
+  process.env.SEED_ADMIN_EMAIL = 'owner@example.com';
+  process.env.SEED_ADMIN_PASSWORD = 'OriginalPassword';
+  await ensureFirstAdmin();
+
+  process.env.SEED_ADMIN_PASSWORD = 'ReplacementPassword';
+  process.env.SEED_ADMIN_RESET = '1';
+  assert.equal(await ensureFirstAdmin(), true);
+
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get('owner@example.com');
+  assert.equal(verifyPassword('ReplacementPassword', user.password_hash), true);
+  assert.equal(verifyPassword('OriginalPassword', user.password_hash), false);
+  assert.equal(Number(user.active), 1, 'a disabled account is re-enabled by the reset');
+});
+
+test('SEED_ADMIN_RESET is ignored unless explicitly enabled', async () => {
+  process.env.SEED_ADMIN_EMAIL = 'owner@example.com';
+  process.env.SEED_ADMIN_PASSWORD = 'OriginalPassword';
+  await ensureFirstAdmin();
+
+  process.env.SEED_ADMIN_PASSWORD = 'ReplacementPassword';
+  process.env.SEED_ADMIN_RESET = 'no';
+  assert.equal(await ensureFirstAdmin(), false);
+
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get('owner@example.com');
+  assert.equal(verifyPassword('OriginalPassword', user.password_hash), true);
 });

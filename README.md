@@ -232,6 +232,16 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Locked out
+
+Changing `SEED_ADMIN_PASSWORD` does not reset an account that already exists — otherwise
+a stale variable would quietly undo a password changed in the app. If the password is
+genuinely lost, set `SEED_ADMIN_RESET=1` alongside `SEED_ADMIN_EMAIL` and
+`SEED_ADMIN_PASSWORD` and redeploy: the account's password is reset on the next request
+and the account re-enabled.
+
+**Remove the variable afterwards.** While it is set, every deploy resets that password.
+
 ## Accounts
 
 Two roles. **Admin** manages users; **staff** manage fleet, customers and contracts.

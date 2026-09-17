@@ -37,7 +37,19 @@ async function ensureFirstAdmin() {
 
   const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (existing) {
-    console.log(`Admin ${email} already exists — leaving it untouched. Use Users → Reset password to change it.`);
+    // Changing SEED_ADMIN_PASSWORD deliberately does not reset a live account,
+    // or a stale variable would undo a password changed in the app. SEED_ADMIN_RESET
+    // is the way back in when the password is genuinely lost.
+    if (/^(1|true|yes)$/i.test(String(process.env.SEED_ADMIN_RESET || ''))) {
+      await db.prepare('UPDATE users SET password_hash = ?, active = 1 WHERE id = ?')
+        .run(hashPassword(password), existing.id);
+      console.warn(
+        `Reset the password for ${email} because SEED_ADMIN_RESET is set. ` +
+        'Remove that variable now — while it is set, every deploy resets this password.'
+      );
+      return true;
+    }
+    console.log(`Admin ${email} already exists — leaving it untouched. Use Users → Reset password to change it, or set SEED_ADMIN_RESET=1 if the password is lost.`);
     return false;
   }
 
