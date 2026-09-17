@@ -232,6 +232,15 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Changing your own password
+
+Every signed-in user has **My account** (the name at the bottom of the sidebar), where
+they set their own password. It asks for the current one first, so a session left open
+on a shared machine cannot be used to lock the owner out of their own account.
+
+An administrator can still reset a password from **Users**, but cannot see it. Note that
+changing a password does not end sessions already signed in elsewhere.
+
 ## Locked out
 
 Changing `SEED_ADMIN_PASSWORD` does not reset an account that already exists — otherwise

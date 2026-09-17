@@ -47,11 +47,13 @@
         <span>New rental</span>
       </a>
       <div class="side-user">
-        <span class="avatar"><%= currentUser.name.trim().charAt(0).toUpperCase() %></span>
-        <span class="side-user-text">
-          <strong><%= currentUser.name %></strong>
-          <small><%= currentUser.role %></small>
-        </span>
+        <a class="side-user-link" href="/account" title="My account">
+          <span class="avatar"><%= currentUser.name.trim().charAt(0).toUpperCase() %></span>
+          <span class="side-user-text">
+            <strong><%= currentUser.name %></strong>
+            <small><%= currentUser.role %></small>
+          </span>
+        </a>
         <form method="post" action="/logout">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <button class="icon-btn" type="submit" title="Sign out" aria-label="Sign out">

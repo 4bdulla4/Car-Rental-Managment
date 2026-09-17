@@ -98,6 +98,7 @@ app.use('/customers', require('./routes/customers'));
 app.use('/rentals', require('./routes/rentals'));
 app.use('/users', require('./routes/users'));
 app.use('/settings', require('./routes/settings'));
+app.use('/account', require('./routes/account'));
 
 app.use((req, res) => {
   res.status(404).render('error', { title: 'Not found', message: 'That page does not exist.' });

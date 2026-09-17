@@ -1,0 +1,59 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>My account</h1>
+    <p class="sub">Signed in as <%= currentUser.email %> (<%= currentUser.role %>).</p>
+  </div>
+</div>
+<%- include('partials/errors') %>
+
+<div class="grid users-grid">
+  <div class="card">
+    <h3>Change my password</h3>
+    <p class="small muted" style="margin:-8px 0 16px">
+      Only you can set this. An administrator can reset it if you lose it, but cannot see it.
+    </p>
+    <form method="post" action="/account/password" autocomplete="off">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="current_password">Current password</label>
+        <input id="current_password" name="current_password" type="password"
+               autocomplete="current-password" required>
+      </div>
+      <div class="field">
+        <label for="new_password">New password</label>
+        <input id="new_password" name="new_password" type="password" minlength="10"
+               autocomplete="new-password" required>
+        <div class="hint">At least 10 characters.</div>
+      </div>
+      <div class="field">
+        <label for="confirm_password">Confirm new password</label>
+        <input id="confirm_password" name="confirm_password" type="password" minlength="10"
+               autocomplete="new-password" required>
+      </div>
+      <button class="btn primary" type="submit">Change password</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>What you can do</h3>
+    <% if (currentUser.role === 'admin') { %>
+      <p class="small muted">
+        As an <strong>admin</strong> you manage the fleet, customers and contracts, and can
+        also add or disable users and change the company settings.
+      </p>
+    <% } else { %>
+      <p class="small muted">
+        As <strong>staff</strong> you manage the fleet, customers, rentals and returns.
+        Users and Settings are limited to administrators.
+      </p>
+    <% } %>
+    <p class="hint" style="margin-top:14px">
+      Signing out everywhere is not supported yet: a session already open elsewhere stays
+      valid until it expires. Sign out on shared devices when you finish.
+    </p>
+  </div>
+</div>
+<%- include('partials/foot') %>
