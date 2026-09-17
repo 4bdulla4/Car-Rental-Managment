@@ -152,20 +152,24 @@ async function load() {
     deposit: settings.deposit()
   };
 
-  for (const car of CARS) {
-    await db.prepare(
-      `INSERT INTO cars (plate, make, model, year, color, vin, transmission, seats, daily_rate,
-                         km_allowance_per_day, excess_km_rate, odometer, fuel_level, is_sample)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(plate) DO NOTHING`
-    ).run(...car);
-  }
-  for (const c of CUSTOMERS) {
-    await db.prepare(
-      `INSERT INTO customers (full_name, phone, email, id_number, license_number, license_expiry,
-                              address, is_sample)
-       SELECT ?,?,?,?,?,?,?,1 WHERE NOT EXISTS (SELECT 1 FROM customers WHERE license_number = ?)`
-    ).run(...c, c[4]);
-  }
+  // One transaction: a run that is cut short leaves no half-written history,
+  // which matters on a serverless host where a cold start can be stopped.
+  await db.tx(async (t) => {
+    for (const car of CARS) {
+      await t.prepare(
+        `INSERT INTO cars (plate, make, model, year, color, vin, transmission, seats, daily_rate,
+                           km_allowance_per_day, excess_km_rate, odometer, fuel_level, is_sample)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(plate) DO NOTHING`
+      ).run(...car);
+    }
+    for (const c of CUSTOMERS) {
+      await t.prepare(
+        `INSERT INTO customers (full_name, phone, email, id_number, license_number, license_expiry,
+                                address, is_sample)
+         SELECT ?,?,?,?,?,?,?,1 WHERE NOT EXISTS (SELECT 1 FROM customers WHERE license_number = ?)`
+      ).run(...c, c[4]);
+    }
+  });
 
   const cars = await db.prepare('SELECT * FROM cars WHERE is_sample = 1 ORDER BY id').all();
   const customers = await db.prepare('SELECT id FROM customers WHERE is_sample = 1 ORDER BY id').all();
@@ -208,16 +212,17 @@ async function load() {
     'balance_due', 'currency', 'fuel_charge_per_eighth', 'late_day_multiplier', 'closed_at',
     'handover_signed_at'
   ];
-  const insert = db.prepare(
-    `INSERT INTO rentals (${columns.join(', ')}, status, is_sample)
-     VALUES (${columns.map(() => '?').join(',')}, 'closed', 1)`
-  );
-  for (const row of rows) {
-    await insert.run(nextNo(row.closed_at.slice(0, 4)), ...columns.slice(1).map((c) => row[c]));
-  }
-
-  // The sample cars are all back on the lot, since every contract is closed.
-  await db.prepare("UPDATE cars SET status = 'available' WHERE is_sample = 1").run();
+  await db.tx(async (t) => {
+    const insert = t.prepare(
+      `INSERT INTO rentals (${columns.join(', ')}, status, is_sample)
+       VALUES (${columns.map(() => '?').join(',')}, 'closed', 1)`
+    );
+    for (const row of rows) {
+      await insert.run(nextNo(row.closed_at.slice(0, 4)), ...columns.slice(1).map((c) => row[c]));
+    }
+    // The sample cars are all back on the lot, since every contract is closed.
+    await t.prepare("UPDATE cars SET status = 'available' WHERE is_sample = 1").run();
+  });
   return { ...(await summary()), created: true };
 }
 
