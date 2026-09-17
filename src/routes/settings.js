@@ -77,10 +77,28 @@ router.post('/currency', async (req, res) => {
     return res.redirect(backTo(req));
   }
 
+  const previous = settings.currency();
   await settings.set('currency', code);
+
+  // Relabelling is offered alongside the change because the two together are
+  // what someone correcting a setup mistake actually means, but it stays opt-in:
+  // a contract issued in another currency is history, not a label to overwrite.
+  if (req.body.relabel === '1') {
+    const changed = await db
+      .prepare('UPDATE rentals SET currency = ? WHERE currency IS NULL OR currency <> ?')
+      .run(code, code);
+    req.session.flash = {
+      type: 'success',
+      message: changed.changes
+        ? `Currency changed to ${code}, and ${changed.changes} existing contract${changed.changes === 1 ? '' : 's'} relabelled from ${previous}. Amounts were not converted.`
+        : `Currency changed to ${code}.`
+    };
+    return res.redirect(backTo(req));
+  }
+
   req.session.flash = {
     type: 'success',
-    message: `Currency changed to ${code}. Contracts already issued keep the currency they were written in.`
+    message: `Currency changed to ${code}. Contracts already issued keep the currency they were written in — Settings can relabel them.`
   };
   res.redirect(backTo(req));
 });

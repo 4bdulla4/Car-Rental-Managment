@@ -198,6 +198,16 @@
         <div class="preview-box mono" id="preview">1,234.50 <%= currency %></div>
         <div class="hint">Amounts always show two decimal places.</div>
       </div>
+      <label class="check">
+        <input type="checkbox" name="relabel" value="1">
+        <span>Also relabel existing contracts to the new currency</span>
+      </label>
+      <div class="hint" style="margin-bottom:14px">
+        Tick this if the old code was a setup mistake, so reports read in one currency.
+        Leave it unticked if those contracts were genuinely priced in the old currency —
+        relabelling changes the code only, never the amounts.
+      </div>
+
       <button class="btn primary" type="submit">Save currency</button>
     </form>
 

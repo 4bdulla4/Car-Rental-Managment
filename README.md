@@ -223,11 +223,15 @@ two currencies. Because of that a list can legitimately show more than one code,
 closed revenue on the dashboard is grouped per currency rather than summed across
 them. Amounts always use two decimal places.
 
-If a figure still shows an old code after you switch, that is a contract issued
-before the change rather than a bug, and the dashboard and rentals list say so. When
-the old code was simply a setup mistake, **Settings → Currency** offers a one-off
-"relabel" for each old code. It rewrites the code on those contracts and nothing
-else: amounts are never converted, because no exchange rate is involved.
+If a figure still shows an old code after you switch, that is a contract issued before
+the change rather than a bug, and the dashboard and rentals list say so.
+
+When the old code was simply a setup mistake, tick **Also relabel existing contracts**
+while changing the currency and the reports move over in the same step. The same is
+offered separately afterwards, per old code. Either way it rewrites the code and
+nothing else: amounts are never converted, because no exchange rate is involved. Leave
+it unticked when those contracts were genuinely priced in the old currency — that is
+history, not a label.
 
 ## Branding
 

@@ -265,3 +265,23 @@ test('changing the default daily rate leaves existing cars and contracts alone',
   assert.equal(carAfter.daily_rate, car.daily_rate, 'the car keeps its own rate');
   assert.equal(rentalAfter.daily_rate, rental.daily_rate, 'the contract keeps the rate it was issued at');
 });
+
+test('changing the currency with relabel moves the reports over too', async () => {
+  await settings.set('currency', 'SAR');
+  await issueRental('RC-TEST-0030');
+  let row = await db.prepare("SELECT currency FROM rentals WHERE contract_no = 'RC-TEST-0030'").get();
+  assert.equal(row.currency, 'SAR');
+
+  // What the relabel option does, in the same step as the change.
+  await settings.set('currency', 'AED');
+  await db.prepare('UPDATE rentals SET currency = ? WHERE currency IS NULL OR currency <> ?').run('AED', 'AED');
+
+  row = await db.prepare("SELECT currency, total_amount FROM rentals WHERE contract_no = 'RC-TEST-0030'").get();
+  assert.equal(row.currency, 'AED', 'the contract now reports in the new currency');
+  assert.equal(Number(row.total_amount), 600, 'the amount is never converted');
+
+  const grouped = await db
+    .prepare('SELECT currency, COUNT(*) AS n FROM rentals GROUP BY currency')
+    .all();
+  assert.equal(grouped.length, 1, 'reports read in a single currency afterwards');
+});
