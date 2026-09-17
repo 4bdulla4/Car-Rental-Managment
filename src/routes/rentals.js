@@ -6,6 +6,9 @@ const { requireAuth } = require('../middleware/auth');
 const { nextContractNo } = require('../lib/contracts');
 const { quote, quoteRental, settlement, rentalDays } = require('../lib/pricing');
 const { round2, formatMoney } = require('../lib/money');
+const crypto = require('crypto');
+const mailer = require('../lib/mailer');
+const mailConfig = require('../lib/config-mail');
 const settings = require('../lib/settings');
 const termsLib = require('../lib/terms');
 
@@ -213,7 +216,15 @@ router.get('/:id', async (req, res) => {
   const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   const q = quoteRental(rental);
-  res.render('rentals/show', { title: rental.contract_no, rental, quote: q, today: today(), ...inCurrency(rental) });
+  res.render('rentals/show', {
+    title: rental.contract_no,
+    rental,
+    quote: q,
+    today: today(),
+    signUrl: rental.sign_token ? signUrl(req, rental.sign_token) : null,
+    mailReady: mailer.isConfigured(),
+    ...inCurrency(rental)
+  });
 });
 
 // Printable handover contract, generated straight from the rental record.
@@ -231,6 +242,58 @@ router.get('/:id/contract', async (req, res) => {
     agreement: settings.contract(),
     ...inCurrency(rental)
   });
+});
+
+/** The absolute address of the signing page, which email needs. */
+function signUrl(req, token) {
+  const base = mailConfig.baseUrl || `${req.protocol}://${req.get('host')}`;
+  return `${base}/sign/${token}`;
+}
+
+async function ensureToken(rental) {
+  if (rental.sign_token) return rental.sign_token;
+  const token = crypto.randomBytes(24).toString('hex');
+  await db.prepare('UPDATE rentals SET sign_token = ? WHERE id = ?').run(token, rental.id);
+  return token;
+}
+
+router.post('/:id/send', async (req, res) => {
+  const rental = await findRental(req.params.id);
+  if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+
+  const token = await ensureToken(rental);
+  const url = signUrl(req, token);
+  const company = settings.company();
+
+  if (!mailer.isConfigured()) {
+    req.session.flash = {
+      type: 'success',
+      message: `Signing link ready: ${url} — email is not configured, so send this to the customer yourself.`
+    };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
+
+  const result = await mailer.send({
+    to: rental.email,
+    subject: `Your rental agreement ${rental.contract_no} — ${company.name}`,
+    text: `Dear ${rental.full_name},\n\nYour rental agreement for ${rental.plate} (${rental.make} ${rental.model}) is ready to sign:\n\n${url}\n\nRental period: ${rental.start_date} to ${rental.end_date}.\n\n${company.name}${company.phone ? ' · ' + company.phone : ''}`,
+    html: `<p>Dear ${rental.full_name},</p>
+<p>Your rental agreement for <strong>${rental.plate}</strong> (${rental.make} ${rental.model}) is ready to sign.</p>
+<p><a href="${url}" style="display:inline-block;padding:11px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none">Read and sign the agreement</a></p>
+<p style="color:#555;font-size:13px">Rental period: ${rental.start_date} to ${rental.end_date}.<br>
+If the button does not work, open this link:<br>${url}</p>
+<p style="color:#555;font-size:13px">${company.name}${company.phone ? ' · ' + company.phone : ''}</p>`
+  });
+
+  if (!result.sent) {
+    req.session.flash = { type: 'error', message: `${result.reason} The link is ${url}` };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
+
+  await db.prepare("UPDATE rentals SET sent_at = datetime('now'), sent_to = ? WHERE id = ?")
+    .run(rental.email, rental.id);
+  req.session.flash = { type: 'success', message: `Agreement sent to ${rental.email} to sign.` };
+  res.redirect(`/rentals/${rental.id}`);
 });
 
 router.post('/:id/sign', async (req, res) => {

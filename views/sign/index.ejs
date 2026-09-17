@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en" data-theme="<%= theme %>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> · <%= company.name %></title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  :root {
+    --accent: <%= accent.base %>;
+    --accent-lit: <%= accent.lit %>;
+    --accent-soft: rgba(<%= accent.rgb %>, 0.14);
+    --accent-rgb: <%= accent.rgb %>;
+    --accent-from: <%= accent.from %>;
+    --accent-to: <%= accent.to %>;
+  }
+  .sign-wrap { max-width: 860px; margin: 0 auto; padding: 26px 18px 70px; }
+  .sign-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .sign-head .wordmark { display: flex; flex-direction: column; font-weight: 700; letter-spacing: -0.02em; }
+  .sign-head small { font-size: 11px; color: var(--faint); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .pad {
+    position: relative; background: var(--field); border: 1px dashed var(--border-lit);
+    border-radius: 10px; touch-action: none;
+  }
+  .pad canvas { display: block; width: 100%; height: 180px; border-radius: 10px; cursor: crosshair; }
+  .pad .baseline { position: absolute; left: 22px; right: 22px; bottom: 44px; border-bottom: 1px solid var(--border); }
+  .pad .placeholder {
+    position: absolute; left: 0; right: 0; bottom: 18px; text-align: center;
+    font-size: 12.5px; color: var(--faint); pointer-events: none;
+  }
+  .pad.drawn .placeholder { display: none; }
+  .agreed { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 6px; font-size: 14px; }
+  .agreed input { width: 17px; height: 17px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+  .done-badge {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 10px;
+    background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); color: var(--ok);
+  }
+  .done-badge svg { width: 19px; height: 19px; flex: none; }
+</style>
+</head>
+<body>
+<div class="sign-wrap">
+  <div class="sign-head">
+    <%- include('../partials/logo', { size: 34 }) %>
+    <span class="wordmark"><%= company.name %><small>Rental agreement</small></span>
+  </div>
+
+  <% if (signed) { %>
+    <div class="done-badge" style="margin-bottom:18px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></svg>
+      <div>
+        <strong>Signed.</strong> Thank you, <%= rental.signed_name %> — a copy of this agreement
+        is below. There is nothing further to do.
+      </div>
+    </div>
+  <% } else { %>
+    <p class="sub" style="margin-bottom:18px">
+      Please read the agreement below for <strong><%= rental.plate %></strong>, then sign at the
+      bottom. It takes a moment.
+    </p>
+  <% } %>
+
+  <div class="card flush" style="overflow:hidden">
+    <iframe src="/sign/<%= rental.sign_token %>/document" title="The agreement"
+            style="display:block;width:100%;height:560px;border:0;background:#fff"></iframe>
+  </div>
+  <p class="hint" style="margin-top:8px">
+    Scroll inside the document to read it all.
+    <a href="/sign/<%= rental.sign_token %>/document" target="_blank" rel="noopener">Open it in a new tab</a>.
+  </p>
+
+  <% if (!signed) { %>
+  <div class="card" style="margin-top:18px">
+    <h3>Sign here</h3>
+    <%- include('../partials/errors') %>
+    <form method="post" id="signForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="signed_name">Your full name</label>
+        <input id="signed_name" name="signed_name" value="<%= rental.full_name %>" required maxlength="80">
+      </div>
+
+      <div class="field">
+        <label>Signature</label>
+        <div class="pad" id="pad">
+          <canvas id="canvas"></canvas>
+          <div class="baseline"></div>
+          <div class="placeholder">Draw your signature with a finger or the mouse</div>
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn sm" type="button" id="clear">Clear</button>
+        </div>
+      </div>
+
+      <label class="agreed">
+        <input type="checkbox" name="agreed" value="1" required>
+        <span>
+          I confirm I have read and agree to this agreement, that the details above are
+          correct, and that I hold a valid driving licence.
+        </span>
+      </label>
+
+      <input type="hidden" name="signature_data" id="signature_data">
+      <button class="btn primary" type="submit" style="margin-top:10px">Sign the agreement</button>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      var pad = document.getElementById('pad');
+      var canvas = document.getElementById('canvas');
+      var field = document.getElementById('signature_data');
+      var ctx = canvas.getContext('2d');
+      var drawing = false;
+      var used = false;
+
+      // The canvas is sized in device pixels so the signature is not blurred.
+      function resize() {
+        var ratio = window.devicePixelRatio || 1;
+        var box = canvas.getBoundingClientRect();
+        var data = used ? canvas.toDataURL() : null;
+        canvas.width = box.width * ratio;
+        canvas.height = box.height * ratio;
+        ctx.scale(ratio, ratio);
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('color') || '#fff';
+        if (data) {
+          var img = new Image();
+          img.onload = function () { ctx.drawImage(img, 0, 0, box.width, box.height); };
+          img.src = data;
+        }
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      var point = function (e) {
+        var box = canvas.getBoundingClientRect();
+        var t = e.touches ? e.touches[0] : e;
+        return { x: t.clientX - box.left, y: t.clientY - box.top };
+      };
+      var start = function (e) {
+        e.preventDefault();
+        drawing = true;
+        used = true;
+        pad.classList.add('drawn');
+        var p = point(e);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+      };
+      var move = function (e) {
+        if (!drawing) return;
+        e.preventDefault();
+        var p = point(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      };
+      // The field is kept current after every stroke rather than only on submit,
+      // so the signature is never lost if the form is submitted another way.
+      var capture = function () { field.value = used ? canvas.toDataURL('image/png') : ''; };
+      var end = function () {
+        if (!drawing) return;
+        drawing = false;
+        capture();
+      };
+
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', end);
+      canvas.addEventListener('touchstart', start, { passive: false });
+      canvas.addEventListener('touchmove', move, { passive: false });
+      canvas.addEventListener('touchend', end);
+
+      document.getElementById('clear').addEventListener('click', function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        used = false;
+        pad.classList.remove('drawn');
+        capture();
+      });
+
+      document.getElementById('signForm').addEventListener('submit', function (e) {
+        if (!used) {
+          e.preventDefault();
+          alert('Please draw your signature in the box before signing.');
+          return;
+        }
+        capture();
+      });
+    })();
+  </script>
+  <% } %>
+</div>
+</body>
+</html>

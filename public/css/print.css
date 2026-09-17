@@ -55,6 +55,7 @@ table.charges tr.muted td { color: var(--soft); }
 .sign-box { border-top: 1px solid var(--ink); padding-top: 6px; }
 .sign-box .role { font-weight: 600; font-size: 11px; }
 .sign-box .line { height: 34px; }
+.sign-box .signature { max-height: 34px; max-width: 100%; }
 .sign-box .hint { font-size: 9.5px; color: var(--soft); }
 .note { border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px; font-size: 11px; margin-top: 5px; min-height: 34px; }
 .checklist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px; font-size: 10.5px; margin-top: 4px; }

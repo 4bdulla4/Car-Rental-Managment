@@ -254,6 +254,22 @@ clears 4.5:1 against both backgrounds, so an unreadable colour cannot be added.
 
 Printed contracts keep their own styling, since they are printed rather than themed.
 
+## Sending the agreement for signature
+
+Open a contract and press **Email to sign**. The app creates a private link to a page
+where the customer reads the agreement and signs it with a finger or a mouse, and emails
+it to them. The signature, the name typed alongside it, the time and the signing IP are
+recorded, and the signature is printed in the Lessee box on the contract from then on.
+
+The link works whether or not email is set up: without a mail provider the button
+becomes **Get signing link** and shows the address to send by WhatsApp or any other
+means. To enable email, set `RESEND_API_KEY` and `MAIL_FROM` (and `APP_URL`, so links in
+the message are absolute). Any other provider can be substituted in
+`src/lib/mailer.js` — it is one `fetch` call.
+
+The link is unguessable but not secret: anyone holding it can sign, so treat it like
+handing someone the document. An agreement can only be signed once.
+
 ## The agreement
 
 The handover contract is a full car rental agreement, filled in from the record so no

@@ -113,6 +113,7 @@ app.use('/customers', require('./routes/customers'));
 app.use('/rentals', require('./routes/rentals'));
 app.use('/users', require('./routes/users'));
 app.use('/settings', require('./routes/settings'));
+app.use('/sign', require('./routes/sign'));
 app.use('/account', require('./routes/account'));
 
 // Open to anyone, including the sign-in page, so the switch works before login.

@@ -10,11 +10,13 @@
 <link rel="stylesheet" href="/css/print.css">
 </head>
 <body>
+<% if (typeof embedded === 'undefined' || !embedded) { %>
 <div class="toolbar-print">
   <button onclick="window.print()">Print / Save as PDF</button>
   <a href="/rentals/<%= rental.id %>">Back to contract</a>
   <a href="/rentals">All rentals</a>
 </div>
+<% } %>
 
 <div class="sheet">
   <header class="doc">
@@ -170,8 +172,18 @@
   <div class="signatures">
     <div class="sign-box">
       <div class="role">Lessee — <%= rental.full_name %></div>
-      <div class="line"></div>
-      <div class="hint">Signature &amp; date · I accept the terms above</div>
+      <div class="line">
+        <% if (rental.signature_data) { %>
+          <img class="signature" src="<%= rental.signature_data %>" alt="Signature of <%= rental.signed_name %>">
+        <% } %>
+      </div>
+      <div class="hint">
+        <% if (rental.signature_data) { %>
+          Signed electronically by <%= rental.signed_name %> on <%= rental.handover_signed_at %> UTC<%= rental.signed_ip ? ' from ' + rental.signed_ip : '' %>
+        <% } else { %>
+          Signature &amp; date · I accept the terms above
+        <% } %>
+      </div>
     </div>
     <div class="sign-box">
       <div class="role">Lessor — <%= company.name %><%= rental.issued_by ? ' (' + rental.issued_by + ')' : '' %></div>

@@ -204,6 +204,12 @@ td .sub { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
 .empty { padding: 46px 20px; text-align: center; color: var(--muted); }
 .empty svg { width: 30px; height: 30px; color: var(--faint); margin-bottom: 10px; }
 
+.signed-row { display: flex; align-items: center; gap: 16px; }
+.signature-shot {
+  height: 56px; max-width: 220px; padding: 6px 10px;
+  background: var(--field); border: 1px solid var(--border); border-radius: 8px;
+}
+
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .swatch {
   display: flex; align-items: center; gap: 8px; cursor: pointer;

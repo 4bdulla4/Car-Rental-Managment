@@ -182,7 +182,14 @@ function ready() {
         ['rentals', 'start_time', 'TEXT'],
         ['rentals', 'end_time', 'TEXT'],
         ['rentals', 'deductible', 'REAL'],
-        ['rentals', 'return_location', 'TEXT']
+        ['rentals', 'return_location', 'TEXT'],
+        // Signing: a token for the customer's link, and what they signed with.
+        ['rentals', 'sign_token', 'TEXT'],
+        ['rentals', 'signature_data', 'TEXT'],
+        ['rentals', 'signed_name', 'TEXT'],
+        ['rentals', 'signed_ip', 'TEXT'],
+        ['rentals', 'sent_at', 'TEXT'],
+        ['rentals', 'sent_to', 'TEXT']
       ];
       for (const [table, column, type] of columns) {
         const info = await client.execute(`PRAGMA table_info(${table})`);

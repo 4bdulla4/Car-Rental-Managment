@@ -12,6 +12,15 @@
   </div>
   <div class="actions">
     <a class="btn primary" href="/rentals/<%= rental.id %>/contract">Handover contract</a>
+    <% if (rental.status === 'active' && !rental.signature_data) { %>
+    <form method="post" action="/rentals/<%= rental.id %>/send">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn" type="submit">
+        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>
+        <span><%= mailReady ? 'Email to sign' : 'Get signing link' %></span>
+      </button>
+    </form>
+    <% } %>
     <% if (rental.status === 'active') { %><a class="btn" href="/rentals/<%= rental.id %>/return">Record return</a><% } %>
     <% if (rental.status === 'closed') { %><a class="btn" href="/rentals/<%= rental.id %>/receipt">Return sheet</a><% } %>
   </div>
@@ -44,6 +53,35 @@
       <dt>Address</dt><dd><%= rental.address || '—' %></dd>
     </dl>
   </div>
+</div>
+
+<div class="card">
+  <h3>Signature</h3>
+  <% if (rental.signature_data) { %>
+    <div class="signed-row">
+      <img class="signature-shot" src="<%= rental.signature_data %>" alt="Signature">
+      <div>
+        <strong><%= rental.signed_name %></strong>
+        <div class="sub">
+          Signed electronically on <%= rental.handover_signed_at %> UTC<%= rental.signed_ip ? ' · ' + rental.signed_ip : '' %>
+        </div>
+      </div>
+    </div>
+  <% } else { %>
+    <p class="small muted">Not signed yet.</p>
+    <% if (signUrl) { %>
+      <div class="field" style="margin-top:12px">
+        <label for="signlink">Signing link</label>
+        <input id="signlink" value="<%= signUrl %>" readonly onclick="this.select()">
+        <div class="hint">
+          <%= rental.sent_at ? 'Emailed to ' + rental.sent_to + ' on ' + rental.sent_at + ' UTC.' : 'Send this to the customer, or use the button above.' %>
+          Anyone with the link can sign, so treat it like a document you are handing over.
+        </div>
+      </div>
+    <% } else { %>
+      <p class="hint">Use the button above to create a link the customer can sign on their phone.</p>
+    <% } %>
+  <% } %>
 </div>
 
 <div class="card">
