@@ -3,6 +3,7 @@ const express = require('express');
 const db = require('../db');
 const settings = require('../lib/settings');
 const terms = require('../lib/terms');
+const theme = require('../lib/theme');
 const { round2 } = require('../lib/money');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
@@ -28,7 +29,8 @@ const TAB_FOR = {
   '/policy': 'charges',
   '/mileage': 'charges',
   '/terms': 'contract',
-  '/agreement': 'contract'
+  '/agreement': 'contract',
+  '/appearance': 'company'
 };
 
 /** Send the user back to the tab they saved from. */
@@ -44,6 +46,8 @@ async function render(res, status, extra = {}) {
     details: settings.company(),
     termsText: settings.termsText(),
     agreement: settings.contract(),
+    accents: theme.list(),
+    accentKey: settings.all().accent || theme.DEFAULT,
     defaultTerms: terms.DEFAULT_TERMS,
     policy: settings.policy(),
     mileage: settings.mileage(),
@@ -325,6 +329,16 @@ router.post('/agreement', async (req, res) => {
   await settings.set('return_location', returnLocation);
   await settings.set('governing_law', governingLaw);
   req.session.flash = { type: 'success', message: 'Agreement details saved. They appear on contracts issued from now on.' };
+  res.redirect(backTo(req));
+});
+
+router.post('/appearance', async (req, res) => {
+  const key = String(req.body.accent || '');
+  if (!theme.isAccent(key)) {
+    return await render(res, 400, { errors: ['Pick one of the colours shown.'] });
+  }
+  await settings.set('accent', key);
+  req.session.flash = { type: 'success', message: `Accent colour set to ${theme.get(key).name}.` };
   res.redirect(backTo(req));
 });
 

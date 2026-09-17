@@ -237,6 +237,14 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Appearance
+
+**Settings → Company → Accent colour** switches the colour used for buttons, links,
+highlights and the logo. Seven are offered and the choice applies everywhere at once,
+including the browser tab icon, which is rendered rather than served as a file so it
+follows along. Printed contracts keep their own styling, since they are printed rather
+than themed.
+
 ## The agreement
 
 The handover contract is a full car rental agreement, filled in from the record so no

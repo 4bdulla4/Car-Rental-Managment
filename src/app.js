@@ -19,6 +19,19 @@ if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
+app.get('/logo.svg', async (req, res) => {
+  const theme = require('./lib/theme');
+  let accent = theme.get();
+  try {
+    await require('./db').ready();
+    await settings.load();
+    accent = settings.accent();
+  } catch {
+    // Fall back to the default mark if the database is not reachable yet.
+  }
+  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=60').render('partials/favicon', { accent });
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: false }));
 
@@ -76,6 +89,7 @@ app.use((req, res, next) => {
   res.locals.flash = req.session.flash || null;
   if (req.session.flash) req.session.flash = null;
   res.locals.company = settings.company();
+  res.locals.accent = settings.accent();
   const activeCurrency = settings.currency();
   res.locals.currency = activeCurrency;
   res.locals.money = (v) => formatMoney(v, activeCurrency);
@@ -118,6 +132,7 @@ app.use((err, req, res, next) => {
   res.locals.flash = res.locals.flash || null;
   res.locals.path = req.path;
   res.locals.money = res.locals.money || ((v) => String(v));
+  res.locals.accent = res.locals.accent || require('./lib/theme').get();
   res.locals.fuelLabel = res.locals.fuelLabel || (() => '');
   res.locals.FUEL_LABELS = res.locals.FUEL_LABELS || [];
 

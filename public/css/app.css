@@ -200,6 +200,20 @@ td .sub { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
 .empty { padding: 46px 20px; text-align: center; color: var(--muted); }
 .empty svg { width: 30px; height: 30px; color: var(--faint); margin-bottom: 10px; }
 
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 12px 8px 9px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--card-2); color: var(--muted);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+}
+.swatch .dot {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--sw-from), var(--sw-to));
+}
+.swatch:hover { color: var(--text); border-color: var(--border-lit); }
+.swatch.picked { color: var(--text); border-color: var(--sw-from); background: var(--card); }
+
 .doc-preview {
   display: flex; flex-direction: column; gap: 3px;
   padding: 14px 16px; border-radius: 9px;

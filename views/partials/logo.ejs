@@ -6,7 +6,8 @@
   var h = (typeof size === 'undefined') ? 30 : size;
   var w = Math.round(h * 200 / 116);
   var car = (typeof carColor === 'undefined') ? '#ffffff' : carColor;
-  var swoosh = (typeof swooshColor === 'undefined') ? '#8e2dff' : swooshColor;
+  var themed = (typeof accent === 'undefined') ? null : accent;
+  var swoosh = (typeof swooshColor === 'undefined') ? (themed ? themed.base : '#8e2dff') : swooshColor;
   var mid = 'carmask-' + Math.random().toString(36).slice(2, 9);
 %>
 <svg class="logo-mark" width="<%= w %>" height="<%= h %>" viewBox="0 0 200 116" role="img" aria-hidden="true">

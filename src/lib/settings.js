@@ -149,12 +149,17 @@ function contract() {
   };
 }
 
+/** The interface accent colour. */
+function accent() {
+  return require('./theme').get(all().accent);
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
 module.exports = {
-  load, get, set, all, currency, company, termsText, contract, policy, mileage, deposit, discount, dailyRate,
+  load, get, set, all, currency, company, termsText, contract, accent, policy, mileage, deposit, discount, dailyRate,
   isValidCurrency, clearCache: () => { cache = null; }
 };

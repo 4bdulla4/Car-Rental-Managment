@@ -88,6 +88,25 @@
       <button class="btn primary" type="submit">Save company details</button>
     </form>
 
+    <h3 style="margin-top:24px">Accent colour</h3>
+    <p class="small muted" style="margin:-8px 0 14px">
+      Used for buttons, links, highlights and the logo. The printed contracts keep their
+      own styling.
+    </p>
+    <form method="post" action="/settings/appearance">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="swatches">
+        <% accents.forEach(function (a) { %>
+          <button class="swatch <%= accentKey === a.key ? 'picked' : '' %>" type="submit"
+                  name="accent" value="<%= a.key %>" title="<%= a.name %>"
+                  style="--sw-from: <%= a.from %>; --sw-to: <%= a.to %>">
+            <span class="dot"></span>
+            <span><%= a.name %></span>
+          </button>
+        <% }); %>
+      </div>
+    </form>
+
     <h3 style="margin-top:24px">Contract header preview</h3>
     <div class="doc-preview">
       <strong id="pv-name"><%= details.name %></strong>
