@@ -29,9 +29,20 @@ function recordFailure(key) {
   }
 }
 
-router.get('/login', (req, res) => {
+async function noAccountsYet() {
+  const { n } = await db.prepare('SELECT COUNT(*) AS n FROM users').get();
+  return Number(n) === 0;
+}
+
+router.get('/login', async (req, res) => {
   if (req.user) return res.redirect('/');
-  res.render('login', { title: 'Sign in', error: null, email: '', next: req.query.next || '/' });
+  res.render('login', {
+    title: 'Sign in',
+    error: null,
+    email: '',
+    next: req.query.next || '/',
+    noAccounts: await noAccountsYet()
+  });
 });
 
 router.post('/login', async (req, res) => {
@@ -40,17 +51,23 @@ router.post('/login', async (req, res) => {
   const next = String(req.body.next || '/');
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
 
-  const fail = (message) =>
-    res.status(401).render('login', { title: 'Sign in', error: message, email, next: safeNext });
+  const fail = async (message) =>
+    res.status(401).render('login', {
+      title: 'Sign in',
+      error: message,
+      email,
+      next: safeNext,
+      noAccounts: await noAccountsYet()
+    });
 
   if (isLockedOut(email)) {
-    return fail('Too many failed attempts. Try again in a few minutes.');
+    return await fail('Too many failed attempts. Try again in a few minutes.');
   }
 
   const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!user || !user.active || !verifyPassword(password, user.password_hash)) {
     recordFailure(email);
-    return fail('Incorrect email or password.');
+    return await fail('Incorrect email or password.');
   }
 
   attempts.delete(email);

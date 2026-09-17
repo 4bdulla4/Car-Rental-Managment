@@ -41,6 +41,19 @@
       <h2>Sign in</h2>
       <p class="sub">Use your staff account to manage the fleet and contracts.</p>
 
+      <% if (typeof noAccounts !== 'undefined' && noAccounts) { %>
+      <div class="alert error">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.2v.1"/></svg>
+        <div>
+          <strong>No accounts exist yet.</strong>
+          Set <span class="mono">SEED_ADMIN_EMAIL</span> and
+          <span class="mono">SEED_ADMIN_PASSWORD</span> (at least 10 characters) in your
+          host's environment variables, then redeploy — the account is created on the
+          next request.
+        </div>
+      </div>
+      <% } %>
+
       <% if (error) { %>
       <div class="alert error">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.2v.1"/></svg>
