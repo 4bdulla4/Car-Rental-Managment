@@ -204,8 +204,21 @@ td .sub { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
   background: #0c0c12; color: var(--accent-lit); font-size: 15px;
 }
 
+/* ---------- List bar (count, search, primary action) ---------- */
+.list-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin: 18px 0 14px;
+}
+.list-bar .sub { margin: 0; }
+.list-bar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search { position: relative; display: flex; align-items: center; }
+.search svg { position: absolute; left: 12px; width: 16px; height: 16px; color: var(--faint); pointer-events: none; }
+.search input { width: 250px; padding-left: 36px; }
+.search:focus-within svg { color: var(--accent-lit); }
+.inline-select select { padding: 6px 30px 6px 10px; font-size: 13px; width: auto; min-width: 104px; }
+#create-user[hidden] { display: none; }
+
 /* ---------- Users page ---------- */
-.users-grid { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
 .user-cell { display: flex; align-items: center; gap: 11px; }
 .user-cell strong { font-weight: 600; }
 .avatar.sm { width: 30px; height: 30px; font-size: 13px; border-radius: 8px; }
@@ -221,11 +234,9 @@ tr.reset-row[hidden] { display: none; }
 .reset-form { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .reset-form label { margin: 0; white-space: nowrap; color: var(--muted); }
 .reset-form input[type="password"] { width: 210px; padding: 7px 11px; font-size: 13.5px; }
-.users-grid th, .users-grid td { padding-left: 13px; padding-right: 13px; }
 .user-meta { display: flex; flex-direction: column; gap: 1px; }
 .user-name { display: flex; align-items: center; }
 .user-meta .sub { margin-top: 0; }
-@media (max-width: 1040px) { .users-grid { grid-template-columns: 1fr; } }
 
 /* ---------- Badges ---------- */
 .badge {

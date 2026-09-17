@@ -4,95 +4,175 @@
 <div class="page-head">
   <div>
     <h1>Users</h1>
-    <p class="sub">Who can sign in to <%= company.name %> — <%= users.length %> account<%= users.length === 1 ? '' : 's' %>.</p>
+    <p class="sub">Who can sign in to <%= company.name %>.</p>
   </div>
 </div>
 <%- include('../partials/errors') %>
 
-<div class="grid users-grid">
-  <div class="card flush">
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Added</th>
-            <th class="right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% users.forEach(function (u) { %>
-          <tr>
-            <td>
-              <div class="user-cell">
-                <span class="avatar sm"><%= u.name.trim().charAt(0).toUpperCase() %></span>
-                <span class="user-meta">
-                  <span class="user-name">
-                    <strong><%= u.name %></strong>
-                    <% if (u.id === currentUser.id) { %><span class="tag">You</span><% } %>
-                  </span>
-                  <span class="sub"><%= u.email %></span>
-                </span>
-              </div>
-            </td>
-            <td><span class="badge <%= u.role === 'admin' ? 'active' : 'retired' %>"><%= u.role %></span></td>
-            <td><span class="badge <%= u.active ? 'available' : 'cancelled' %>"><%= u.active ? 'active' : 'disabled' %></span></td>
-            <td class="mono small"><%= String(u.created_at).slice(0, 10) %></td>
-            <td class="right">
-              <div class="row-actions">
-                <button class="btn sm" type="button" data-reset-open>Reset password</button>
-                <% if (u.id !== currentUser.id) { %>
-                <form method="post" action="/users/<%= u.id %>/toggle">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button class="btn sm <%= u.active ? 'danger' : '' %>" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
-                </form>
-                <% } %>
-              </div>
-            </td>
-          </tr>
-          <tr class="reset-row" hidden>
-            <td colspan="5">
-              <form method="post" action="/users/<%= u.id %>/password" class="reset-form">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <label for="pw-<%= u.id %>">New password for <%= u.name %></label>
-                <input id="pw-<%= u.id %>" type="password" name="password" minlength="10" required
-                       autocomplete="new-password" placeholder="At least 10 characters">
-                <button class="btn sm primary" type="submit">Save password</button>
-                <button class="btn sm" type="button" data-reset-cancel>Cancel</button>
-              </form>
-            </td>
-          </tr>
-          <% }); %>
-        </tbody>
-      </table>
-    </div>
+<div class="grid stats">
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="9.5" cy="8" r="3.4"/><path d="M3 19.5c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/><path d="M16.5 8.4a2.9 2.9 0 0 1 0 5.2"/><path d="M18.4 19.5c0-2.1-.6-3.6-1.7-4.6"/></svg>
+    <div class="label">Total users</div>
+    <div class="value"><%= stats.total %></div>
   </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M12 3l7 2.8v5.4c0 4.2-2.9 8-7 9.3-4.1-1.3-7-5.1-7-9.3V5.8z"/><path d="M9.3 12.1l1.9 1.9 3.5-3.7"/></svg>
+    <div class="label">Admins</div>
+    <div class="value accent"><%= stats.admins %></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-3.8 3.4-6.4 7.5-6.4s7.5 2.6 7.5 6.4"/></svg>
+    <div class="label">Staff</div>
+    <div class="value"><%= stats.staff %></div>
+  </div>
+  <div class="card stat">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 15.5l7-7M15.5 15.5l-7-7"/></svg>
+    <div class="label">Disabled</div>
+    <div class="value <%= stats.disabled ? 'warn' : '' %>"><%= stats.disabled %></div>
+  </div>
+</div>
 
-  <div class="card">
-    <h3>Add user</h3>
-    <form method="post" action="/users">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="field"><label for="name">Name</label><input id="name" name="name" placeholder="Sara Mansour" required></div>
-      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" placeholder="sara@company.com" required></div>
+<div class="list-bar">
+  <p class="sub">
+    <%= stats.total %> account<%= stats.total === 1 ? '' : 's' %> · change a role from its dropdown.
+  </p>
+  <div class="list-bar-actions">
+    <form method="get" action="/users" class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input type="search" name="q" value="<%= q %>" placeholder="Search name or email…" aria-label="Search users">
+    </form>
+    <button class="btn primary" type="button" data-open-create>
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Create user</span>
+    </button>
+  </div>
+</div>
+
+<div class="card" id="create-user" <%= openForm ? '' : 'hidden' %> style="margin-bottom:16px">
+  <div class="card-head"><h3 style="margin-bottom:0">Create user</h3>
+    <button class="icon-btn" type="button" data-close-create aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <form method="post" action="/users">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="row">
+      <div class="field"><label for="name">Name</label><input id="name" name="name" value="<%= form.name || '' %>" placeholder="Sara Mansour" required></div>
+      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="<%= form.email || '' %>" placeholder="sara@company.com" required></div>
       <div class="field">
-        <label for="password">Password</label>
+        <label for="password">Temporary password</label>
         <input id="password" name="password" type="password" minlength="10" autocomplete="new-password" required>
-        <div class="hint">At least 10 characters.</div>
+        <div class="hint">At least 10 characters. They can change it under My account.</div>
       </div>
       <div class="field">
         <label for="role">Role</label>
-        <select id="role" name="role"><option value="staff">Staff</option><option value="admin">Admin</option></select>
-        <div class="hint">Admins can manage users; staff manage fleet, customers and contracts.</div>
+        <select id="role" name="role">
+          <option value="staff" <%= form.role === 'staff' ? 'selected' : '' %>>Staff</option>
+          <option value="admin" <%= form.role === 'admin' ? 'selected' : '' %>>Admin</option>
+        </select>
       </div>
-      <button class="btn primary" type="submit" style="width:100%">Create user</button>
-    </form>
-  </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" type="submit">Create user</button>
+      <button class="btn" type="button" data-close-create>Cancel</button>
+    </div>
+  </form>
 </div>
+
+<div class="card flush">
+  <% if (!users.length) { %>
+    <div class="empty">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <div>No user matches “<%= q %>”. <a href="/users">Show all</a>.</div>
+    </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>User</th><th>Role</th><th>Status</th><th>Added</th><th class="right">Actions</th></tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function (u) { %>
+        <tr>
+          <td>
+            <div class="user-cell">
+              <span class="avatar sm"><%= u.name.trim().charAt(0).toUpperCase() %></span>
+              <span class="user-meta">
+                <span class="user-name">
+                  <strong><%= u.name %></strong>
+                  <% if (u.id === currentUser.id) { %><span class="tag">You</span><% } %>
+                </span>
+                <span class="sub"><%= u.email %></span>
+              </span>
+            </div>
+          </td>
+          <td>
+            <% if (u.id === currentUser.id) { %>
+              <span class="badge active"><%= u.role %></span>
+            <% } else { %>
+              <form method="post" action="/users/<%= u.id %>/role" class="inline-select">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <select name="role" onchange="this.form.submit()" aria-label="Role for <%= u.name %>">
+                  <option value="staff" <%= u.role === 'staff' ? 'selected' : '' %>>Staff</option>
+                  <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                </select>
+              </form>
+            <% } %>
+          </td>
+          <td><span class="badge <%= u.active ? 'available' : 'cancelled' %>"><%= u.active ? 'active' : 'disabled' %></span></td>
+          <td class="mono small"><%= String(u.created_at).slice(0, 10) %></td>
+          <td class="right">
+            <div class="row-actions">
+              <button class="btn sm" type="button" data-reset-open>Reset password</button>
+              <% if (u.id !== currentUser.id) { %>
+              <form method="post" action="/users/<%= u.id %>/toggle">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn sm <%= u.active ? 'danger' : '' %>" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
+              </form>
+              <form method="post" action="/users/<%= u.id %>/delete"
+                    onsubmit="return confirm('Delete <%= u.name %> permanently? This cannot be undone.')">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn sm danger" type="submit">Delete</button>
+              </form>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+        <tr class="reset-row" hidden>
+          <td colspan="5">
+            <form method="post" action="/users/<%= u.id %>/password" class="reset-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label for="pw-<%= u.id %>">New password for <%= u.name %></label>
+              <input id="pw-<%= u.id %>" type="password" name="password" minlength="10" required
+                     autocomplete="new-password" placeholder="At least 10 characters">
+              <button class="btn sm primary" type="submit">Save password</button>
+              <button class="btn sm" type="button" data-reset-cancel>Cancel</button>
+            </form>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
 <script>
-  // The reset field opens in its own row, so it never has to fit beside the
-  // row's buttons and the table width stays stable.
+  // Create form opens on demand so the table stays the focus of the page.
+  (function () {
+    var panel = document.getElementById('create-user');
+    document.querySelectorAll('[data-open-create]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        panel.hidden = false;
+        panel.querySelector('input[name="name"]').focus();
+      });
+    });
+    document.querySelectorAll('[data-close-create]').forEach(function (b) {
+      b.addEventListener('click', function () { panel.hidden = true; });
+    });
+  })();
+
+  // The reset field opens in its own row, so an open row never widens the table.
   document.querySelectorAll('[data-reset-open]').forEach(function (open) {
     var row = open.closest('tr');
     var panel = row && row.nextElementSibling;

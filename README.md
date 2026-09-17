@@ -239,6 +239,17 @@ deposit, discount) and **Charges** (return charges, mileage defaults). Switching
 instant and the tab is kept in the address bar, so saving a form returns you to the
 tab you were on rather than the top of the page.
 
+## Users
+
+**Users** (admins only) shows the accounts at a glance — total, admins, staff and
+disabled — with a search box and a Create user button that opens the form on demand.
+
+A role is changed from the dropdown on its row. An account can be disabled, which keeps
+its history but stops it signing in, or deleted outright. Deleting is refused for an
+account that has issued contracts, because each contract records who issued it; disable
+those instead. You cannot change your own role, disable yourself, or delete yourself —
+which is what guarantees an admin always remains.
+
 ## Changing your own password
 
 Every signed-in user has **My account** (the name at the bottom of the sidebar), where
