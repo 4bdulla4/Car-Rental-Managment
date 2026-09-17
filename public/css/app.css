@@ -114,8 +114,10 @@ svg.logo-mark * { stroke: none; }
 
 .content { flex: 1; min-width: 0; margin-left: var(--sidebar-w); }
 main {
-  max-width: 1160px; margin: 0 auto; padding: 30px 28px 70px;
-  background: radial-gradient(900px 340px at 20% -120px, rgba(142, 45, 255, 0.09), transparent 70%);
+  /* No width cap: the sidebar already frames the page, and capping it left a
+     wide empty margin on either side of the content on a large screen. */
+  padding: 30px 32px 80px;
+  background: radial-gradient(1100px 360px at 18% -130px, rgba(142, 45, 255, 0.09), transparent 70%);
 }
 .scrim { display: none; }
 .mobilebar { display: none; }
@@ -155,16 +157,20 @@ section[data-panel][hidden] { display: none; }
 :not(.grid) > .card + .card { margin-top: 16px; }
 .card.flush { padding: 0; }
 .grid { display: grid; gap: 14px; }
-.grid.stats { grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); }
+.grid.stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
-.stat { position: relative; overflow: hidden; }
-.stat .label { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
-.stat .value { font-family: var(--mono); font-size: 30px; font-weight: 600; margin-top: 8px; letter-spacing: -0.02em; }
+.stat {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between;
+  min-height: 132px; padding: 22px;
+}
+.stat .label { color: var(--muted); font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; }
+.stat .value { font-family: var(--mono); font-size: 34px; font-weight: 600; margin-top: 10px; letter-spacing: -0.02em; line-height: 1.1; }
 .stat .value small { font-size: 15px; color: var(--faint); font-weight: 400; }
 .stat .value.accent { color: var(--accent-lit); }
 .stat .value.warn { color: var(--warn); }
-.stat .value.sm { font-size: 21px; }
+.stat .value.sm { font-size: 23px; }
 .stat .stat-ico {
   position: absolute; top: 16px; right: 16px; width: 19px; height: 19px;
   color: var(--faint); opacity: 0.6;
@@ -419,6 +425,14 @@ input[type="checkbox"] { width: auto; }
   .auth-brand { display: none; }
   .auth-card .mobile-logo { display: flex; align-items: center; gap: 11px; margin-bottom: 26px; font-weight: 700; font-size: 18px; }
 }
+@media (max-width: 640px) {
+  /* Two per row and shorter, or six stacked full-height cards bury the page. */
+  .grid.stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .stat { min-height: 0; padding: 16px; }
+  .stat .value { font-size: 26px; margin-top: 6px; }
+  .stat .value.sm { font-size: 18px; }
+}
+
 @media (max-width: 560px) {
   h1 { font-size: 21px; }
   .page-head { gap: 12px; }
