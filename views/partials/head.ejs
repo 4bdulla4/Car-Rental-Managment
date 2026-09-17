@@ -16,8 +16,10 @@
   :root {
     --accent: <%= theme === 'light' ? accent.deep : accent.base %>;
     --accent-lit: <%= theme === 'light' ? accent.deep : accent.lit %>;
-    --accent-soft: <%= accent.soft %>;
-    --accent-mark: <%= accent.base %>;
+    --accent-soft: rgba(<%= theme === 'light' ? accent.deepRgb : accent.rgb %>, <%= theme === 'light' ? '0.10' : '0.14' %>);
+    --accent-rgb: <%= theme === 'light' ? accent.deepRgb : accent.rgb %>;
+    --accent-from: <%= accent.from %>;
+    --accent-to: <%= accent.to %>;
   }
 </style>
 </head>

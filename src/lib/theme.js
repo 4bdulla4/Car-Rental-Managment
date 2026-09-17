@@ -19,8 +19,15 @@ const ACCENTS = {
 
 const DEFAULT = 'purple';
 
+/** "142, 45, 255" — lets the stylesheet build rgba() at any alpha it needs. */
+const channels = (hex) =>
+  [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ');
+
 const isAccent = (key) => Object.prototype.hasOwnProperty.call(ACCENTS, String(key));
-const get = (key) => ACCENTS[isAccent(key) ? key : DEFAULT];
-const list = () => Object.entries(ACCENTS).map(([key, value]) => ({ key, ...value }));
+const get = (key) => {
+  const accent = ACCENTS[isAccent(key) ? key : DEFAULT];
+  return { ...accent, rgb: channels(accent.base), deepRgb: channels(accent.deep) };
+};
+const list = () => Object.keys(ACCENTS).map((key) => ({ key, ...get(key) }));
 
 module.exports = { ACCENTS, DEFAULT, get, list, isAccent };
