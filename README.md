@@ -237,6 +237,18 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Dashboard
+
+The dashboard answers what needs doing today. Six counts across the top — cars
+available, on rent, due back today, overdue, off the road, customers — each linking to
+the list it summarises.
+
+**Still out** lists every car not yet back, soonest due first, each row marked Overdue
+or Today with a Return button beside it. **Revenue** reports this month and all time,
+grouped per currency. **Recently closed** shows the last settlements, and **Licences to
+chase** the customers whose licence expires within thirty days, so it is renewed before
+it blocks a booking.
+
 ## Rentals and the fleet
 
 Both lists open with counts that double as filters. **Rentals** shows open contracts,
