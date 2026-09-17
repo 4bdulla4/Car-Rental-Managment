@@ -129,8 +129,18 @@ app.use((err, req, res, next) => {
     /libsql|sqlite|server_error|unauthorized|forbidden|401|403|404|econnrefused|enotfound|fetch failed|auth token/i
       .test(text);
 
+  // The database's own HTTP status says which of the two settings is wrong, and
+  // neither the URL nor the token is revealed by reporting it.
+  const status = (/HTTP status (\d{3})/.exec(text) || [])[1];
+  const diagnosis = {
+    404: 'The database was not found at that address, so DATABASE_URL points at a database that does not exist. Check it with: turso db list',
+    401: 'The database rejected the credentials, so DATABASE_AUTH_TOKEN is wrong or expired. Issue a new one with: turso db tokens create <database>',
+    403: 'The database rejected the credentials, so DATABASE_AUTH_TOKEN is wrong or expired. Issue a new one with: turso db tokens create <database>'
+  }[status];
+
   const message = databaseProblem
-    ? 'The app could not reach its database. Check that DATABASE_URL and DATABASE_AUTH_TOKEN are set correctly for this environment, then redeploy. Your host\'s runtime logs have the details.'
+    ? (diagnosis || 'The app could not reach its database. Check DATABASE_URL and DATABASE_AUTH_TOKEN for this environment.') +
+      ' Remember to redeploy after changing a variable — Vercel does not apply them to the running deployment.'
     : 'Something went wrong handling that request. Your host\'s runtime logs have the details.';
 
   res.status(500).render(
