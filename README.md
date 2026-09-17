@@ -242,8 +242,17 @@ sets the wordmark.
 **Settings → Company → Accent colour** switches the colour used for buttons, links,
 highlights and the logo. Seven are offered and the choice applies everywhere at once,
 including the browser tab icon, which is rendered rather than served as a file so it
-follows along. Printed contracts keep their own styling, since they are printed rather
-than themed.
+follows along. This is a company-wide setting.
+
+**Light and dark** is per person, from the switch above your name in the sidebar and on
+the sign-in page. The choice is kept in your session and applied on the server, so a
+page never appears in the wrong theme before correcting itself.
+
+Each accent carries two shades: a tint for the dark theme and a deeper one for the
+light theme, because no single colour reads well on both. A test asserts every accent
+clears 4.5:1 against both backgrounds, so an unreadable colour cannot be added.
+
+Printed contracts keep their own styling, since they are printed rather than themed.
 
 ## The agreement
 

@@ -90,6 +90,7 @@ app.use((req, res, next) => {
   if (req.session.flash) req.session.flash = null;
   res.locals.company = settings.company();
   res.locals.accent = settings.accent();
+  res.locals.theme = req.session.theme === 'light' ? 'light' : 'dark';
   const activeCurrency = settings.currency();
   res.locals.currency = activeCurrency;
   res.locals.money = (v) => formatMoney(v, activeCurrency);
@@ -114,6 +115,13 @@ app.use('/users', require('./routes/users'));
 app.use('/settings', require('./routes/settings'));
 app.use('/account', require('./routes/account'));
 
+// Open to anyone, including the sign-in page, so the switch works before login.
+app.post('/theme', (req, res) => {
+  req.session.theme = req.body.theme === 'light' ? 'light' : 'dark';
+  const next = String(req.body.next || '/');
+  res.redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/');
+});
+
 app.use((req, res) => {
   res.status(404).render('error', { title: 'Not found', message: 'That page does not exist.' });
 });
@@ -133,6 +141,7 @@ app.use((err, req, res, next) => {
   res.locals.path = req.path;
   res.locals.money = res.locals.money || ((v) => String(v));
   res.locals.accent = res.locals.accent || require('./lib/theme').get();
+  res.locals.theme = res.locals.theme || 'dark';
   res.locals.fuelLabel = res.locals.fuelLabel || (() => '');
   res.locals.FUEL_LABELS = res.locals.FUEL_LABELS || [];
 

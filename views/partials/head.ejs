@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="<%= typeof theme === 'undefined' ? 'dark' : theme %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="<%= typeof theme === 'undefined' ? 'dark' : theme %>">
 <title><%= title %> · <%= company.name %></title>
 <link rel="icon" type="image/svg+xml" href="/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,10 +11,13 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/app.css">
 <style>
+  /* The light tint is legible on a dark ground; on white the deeper shade is,
+     so each theme takes the end of the accent's range that it can carry. */
   :root {
-    --accent: <%= accent.base %>;
-    --accent-lit: <%= accent.lit %>;
+    --accent: <%= theme === 'light' ? accent.deep : accent.base %>;
+    --accent-lit: <%= theme === 'light' ? accent.deep : accent.lit %>;
     --accent-soft: <%= accent.soft %>;
+    --accent-mark: <%= accent.base %>;
   }
 </style>
 </head>
