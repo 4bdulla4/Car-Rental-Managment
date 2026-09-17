@@ -53,11 +53,24 @@
         <input type="hidden" name="next" value="<%= next %>">
         <div class="field">
           <label for="email">Email address</label>
-          <input id="email" name="email" type="email" value="<%= email %>" placeholder="you@company.com" required autofocus>
+          <div class="input-wrap">
+            <svg class="lead" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>
+            <input id="email" name="email" type="email" value="<%= email %>"
+                   placeholder="you@company.com" required autofocus
+                   autocomplete="username" inputmode="email" spellcheck="false">
+          </div>
         </div>
         <div class="field">
           <label for="password">Password</label>
-          <input id="password" name="password" type="password" placeholder="••••••••••" required>
+          <div class="input-wrap">
+            <svg class="lead" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2.5"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>
+            <input id="password" name="password" type="password" placeholder="Your password"
+                   required autocomplete="current-password">
+            <button type="button" class="reveal" data-reveal aria-label="Show password" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true" data-eye><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" data-eye-off hidden><path d="M4 4l16 16"/><path d="M9.9 5.9A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.3 4"/><path d="M6.5 7.8A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1 0 2-.2 2.8-.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
         </div>
         <button class="btn primary" type="submit">
           <span>Sign in</span>
@@ -66,6 +79,24 @@
       </form>
 
       <p class="auth-note">Locked out? Ask an administrator to reset your password.</p>
+
+      <script>
+        // Reveal the password so a typo can be spotted before signing in.
+        (function () {
+          var button = document.querySelector('[data-reveal]');
+          if (!button) return;
+          var input = document.getElementById('password');
+          button.addEventListener('click', function () {
+            var reveal = input.type === 'password';
+            input.type = reveal ? 'text' : 'password';
+            button.setAttribute('aria-pressed', String(reveal));
+            button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+            button.querySelector('[data-eye]').hidden = reveal;
+            button.querySelector('[data-eye-off]').hidden = !reveal;
+            input.focus();
+          });
+        })();
+      </script>
     </div>
   </section>
 </div>

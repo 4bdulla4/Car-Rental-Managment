@@ -334,7 +334,33 @@ input[type="checkbox"] { width: auto; }
 .auth-card .mobile-logo { display: none; }
 .auth-card h2 { font-size: 26px; letter-spacing: -0.03em; }
 .auth-card .sub { color: var(--muted); font-size: 14px; margin: 7px 0 26px; }
-.auth-card .btn { width: 100%; padding: 12px; font-size: 15px; margin-top: 4px; }
+.auth-card .btn { width: 100%; padding: 13px; font-size: 15px; margin-top: 6px; }
+.auth-card .field { margin-bottom: 18px; }
+.auth-card label { font-size: 13px; margin-bottom: 7px; }
+
+/* Field with a leading icon, and a reveal button on the password. */
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-wrap input { padding: 12px 14px 12px 42px; font-size: 15px; border-radius: 10px; }
+.input-wrap .lead {
+  position: absolute; left: 14px; width: 17px; height: 17px;
+  color: var(--faint); pointer-events: none; transition: color 0.12s;
+}
+.input-wrap:focus-within .lead { color: var(--accent-lit); }
+.input-wrap:has(input:not(:placeholder-shown)) .lead { color: var(--muted); }
+.input-wrap .reveal {
+  position: absolute; right: 6px; display: grid; place-items: center;
+  width: 32px; height: 32px; padding: 0; cursor: pointer;
+  background: transparent; border: 0; border-radius: 8px; color: var(--faint);
+}
+.input-wrap .reveal svg { width: 17px; height: 17px; grid-area: 1 / 1; }
+/* The UA rule for [hidden] does not reach SVG elements, so it is set here. */
+.input-wrap .reveal svg[hidden] { display: none; }
+.input-wrap .reveal:hover { color: var(--text); background: var(--card-2); }
+.input-wrap .reveal:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.input-wrap input:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px #0c0c12 inset;
+}
 .auth-note { margin-top: 22px; font-size: 12px; color: var(--faint); text-align: center; }
 
 /* ---------- Responsive ---------- */

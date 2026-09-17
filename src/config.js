@@ -14,7 +14,7 @@ const settings = {
   databaseUrl: process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || '',
   databaseAuthToken: process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || '',
   company: {
-    name: process.env.COMPANY_NAME || 'Car Renter',
+    name: process.env.COMPANY_NAME || 'Car Rental',
     address: process.env.COMPANY_ADDRESS || '',
     phone: process.env.COMPANY_PHONE || '',
     email: process.env.COMPANY_EMAIL || '',
