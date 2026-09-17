@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><%= rental.contract_no %> · Handover contract</title>
+<title><%= rental.contract_no %> · Car rental agreement</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -28,102 +28,160 @@
       <p><%= company.regNo ? 'CR ' + company.regNo : '' %><%= company.vatNo ? (company.regNo ? ' · ' : '') + 'VAT ' + company.vatNo : '' %></p>
     </div>
     <div class="meta">
-      <div class="type">Vehicle Handover Agreement</div>
+      <div class="type">Car Rental Agreement</div>
       <div class="no"><%= rental.contract_no %></div>
-      <div class="date">Issued <%= rental.created_at %></div>
+      <div class="date">Made on <%= String(rental.created_at).slice(0, 10) %></div>
     </div>
   </header>
 
-  <h2 class="section">1. Renter</h2>
-  <div class="cols">
-    <dl class="kv">
-      <dt>Full name</dt><dd><%= rental.full_name %></dd>
-      <dt>Phone</dt><dd class="mono"><%= rental.phone %></dd>
-      <dt>Email</dt><dd><%= rental.email || '—' %></dd>
-    </dl>
-    <dl class="kv">
-      <dt>ID / passport</dt><dd class="mono"><%= rental.id_number || '—' %></dd>
-      <dt>Licence no.</dt><dd class="mono"><%= rental.license_number || '—' %></dd>
-      <dt>Licence expiry</dt><dd class="mono"><%= rental.license_expiry || '—' %></dd>
-    </dl>
-  </div>
-  <% if (rental.address) { %><dl class="kv" style="grid-template-columns:19% 81%;margin-top:3px"><dt>Address</dt><dd><%= rental.address %></dd></dl><% } %>
+  <p class="preamble">
+    This Car Rental Agreement (“Agreement”) is made and entered into as of
+    <strong><%= String(rental.created_at).slice(0, 10) %></strong>, by and between
+    <strong><%= company.name %></strong> (“Lessor”) and
+    <strong><%= rental.full_name %></strong> (“Lessee”).
+  </p>
 
-  <h2 class="section">2. Vehicle</h2>
+  <h2 class="section">1. Vehicle information</h2>
   <div class="cols">
     <dl class="kv">
-      <dt>Plate</dt><dd class="mono"><%= rental.plate %></dd>
-      <dt>Make &amp; model</dt><dd><%= rental.make %> <%= rental.model %></dd>
-      <dt>Year / colour</dt><dd><%= rental.year || '—' %> · <%= rental.color || '—' %></dd>
+      <dt>Make</dt><dd><%= rental.make %></dd>
+      <dt>Model</dt><dd><%= rental.model %></dd>
+      <dt>Year</dt><dd><%= rental.year || '—' %></dd>
     </dl>
     <dl class="kv">
-      <dt>VIN / chassis</dt><dd class="mono"><%= rental.vin || '—' %></dd>
-      <dt>Odometer out</dt><dd class="mono"><%= rental.pickup_odometer.toLocaleString('en-US') %> km</dd>
-      <dt>Fuel out</dt><dd class="mono"><%= fuelLabel(rental.pickup_fuel) %></dd>
+      <dt>Colour</dt><dd><%= rental.color || '—' %></dd>
+      <dt>Plate number</dt><dd class="mono"><%= rental.plate %></dd>
+      <dt>VIN</dt><dd class="mono"><%= rental.vin || '—' %></dd>
     </dl>
   </div>
 
-  <h2 class="section">3. Rental period &amp; charges</h2>
+  <h2 class="section">2. Rental period</h2>
   <div class="cols">
     <dl class="kv">
-      <dt>From</dt><dd class="mono"><%= rental.start_date %></dd>
-      <dt>To</dt><dd class="mono"><%= rental.end_date %></dd>
+      <dt>Start</dt><dd class="mono"><%= rental.start_date %><%= rental.start_time ? ' at ' + rental.start_time : '' %></dd>
+      <dt>End</dt><dd class="mono"><%= rental.end_date %><%= rental.end_time ? ' at ' + rental.end_time : '' %></dd>
+    </dl>
+    <dl class="kv">
       <dt>Duration</dt><dd><%= quote.days %> day<%= quote.days === 1 ? '' : 's' %></dd>
-    </dl>
-    <dl class="kv">
-      <dt>Daily rate</dt><dd class="mono"><%= money(rental.daily_rate) %></dd>
-      <dt>Mileage included</dt><dd class="mono"><%= rental.km_allowance_per_day ? rental.km_allowance_per_day + ' km/day' : 'Unlimited' %></dd>
-      <dt>Excess km</dt><dd class="mono"><%= rental.km_allowance_per_day ? money(rental.excess_km_rate) + ' / km' : '—' %></dd>
+      <dt>Odometer out</dt><dd class="mono"><%= rental.pickup_odometer.toLocaleString('en-US') %> km</dd>
     </dl>
   </div>
 
+  <h2 class="section">3. Rental rate</h2>
+  <p>
+    The rental rate shall be <strong><%= money(rental.daily_rate) %> per day</strong>, plus any
+    applicable taxes and fees.
+  </p>
   <table class="charges">
     <tr><td><%= quote.days %> day<%= quote.days === 1 ? '' : 's' %> × <%= money(rental.daily_rate) %></td><td class="amt"><%= money(quote.baseCharge) %></td></tr>
     <% if (rental.discount > 0) { %><tr><td>Discount</td><td class="amt">-<%= money(rental.discount) %></td></tr><% } %>
-    <tr class="total"><td>Contract total</td><td class="amt"><%= money(quote.total) %></td></tr>
-    <tr><td>Security deposit held</td><td class="amt"><%= money(rental.deposit) %></td></tr>
-    <tr class="grand"><td>Payable at handover</td><td class="amt"><%= money(quote.balanceDue) %></td></tr>
+    <tr class="total"><td>Agreement total</td><td class="amt"><%= money(quote.total) %></td></tr>
   </table>
-  <p style="font-size:10px;color:var(--soft);margin-top:5px">
-    Late returns are charged at <%= policy.lateDayMultiplier %>× the daily rate per extra day.
-    Fuel returned below the level above is charged at <%= money(policy.fuelChargePerEighth) %> per 1/8 tank.
+
+  <h2 class="section">4. Security deposit</h2>
+  <p>
+    The Lessee shall pay a refundable security deposit of <strong><%= money(rental.deposit) %></strong>
+    before taking possession of the vehicle. It covers any damage to the vehicle during the
+    rental period or other amounts due, and the balance is refunded after inspection.
+    Payable at handover: <strong><%= money(quote.balanceDue) %></strong>.
+    <% if (company.bank) { %><br>Payment may be made to <%= company.bank %>.<% } %>
   </p>
 
-  <h2 class="section">4. Condition at handover</h2>
+  <h2 class="section">5. Insurance and deductibles</h2>
+  <p>
+    The Lessee is responsible for any damage to the vehicle not covered by the insurance
+    policy. The deductible for any damage claim shall be
+    <strong><%= rental.deductible ? money(rental.deductible) : 'as stated in the insurance policy' %></strong>.
+  </p>
+
+  <h2 class="section">6. Condition of vehicle</h2>
+  <p>
+    The Lessor states that the vehicle is in good condition and free of any known mechanical
+    issues, except as disclosed here. The Lessee agrees to return the vehicle in the same
+    condition, ordinary wear and tear excepted.
+  </p>
   <div class="checklist">
     <span>Spare tyre</span><span>Jack &amp; tools</span><span>First-aid kit</span><span>Warning triangle</span>
     <span>Registration card</span><span>Insurance card</span><span>Floor mats</span><span>Charging cable</span>
   </div>
   <div class="note"><%= rental.pickup_notes || 'No pre-existing damage recorded.' %></div>
 
-  <h2 class="section">5. Terms</h2>
+  <h2 class="section">7. Fuel policy</h2>
+  <p>
+    The vehicle is provided at <strong><%= fuelLabel(rental.pickup_fuel) %></strong> and must be
+    returned at the same level. If it is not, a refuelling fee of
+    <strong><%= money(policy.fuelChargePerEighth) %> per 1/8 of a tank</strong> will be charged.
+  </p>
+
+  <h2 class="section">8. Mileage limit</h2>
+  <p>
+    <% if (rental.km_allowance_per_day) { %>
+      The Lessee is allowed <strong><%= rental.km_allowance_per_day %> kilometres per day</strong>
+      (<%= (rental.km_allowance_per_day * quote.days).toLocaleString('en-US') %> km over this
+      agreement). Additional mileage is charged at
+      <strong><%= money(rental.excess_km_rate) %> per kilometre</strong>.
+    <% } else { %>
+      Mileage is <strong>unlimited</strong> under this agreement.
+    <% } %>
+  </p>
+
+  <h2 class="section">9. Return of vehicle</h2>
+  <p>
+    The vehicle shall be returned to
+    <strong><%= rental.return_location || company.address || 'the Lessor’s place of business' %></strong>
+    on or before the end date and time stated above. Late returns incur an additional fee of
+    <strong><%= policy.lateDayMultiplier %>× the daily rate per day</strong>, being
+    <strong><%= money(rental.daily_rate * policy.lateDayMultiplier) %> per day</strong>.
+  </p>
+
+  <h2 class="section">10. Terms</h2>
   <div class="terms">
     <ol>
       <% terms.forEach(function (clause) { %><li><%= clause %></li><% }); %>
     </ol>
   </div>
 
+  <% if (agreement.governingLaw) { %>
+  <h2 class="section">11. Governing law</h2>
+  <p>This Agreement shall be governed by the laws of <strong><%= agreement.governingLaw %></strong>.</p>
+  <% } %>
+
+  <h2 class="section"><%= agreement.governingLaw ? 12 : 11 %>. Contact details</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>Lessee</dt><dd><%= rental.full_name %></dd>
+      <dt>Phone</dt><dd class="mono"><%= rental.phone %></dd>
+      <dt>ID / passport</dt><dd class="mono"><%= rental.id_number || '—' %></dd>
+      <dt>Licence</dt><dd class="mono"><%= rental.license_number || '—' %><%= rental.license_expiry ? ' · exp ' + rental.license_expiry : '' %></dd>
+    </dl>
+    <dl class="kv">
+      <dt>Address</dt><dd><%= rental.address || '—' %></dd>
+      <dt>Emergency contact</dt><dd><%= rental.emergency_name || '—' %></dd>
+      <dt>Emergency phone</dt><dd class="mono"><%= rental.emergency_phone || '—' %></dd>
+      <dt>Lessor phone</dt><dd class="mono"><%= company.phone || '—' %></dd>
+    </dl>
+  </div>
+
+  <h2 class="section"><%= agreement.governingLaw ? 13 : 12 %>. Signatures</h2>
+  <p class="small-print">
+    IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first
+    written above.
+  </p>
   <div class="signatures">
     <div class="sign-box">
-      <div class="role">Renter — <%= rental.full_name %></div>
+      <div class="role">Lessee — <%= rental.full_name %></div>
       <div class="line"></div>
       <div class="hint">Signature &amp; date · I accept the terms above</div>
     </div>
     <div class="sign-box">
-      <div class="role">For <%= company.name %><%= rental.issued_by ? ' — ' + rental.issued_by : '' %></div>
+      <div class="role">Lessor — <%= company.name %><%= rental.issued_by ? ' (' + rental.issued_by + ')' : '' %></div>
       <div class="line"></div>
       <div class="hint">Signature &amp; date</div>
     </div>
   </div>
 
-  <% if (company.bank) { %>
-  <p style="font-size:10px;color:var(--soft);margin-top:8px">
-    <strong>Payment:</strong> <%= company.bank %>
-  </p>
-  <% } %>
-
   <footer class="doc">
-    <span><%= rental.contract_no %> · handover</span>
+    <span><%= rental.contract_no %> · agreement</span>
     <span><%= company.footer || company.name %></span>
   </footer>
 </div>

@@ -29,6 +29,7 @@ const RENTAL_SELECT = `
   SELECT r.*,
          c.plate, c.make, c.model, c.year, c.color, c.vin, c.transmission, c.seats,
          cu.full_name, cu.phone, cu.email, cu.id_number, cu.license_number, cu.license_expiry, cu.address,
+         cu.emergency_name, cu.emergency_phone,
          u.name AS issued_by
   FROM rentals r
   JOIN cars c ON c.id = r.car_id
@@ -104,19 +105,25 @@ router.get('/new', async (req, res) => {
   const cars = await db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
   const customers = await db.prepare('SELECT * FROM customers ORDER BY full_name').all();
   const standingDiscount = settings.discount();
+  const agreement = settings.contract();
   res.render('rentals/new', {
     title: 'New rental',
     cars,
     customers,
     errors: [],
     standingDiscount,
+    agreement,
     form: {
       car_id: Number(req.query.car_id) || '',
       customer_id: Number(req.query.customer_id) || '',
       start_date: today(),
       end_date: today(),
       deposit: settings.deposit(),
-      discount: standingDiscount.mode === 'amount' ? standingDiscount.value : 0
+      discount: standingDiscount.mode === 'amount' ? standingDiscount.value : 0,
+      start_time: '09:00',
+      end_time: '09:00',
+      deductible: agreement.deductible,
+      return_location: agreement.returnLocation
     }
   });
 });
@@ -134,7 +141,11 @@ router.post('/', async (req, res) => {
     discount: Number(req.body.discount) || 0,
     pickup_odometer: Number(req.body.pickup_odometer) || 0,
     pickup_fuel: Math.max(0, Math.min(8, Number(req.body.pickup_fuel) || 0)),
-    pickup_notes: String(req.body.pickup_notes || '').trim()
+    pickup_notes: String(req.body.pickup_notes || '').trim(),
+    start_time: String(req.body.start_time || '').trim(),
+    end_time: String(req.body.end_time || '').trim(),
+    deductible: Number(req.body.deductible) || 0,
+    return_location: String(req.body.return_location || '').trim()
   };
 
   const errors = [];
@@ -163,7 +174,8 @@ router.post('/', async (req, res) => {
     const cars = await db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all();
     const customers = await db.prepare('SELECT * FROM customers ORDER BY full_name').all();
     return res.status(400).render('rentals/new', {
-      title: 'New rental', cars, customers, errors, form, standingDiscount: settings.discount()
+      title: 'New rental', cars, customers, errors, form,
+      standingDiscount: settings.discount(), agreement: settings.contract()
     });
   }
 
@@ -176,13 +188,15 @@ router.post('/', async (req, res) => {
                             km_allowance_per_day, excess_km_rate, deposit, discount, pickup_odometer,
                             pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
                             currency, fuel_charge_per_eighth, late_day_multiplier,
+                            start_time, end_time, deductible, return_location,
                             status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
     ).run(
       contract_no, form.car_id, form.customer_id, form.start_date, form.end_date, form.daily_rate,
       form.km_allowance_per_day, form.excess_km_rate, form.deposit, form.discount, form.pickup_odometer,
       form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue,
       settings.currency(), issuePolicy.fuelChargePerEighth, issuePolicy.lateDayMultiplier,
+      form.start_time, form.end_time, form.deductible, form.return_location,
       req.user.id
     );
     await t.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
@@ -214,6 +228,7 @@ router.get('/:id/contract', async (req, res) => {
     quote: q,
     policy: rentalPolicy(rental),
     terms: termsLib.forCompany(settings.termsText(), settings.company().name),
+    agreement: settings.contract(),
     ...inCurrency(rental)
   });
 });

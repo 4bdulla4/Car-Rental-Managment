@@ -26,6 +26,10 @@ header.doc .meta .type { font-size: 11px; text-transform: uppercase; letter-spac
 header.doc .meta .no { font-family: var(--mono); font-size: 17px; font-weight: 600; margin-top: 2px; }
 header.doc .meta .date { font-size: 11px; color: var(--soft); }
 
+p.preamble { margin: 12px 0 0; font-size: 11.5px; line-height: 1.5; }
+.small-print { font-size: 10.5px; color: var(--soft); margin: 4px 0 0; }
+.sheet p { margin: 4px 0 0; font-size: 11.5px; line-height: 1.5; }
+
 h2.section {
   font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent);
   margin: 16px 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--line);

@@ -27,7 +27,8 @@ const TAB_FOR = {
   '/discount': 'pricing',
   '/policy': 'charges',
   '/mileage': 'charges',
-  '/terms': 'company'
+  '/terms': 'contract',
+  '/agreement': 'contract'
 };
 
 /** Send the user back to the tab they saved from. */
@@ -42,6 +43,7 @@ async function render(res, status, extra = {}) {
     currency: settings.currency(),
     details: settings.company(),
     termsText: settings.termsText(),
+    agreement: settings.contract(),
     defaultTerms: terms.DEFAULT_TERMS,
     policy: settings.policy(),
     mileage: settings.mileage(),
@@ -302,6 +304,27 @@ router.post('/terms', async (req, res) => {
       ? `Saved ${clauses.length} clause${clauses.length === 1 ? '' : 's'}. They appear on contracts issued from now on.`
       : 'Cleared your clauses — contracts use the standard terms again.'
   };
+  res.redirect(backTo(req));
+});
+
+router.post('/agreement', async (req, res) => {
+  const deductible = Number(req.body.default_deductible);
+  const returnLocation = String(req.body.return_location || '').trim();
+  const governingLaw = String(req.body.governing_law || '').trim();
+  const errors = [];
+
+  if (!Number.isFinite(deductible) || deductible < 0 || deductible > 1000000) {
+    errors.push('The insurance excess must be a number between 0 and 1,000,000.');
+  }
+  if (returnLocation.length > 160) errors.push('The return location must be 160 characters or fewer.');
+  if (governingLaw.length > 120) errors.push('The governing law must be 120 characters or fewer.');
+
+  if (errors.length) return await render(res, 400, { errors });
+
+  await settings.set('default_deductible', round2(deductible));
+  await settings.set('return_location', returnLocation);
+  await settings.set('governing_law', governingLaw);
+  req.session.flash = { type: 'success', message: 'Agreement details saved. They appear on contracts issued from now on.' };
   res.redirect(backTo(req));
 });
 

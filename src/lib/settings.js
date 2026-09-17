@@ -135,12 +135,26 @@ function dailyRate() {
     : config.defaultDailyRate;
 }
 
+/** Terms of the agreement that are the same on every contract. */
+function contract() {
+  const stored = all();
+  const pick = (key, fallback) => (stored[key] === undefined ? fallback : stored[key]);
+  const deductible = Number(stored.default_deductible);
+  return {
+    deductible: stored.default_deductible !== undefined && Number.isFinite(deductible)
+      ? deductible
+      : config.defaultDeductible,
+    returnLocation: pick('return_location', config.returnLocation),
+    governingLaw: pick('governing_law', config.governingLaw)
+  };
+}
+
 /** A currency code is 2-5 letters, e.g. SAR, AED, USD. */
 function isValidCurrency(code) {
   return /^[A-Za-z]{2,5}$/.test(String(code || '').trim());
 }
 
 module.exports = {
-  load, get, set, all, currency, company, termsText, policy, mileage, deposit, discount, dailyRate,
+  load, get, set, all, currency, company, termsText, contract, policy, mileage, deposit, discount, dailyRate,
   isValidCurrency, clearCache: () => { cache = null; }
 };

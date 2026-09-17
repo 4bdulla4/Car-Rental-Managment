@@ -9,11 +9,14 @@
 </div>
 <%- include('../partials/errors') %>
 
-<% var active = ['company','currency','pricing','charges'].includes(tab) ? tab : 'company'; %>
+<% var active = ['company','contract','currency','pricing','charges'].includes(tab) ? tab : 'company'; %>
 <nav class="tabs" role="tablist">
   <a href="/settings?tab=company" data-tab="company" role="tab"
      class="<%= active === 'company' ? 'active' : '' %>"
      aria-selected="<%= active === 'company' ? 'true' : 'false' %>">Company</a>
+  <a href="/settings?tab=contract" data-tab="contract" role="tab"
+     class="<%= active === 'contract' ? 'active' : '' %>"
+     aria-selected="<%= active === 'contract' ? 'true' : 'false' %>">Contract</a>
   <a href="/settings?tab=currency" data-tab="currency" role="tab"
      class="<%= active === 'currency' ? 'active' : '' %>"
      aria-selected="<%= active === 'currency' ? 'true' : 'false' %>">Currency</a>
@@ -91,6 +94,40 @@
       <span id="pv-address"><%= details.address || '—' %></span>
       <span id="pv-contact"></span>
     </div>
+  </div>
+</div>
+</section>
+
+<section data-panel="contract" <%= active === 'contract' ? '' : 'hidden' %>>
+<div class="grid cols-2">
+  <div class="card">
+    <h3>Agreement details</h3>
+    <p class="small muted" style="margin:-8px 0 16px">
+      The parts of the agreement that read the same on every contract. Each is printed
+      only when set.
+    </p>
+    <form method="post" action="/settings/agreement">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="return_location">Return location</label>
+        <input id="return_location" name="return_location" value="<%= agreement.returnLocation %>"
+               maxlength="160" placeholder="Where a car must be brought back">
+        <div class="hint">Pre-filled on every new rental, and changeable per contract.</div>
+      </div>
+      <div class="field">
+        <label for="default_deductible">Insurance excess (<%= currency %>)</label>
+        <input id="default_deductible" name="default_deductible" type="number" step="0.01" min="0"
+               value="<%= agreement.deductible %>">
+        <div class="hint">The renter's liability on a damage claim.</div>
+      </div>
+      <div class="field">
+        <label for="governing_law">Governing law</label>
+        <input id="governing_law" name="governing_law" value="<%= agreement.governingLaw %>"
+               maxlength="120" placeholder="the Kingdom of Saudi Arabia">
+        <div class="hint">Printed as its own clause when set.</div>
+      </div>
+      <button class="btn primary" type="submit">Save agreement details</button>
+    </form>
   </div>
 
   <div class="card">

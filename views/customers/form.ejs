@@ -16,6 +16,18 @@
       <div class="field"><label for="license_expiry">Licence expiry</label><input id="license_expiry" name="license_expiry" type="date" value="<%= customer.license_expiry || '' %>"></div>
     </div>
     <div class="field"><label for="address">Address</label><input id="address" name="address" value="<%= customer.address || '' %>"></div>
+    <div class="row">
+      <div class="field">
+        <label for="emergency_name">Emergency contact</label>
+        <input id="emergency_name" name="emergency_name" value="<%= customer.emergency_name || '' %>"
+               placeholder="Name of someone to call">
+      </div>
+      <div class="field">
+        <label for="emergency_phone">Emergency phone</label>
+        <input id="emergency_phone" name="emergency_phone" value="<%= customer.emergency_phone || '' %>">
+        <div class="hint">Both appear on the signed agreement.</div>
+      </div>
+    </div>
     <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes"><%= customer.notes || '' %></textarea></div>
   </div>
 

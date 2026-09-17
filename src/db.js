@@ -174,6 +174,22 @@ function ready() {
         sql: 'UPDATE rentals SET late_day_multiplier = ? WHERE late_day_multiplier IS NULL',
         args: [config.lateDayMultiplier]
       });
+
+      // Added later, for the fields the printed agreement asks for.
+      const columns = [
+        ['customers', 'emergency_name', 'TEXT'],
+        ['customers', 'emergency_phone', 'TEXT'],
+        ['rentals', 'start_time', 'TEXT'],
+        ['rentals', 'end_time', 'TEXT'],
+        ['rentals', 'deductible', 'REAL'],
+        ['rentals', 'return_location', 'TEXT']
+      ];
+      for (const [table, column, type] of columns) {
+        const info = await client.execute(`PRAGMA table_info(${table})`);
+        if (!info.rows.some((r) => r.name === column)) {
+          await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+        }
+      }
     })();
   }
   return schemaReady;

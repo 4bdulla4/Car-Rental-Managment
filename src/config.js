@@ -37,7 +37,11 @@ const settings = {
   defaultDiscount: num(process.env.DEFAULT_DISCOUNT, 0),
   defaultDiscountMode: process.env.DEFAULT_DISCOUNT_MODE === 'percent' ? 'percent' : 'amount',
   // Daily rate pre-filled when a car is added. Real rates live on each car.
-  defaultDailyRate: num(process.env.DEFAULT_DAILY_RATE, 0)
+  defaultDailyRate: num(process.env.DEFAULT_DAILY_RATE, 0),
+  // Printed on the agreement.
+  defaultDeductible: num(process.env.DEFAULT_DEDUCTIBLE, 0),
+  returnLocation: process.env.RETURN_LOCATION || '',
+  governingLaw: process.env.GOVERNING_LAW || ''
 };
 
 /**

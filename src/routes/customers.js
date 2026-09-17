@@ -19,6 +19,8 @@ function readCustomerForm(body) {
     license_number: String(body.license_number || '').trim(),
     license_expiry: String(body.license_expiry || '').trim(),
     address: String(body.address || '').trim(),
+    emergency_name: String(body.emergency_name || '').trim(),
+    emergency_phone: String(body.emergency_phone || '').trim(),
     notes: String(body.notes || '').trim()
   };
 }
@@ -116,11 +118,13 @@ router.post('/', async (req, res) => {
     return res.status(400).render('customers/form', { title: 'Add customer', customer, errors, action: '/customers' });
   }
   const info = await db.prepare(
-    `INSERT INTO customers (full_name, phone, email, id_number, license_number, license_expiry, address, notes)
-     VALUES (?,?,?,?,?,?,?,?) RETURNING id`
+    `INSERT INTO customers (full_name, phone, email, id_number, license_number, license_expiry,
+                            address, emergency_name, emergency_phone, notes)
+     VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id`
   ).run(
     customer.full_name, customer.phone, customer.email, customer.id_number,
-    customer.license_number, customer.license_expiry, customer.address, customer.notes
+    customer.license_number, customer.license_expiry, customer.address,
+    customer.emergency_name, customer.emergency_phone, customer.notes
   );
   req.session.flash = { type: 'success', message: `${customer.full_name} added.` };
   res.redirect(req.body.then_rent ? `/rentals/new?customer_id=${info.lastInsertRowid}` : '/customers');
@@ -141,10 +145,12 @@ router.post('/:id', async (req, res) => {
   }
   await db.prepare(
     `UPDATE customers SET full_name=?, phone=?, email=?, id_number=?, license_number=?,
-                          license_expiry=?, address=?, notes=? WHERE id = ?`
+                          license_expiry=?, address=?, emergency_name=?, emergency_phone=?,
+                          notes=? WHERE id = ?`
   ).run(
     customer.full_name, customer.phone, customer.email, customer.id_number,
-    customer.license_number, customer.license_expiry, customer.address, customer.notes, id
+    customer.license_number, customer.license_expiry, customer.address,
+    customer.emergency_name, customer.emergency_phone, customer.notes, id
   );
   req.session.flash = { type: 'success', message: 'Customer updated.' };
   res.redirect('/customers');

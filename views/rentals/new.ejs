@@ -41,7 +41,16 @@
       </div>
       <div class="row">
         <div class="field"><label for="start_date">Start date *</label><input id="start_date" name="start_date" type="date" value="<%= form.start_date %>" required></div>
+        <div class="field"><label for="start_time">Pick-up time</label><input id="start_time" name="start_time" type="time" value="<%= form.start_time || '09:00' %>"></div>
+      </div>
+      <div class="row">
         <div class="field"><label for="end_date">End date *</label><input id="end_date" name="end_date" type="date" value="<%= form.end_date %>" required></div>
+        <div class="field"><label for="end_time">Return time</label><input id="end_time" name="end_time" type="time" value="<%= form.end_time || '09:00' %>"></div>
+      </div>
+      <div class="field">
+        <label for="return_location">Return location</label>
+        <input id="return_location" name="return_location" value="<%= form.return_location || '' %>"
+               placeholder="Where the car must be brought back">
       </div>
     </div>
 

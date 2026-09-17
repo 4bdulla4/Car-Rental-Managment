@@ -237,6 +237,20 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## The agreement
+
+The handover contract is a full car rental agreement, filled in from the record so no
+blank is left for anyone to complete by hand: the parties, vehicle, rental period with
+times, rate, deposit, insurance excess, condition, fuel and mileage policy, return
+location, the numbered terms, governing law, contact details including the renter's
+emergency contact, and signature blocks.
+
+**Settings → Contract** holds the parts that read the same on every agreement — return
+location, insurance excess and governing law — each printed only when set, and the
+numbered clauses. Everything else comes from the car, the customer and the contract
+itself. Clauses that depend on figures state them: the late-return fee is shown as an
+amount per day, not only as a multiplier.
+
 ## Dashboard
 
 The dashboard answers what needs doing today. Six counts across the top — cars
