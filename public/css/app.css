@@ -171,6 +171,9 @@ section[data-panel][hidden] { display: none; }
 .stat .value.accent { color: var(--accent-lit); }
 .stat .value.warn { color: var(--warn); }
 .stat .value.sm { font-size: 23px; }
+a.card.stat { color: inherit; text-decoration: none; }
+a.card.stat:hover { border-color: var(--border-lit); background: var(--card-2); text-decoration: none; }
+a.card.stat.picked { border-color: var(--accent); background: var(--accent-soft); }
 .stat .stat-ico {
   position: absolute; top: 16px; right: 16px; width: 19px; height: 19px;
   color: var(--faint); opacity: 0.6;

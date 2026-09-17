@@ -237,6 +237,17 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Customers
+
+The list shows counts across the top — total, how many are renting right now, and whose
+licence expires within 30 days or already has. Each count is a filter: click it to see
+only those customers.
+
+Every row carries the licence expiry with its standing, so an expired one is obvious
+before a booking is attempted rather than after the rental form rejects it — and the
+Rent button on that row is disabled until the licence is renewed. A customer with
+contracts on file cannot be deleted, since the contracts name them.
+
 ## Settings
 
 Settings is split into four tabs: **Company**, **Currency**, **Pricing** (daily rate,

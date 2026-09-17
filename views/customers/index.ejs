@@ -2,35 +2,113 @@
 <%- include('../partials/nav') %>
 
 <div class="page-head">
-  <div><h1>Customers</h1><p class="sub"><%= customers.length %> record(s)</p></div>
-  <a class="btn primary" href="/customers/new">Add customer</a>
+  <div>
+    <h1>Customers</h1>
+    <p class="sub">Everyone you rent to, and the state of their licence.</p>
+  </div>
+  <a class="btn primary" href="/customers/new">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <span>Add customer</span>
+  </a>
 </div>
 
-<form class="toolbar" method="get" action="/customers">
-  <input type="search" name="q" placeholder="Search name, phone, ID or licence" value="<%= q %>">
-  <button class="btn" type="submit">Search</button>
-  <% if (q) { %><a class="btn" href="/customers">Clear</a><% } %>
-</form>
+<div class="grid stats">
+  <a class="card stat <%= filter === '' ? 'picked' : '' %>" href="/customers">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="9.5" cy="8" r="3.4"/><path d="M3 19.5c0-3.4 2.9-5.8 6.5-5.8s6.5 2.4 6.5 5.8"/><path d="M16.5 8.4a2.9 2.9 0 0 1 0 5.2"/><path d="M18.4 19.5c0-2.1-.6-3.6-1.7-4.6"/></svg>
+    <div class="label">Total customers</div>
+    <div class="value"><%= stats.total %></div>
+  </a>
+  <a class="card stat <%= filter === 'renting' ? 'picked' : '' %>" href="/customers?filter=renting">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M4 14.5a2.6 2.6 0 0 1 2-2.5l2.4-.5 2-2.8A3.4 3.4 0 0 1 13.1 7h2.8a3.4 3.4 0 0 1 2.8 1.5l1.6 2.4.8.2a2.6 2.6 0 0 1 1.9 2.5v1.6a1 1 0 0 1-1 1h-1.7M4 14.5V16a1 1 0 0 0 1 1h1.3M4 14.5h16"/><circle cx="8.2" cy="16.8" r="2.2"/><circle cx="16.8" cy="16.8" r="2.2"/></svg>
+    <div class="label">Renting now</div>
+    <div class="value accent"><%= stats.renting %></div>
+  </a>
+  <a class="card stat <%= filter === 'expiring' ? 'picked' : '' %>" href="/customers?filter=expiring">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <div class="label">Licence due in <%= soonDays %>d</div>
+    <div class="value <%= stats.expiring ? 'warn' : '' %>"><%= stats.expiring %></div>
+  </a>
+  <a class="card stat <%= filter === 'expired' ? 'picked' : '' %>" href="/customers?filter=expired">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5H2.5z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+    <div class="label">Licence expired</div>
+    <div class="value <%= stats.expired ? 'warn' : '' %>"><%= stats.expired %></div>
+  </a>
+</div>
+
+<div class="list-bar">
+  <p class="sub">
+    <%= customers.length %> shown<% if (filter) { %> · filtered<% } %><% if (q) { %> · matching “<%= q %>”<% } %>
+  </p>
+  <div class="list-bar-actions">
+    <form method="get" action="/customers" class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input type="search" name="q" value="<%= q %>" placeholder="Search name, phone, ID, licence…" aria-label="Search customers">
+      <% if (filter) { %><input type="hidden" name="filter" value="<%= filter %>"><% } %>
+    </form>
+    <% if (q || filter) { %><a class="btn" href="/customers">Clear</a><% } %>
+  </div>
+</div>
 
 <div class="card flush">
 <% if (!customers.length) { %>
-  <div class="empty">No customers yet. <a href="/customers/new">Add one</a>.</div>
+  <div class="empty">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    <div>No customer matches. <a href="/customers">Show all</a> or <a href="/customers/new">add one</a>.</div>
+  </div>
 <% } else { %>
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Name</th><th>Phone</th><th>ID number</th><th>Licence</th><th>Expiry</th><th></th></tr></thead>
+    <thead>
+      <tr>
+        <th>Customer</th><th>Phone</th><th>ID number</th><th>Licence</th>
+        <th class="num">Rentals</th><th class="right">Actions</th>
+      </tr>
+    </thead>
     <tbody>
       <% customers.forEach(function (c) { %>
       <tr>
-        <td><%= c.full_name %><% if (c.email) { %><div class="muted small"><%= c.email %></div><% } %></td>
+        <td>
+          <div class="user-cell">
+            <span class="avatar sm"><%= c.full_name.trim().charAt(0).toUpperCase() %></span>
+            <span class="user-meta">
+              <span class="user-name">
+                <strong><%= c.full_name %></strong>
+                <% if (c.active_count > 0) { %><span class="badge rented">On rent</span><% } %>
+              </span>
+              <span class="sub"><%= c.email || '—' %></span>
+            </span>
+          </div>
+        </td>
         <td class="mono small"><%= c.phone %></td>
         <td class="mono small"><%= c.id_number || '—' %></td>
-        <td class="mono small"><%= c.license_number || '—' %></td>
-        <td class="mono small"><%= c.license_expiry || '—' %></td>
         <td>
-          <div class="actions">
+          <div class="mono small"><%= c.license_number || '—' %></div>
+          <% if (c.licence === 'expired') { %>
+            <span class="badge overdue">Expired <%= c.license_expiry %></span>
+          <% } else if (c.licence === 'expiring') { %>
+            <span class="badge maintenance">Expires <%= c.license_expiry %></span>
+          <% } else if (c.licence === 'valid') { %>
+            <span class="sub mono">to <%= c.license_expiry %></span>
+          <% } else { %>
+            <span class="sub">no expiry on file</span>
+          <% } %>
+        </td>
+        <td class="num"><%= c.rentals_count %></td>
+        <td class="right">
+          <div class="row-actions">
             <a class="btn sm" href="/customers/<%= c.id %>/edit">Edit</a>
-            <a class="btn sm" href="/rentals/new?customer_id=<%= c.id %>">Rent</a>
+            <% if (c.licence === 'expired') { %>
+              <span class="btn sm" style="opacity:.45;cursor:not-allowed" title="Renew the licence before renting">Rent</span>
+            <% } else { %>
+              <a class="btn sm" href="/rentals/new?customer_id=<%= c.id %>">Rent</a>
+            <% } %>
+            <% if (c.rentals_count === 0) { %>
+            <form method="post" action="/customers/<%= c.id %>/delete"
+                  onsubmit="return confirm('Delete <%= c.full_name %>? This cannot be undone.')">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn sm danger" type="submit">Delete</button>
+            </form>
+            <% } %>
           </div>
         </td>
       </tr>
