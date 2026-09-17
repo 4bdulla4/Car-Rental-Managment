@@ -194,10 +194,10 @@ td .sub { color: var(--faint); font-size: 12.5px; margin-top: 2px; }
 .doc-preview {
   display: flex; flex-direction: column; gap: 3px;
   padding: 14px 16px; border-radius: 9px;
-  background: #fff; color: #101014; border: 1px solid var(--border-lit);
+  background: #0c0c12; color: var(--text); border: 1px solid var(--border-lit);
 }
 .doc-preview strong { font-size: 16px; letter-spacing: -0.02em; }
-.doc-preview span { font-size: 11.5px; color: #55555f; }
+.doc-preview span { font-size: 11.5px; color: var(--muted); }
 
 .preview-box {
   padding: 10px 12px; border: 1px dashed var(--border-lit); border-radius: 9px;
