@@ -189,7 +189,11 @@ function ready() {
         ['rentals', 'signed_name', 'TEXT'],
         ['rentals', 'signed_ip', 'TEXT'],
         ['rentals', 'sent_at', 'TEXT'],
-        ['rentals', 'sent_to', 'TEXT']
+        ['rentals', 'sent_to', 'TEXT'],
+        // Marks the demonstration records, so they can be removed again exactly.
+        ['cars', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],
+        ['customers', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],
+        ['rentals', 'is_sample', 'INTEGER NOT NULL DEFAULT 0']
       ];
       for (const [table, column, type] of columns) {
         const info = await client.execute(`PRAGMA table_info(${table})`);

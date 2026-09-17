@@ -4,6 +4,7 @@ const db = require('../db');
 const settings = require('../lib/settings');
 const terms = require('../lib/terms');
 const theme = require('../lib/theme');
+const sampleData = require('../lib/sample-data');
 const { round2 } = require('../lib/money');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
@@ -30,7 +31,9 @@ const TAB_FOR = {
   '/mileage': 'charges',
   '/terms': 'contract',
   '/agreement': 'contract',
-  '/appearance': 'company'
+  '/appearance': 'company',
+  '/sample-data/load': 'data',
+  '/sample-data/remove': 'data'
 };
 
 /** Send the user back to the tab they saved from. */
@@ -59,6 +62,9 @@ async function render(res, status, extra = {}) {
     carCount: await db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
     common: COMMON,
     inUse,
+    sample: await sampleData.summary(),
+    sampleCars: sampleData.CARS.length,
+    sampleCustomers: sampleData.CUSTOMERS.length,
     errors: [],
     ...extra
   });
@@ -357,6 +363,33 @@ router.post('/appearance', async (req, res) => {
   }
   await settings.set('accent', key);
   req.session.flash = { type: 'success', message: `Accent colour set to ${theme.get(key).name}.` };
+  res.redirect(backTo(req));
+});
+
+/**
+ * Demonstration records, so a new installation has something on its dashboard
+ * and in its reports before it has traded. Everything created is flagged, and
+ * removing it leaves real records untouched.
+ */
+router.post('/sample-data/load', async (req, res) => {
+  const result = await sampleData.load();
+  req.session.flash = result.created
+    ? {
+        type: 'success',
+        message: `Sample data loaded: ${result.cars} cars, ${result.customers} customers and ${result.rentals} closed contracts across the last year.`
+      }
+    : { type: 'success', message: 'The sample data is already loaded.' };
+  res.redirect(backTo(req));
+});
+
+router.post('/sample-data/remove', async (req, res) => {
+  const removed = await sampleData.remove();
+  req.session.flash = {
+    type: 'success',
+    message: removed.rentals
+      ? `Removed ${removed.rentals} sample contracts, ${removed.cars} cars and ${removed.customers} customers. Your own records were not touched.`
+      : 'There was no sample data to remove.'
+  };
   res.redirect(backTo(req));
 });
 

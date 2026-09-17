@@ -9,7 +9,7 @@
 </div>
 <%- include('../partials/errors') %>
 
-<% var active = ['company','contract','currency','pricing','charges'].includes(tab) ? tab : 'company'; %>
+<% var active = ['company','contract','currency','pricing','charges','data'].includes(tab) ? tab : 'company'; %>
 <nav class="tabs" role="tablist">
   <a href="/settings?tab=company" data-tab="company" role="tab"
      class="<%= active === 'company' ? 'active' : '' %>"
@@ -26,6 +26,9 @@
   <a href="/settings?tab=charges" data-tab="charges" role="tab"
      class="<%= active === 'charges' ? 'active' : '' %>"
      aria-selected="<%= active === 'charges' ? 'true' : 'false' %>">Charges</a>
+  <a href="/settings?tab=data" data-tab="data" role="tab"
+     class="<%= active === 'data' ? 'active' : '' %>"
+     aria-selected="<%= active === 'data' ? 'true' : 'false' %>">Sample data</a>
 </nav>
 
 <section data-panel="company" <%= active === 'company' ? '' : 'hidden' %>>
@@ -436,6 +439,49 @@
 
     <button class="btn primary" type="submit">Save mileage defaults</button>
   </form>
+</div>
+</div>
+</section>
+
+<section data-panel="data" <%= active === 'data' ? '' : 'hidden' %>>
+<div class="panel-single">
+<div class="card">
+  <h3>Sample data</h3>
+  <p class="small muted" style="margin:-8px 0 16px">
+    A made-up year of trading, so the dashboard and the reports have something to
+    show before the first real contract is written.
+  </p>
+
+  <% if (sample.rentals) { %>
+    <div class="alert note" style="margin-bottom:18px">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8v.1"/></svg>
+      <div>
+        <strong>Loaded.</strong>
+        <%= sample.rentals %> closed contracts, <%= sample.cars %> cars and
+        <%= sample.customers %> customers are marked as sample records. Their plates
+        and licence numbers all start with <code>SMP-</code>, so they are easy to tell apart.
+      </div>
+    </div>
+    <form method="post" action="/settings/sample-data/remove">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn danger" type="submit">Remove sample data</button>
+    </form>
+    <p class="hint">
+      Only the flagged records are deleted. Anything you created yourself stays, and a
+      sample car or customer that has since been put on a real contract is kept too.
+    </p>
+  <% } else { %>
+    <p class="small muted" style="margin-bottom:16px">
+      Loading it creates <%= sampleCars %> cars, <%= sampleCustomers %> customers and around
+      thirty closed contracts spread over the last twelve months, priced in
+      <%= currency %> at the charges set above. Nothing you already have is changed.
+    </p>
+    <form method="post" action="/settings/sample-data/load">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn primary" type="submit">Load sample data</button>
+    </form>
+    <p class="hint">You can remove it again from here at any time.</p>
+  <% } %>
 </div>
 </div>
 </section>

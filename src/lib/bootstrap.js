@@ -1,6 +1,8 @@
 'use strict';
 const db = require('../db');
 const { hashPassword } = require('./passwords');
+const settings = require('./settings');
+const sampleData = require('./sample-data');
 
 /**
  * Creates the admin account named by SEED_ADMIN_* at startup, because a hosted
@@ -63,4 +65,24 @@ async function ensureFirstAdmin() {
   return true;
 }
 
-module.exports = { ensureFirstAdmin };
+/**
+ * Loads the demonstration records when SAMPLE_DATA is set, for the same reason
+ * as ensureFirstAdmin: a hosted deployment has no shell to run a script in, and
+ * a brand new installation otherwise shows empty charts. It is the startup
+ * equivalent of the button in Settings → Sample data, and does nothing once the
+ * sample is present, so leaving the variable set cannot duplicate it.
+ */
+async function ensureSampleData() {
+  if (!/^(1|true|yes)$/i.test(String(process.env.SAMPLE_DATA || ''))) return false;
+  await settings.load();
+  const result = await sampleData.load();
+  if (result.created) {
+    console.log(
+      `Loaded sample data because SAMPLE_DATA is set: ${result.rentals} closed contracts, ` +
+      `${result.cars} cars, ${result.customers} customers. Remove it from Settings → Sample data.`
+    );
+  }
+  return result.created;
+}
+
+module.exports = { ensureFirstAdmin, ensureSampleData };

@@ -77,8 +77,11 @@
           <rect class="hit" x="<%= (b.x - 6).toFixed(1) %>" y="14" width="<%= (b.w + 12).toFixed(1) %>" height="<%= (monthChart.baseline - 14).toFixed(1) %>"/>
           <rect class="mark" x="<%= b.x.toFixed(1) %>" y="<%= b.y.toFixed(1) %>"
                 width="<%= b.w.toFixed(1) %>" height="<%= b.h.toFixed(1) %>" rx="4"/>
-          <% if (i === monthChart.bars.length - 1 && b.value > 0) { %>
-            <text class="value-label" x="<%= Math.min(668, Math.max(98, b.x + b.w / 2)).toFixed(1) %>" y="<%= (b.y - 7).toFixed(1) %>"
+          <% if (i === monthChart.bars.length - 1 && b.value > 0) {
+               // Cleared above its neighbour too, or a tall previous month runs into it.
+               var prev = monthChart.bars[i - 1];
+               var labelY = Math.max(11, Math.min(b.y, prev ? prev.y : b.y) - 7); %>
+            <text class="value-label" x="<%= Math.min(668, Math.max(98, b.x + b.w / 2)).toFixed(1) %>" y="<%= labelY.toFixed(1) %>"
                   text-anchor="middle"><%= money(b.value) %></text>
           <% } %>
           <text class="axis" x="<%= (b.x + b.w / 2).toFixed(1) %>" y="<%= (monthChart.baseline + 16) %>" text-anchor="middle"><%= b.label %></text>
