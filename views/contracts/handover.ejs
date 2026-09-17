@@ -24,7 +24,8 @@
         <h1><%= company.name %></h1>
       </div>
       <p><%= company.address %></p>
-      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %><%= company.regNo ? ' · CR ' + company.regNo : '' %></p>
+      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %><%= company.website ? ' · ' + company.website : '' %></p>
+      <p><%= company.regNo ? 'CR ' + company.regNo : '' %><%= company.vatNo ? (company.regNo ? ' · ' : '') + 'VAT ' + company.vatNo : '' %></p>
     </div>
     <div class="meta">
       <div class="type">Vehicle Handover Agreement</div>
@@ -98,16 +99,7 @@
   <h2 class="section">5. Terms</h2>
   <div class="terms">
     <ol>
-      <li>The renter confirms receipt of the vehicle in the condition recorded above and holds a valid driving licence.</li>
-      <li>Only the named renter may drive the vehicle. Any additional driver must be registered with <%= company.name %> in writing.</li>
-      <li>The vehicle may not be used for racing, towing, off-road driving, subletting, or for carrying passengers or goods for hire.</li>
-      <li>Driving under the influence of alcohol or drugs voids all insurance cover and makes the renter fully liable.</li>
-      <li>Traffic fines, tolls and parking violations during the rental period are the renter's responsibility and may be charged after return.</li>
-      <li>The vehicle must be returned on the agreed date with the same fuel level and all accessories listed above.</li>
-      <li>The security deposit is refunded after inspection, less any charges for damage, excess mileage, missing fuel, fines or late return.</li>
-      <li>In the event of an accident the renter must notify <%= company.name %> and the police immediately and obtain an official report.</li>
-      <li>The renter is liable for the insurance excess on any damage caused during the rental period.</li>
-      <li>This agreement is governed by the laws applicable at the place of issue.</li>
+      <% terms.forEach(function (clause) { %><li><%= clause %></li><% }); %>
     </ol>
   </div>
 
@@ -124,9 +116,15 @@
     </div>
   </div>
 
+  <% if (company.bank) { %>
+  <p style="font-size:10px;color:var(--soft);margin-top:8px">
+    <strong>Payment:</strong> <%= company.bank %>
+  </p>
+  <% } %>
+
   <footer class="doc">
     <span><%= rental.contract_no %> · handover</span>
-    <span><%= company.name %></span>
+    <span><%= company.footer || company.name %></span>
   </footer>
 </div>
 </body>

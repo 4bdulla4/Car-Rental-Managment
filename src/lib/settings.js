@@ -58,8 +58,17 @@ function company() {
     address: pick('company_address', config.company.address),
     phone: pick('company_phone', config.company.phone),
     email: pick('company_email', config.company.email),
-    regNo: pick('company_reg_no', config.company.regNo)
+    regNo: pick('company_reg_no', config.company.regNo),
+    vatNo: pick('company_vat_no', config.company.vatNo),
+    website: pick('company_website', config.company.website),
+    bank: pick('company_bank', config.company.bank),
+    footer: pick('company_footer', '')
   };
+}
+
+/** Raw contract clauses as stored; empty means "use the defaults". */
+function termsText() {
+  return all().company_terms || '';
 }
 
 /** Return charges applied when a car is checked back in. */
@@ -132,6 +141,6 @@ function isValidCurrency(code) {
 }
 
 module.exports = {
-  load, get, set, all, currency, company, policy, mileage, deposit, discount, dailyRate,
+  load, get, set, all, currency, company, termsText, policy, mileage, deposit, discount, dailyRate,
   isValidCurrency, clearCache: () => { cache = null; }
 };

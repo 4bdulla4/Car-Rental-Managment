@@ -2,6 +2,7 @@
 const express = require('express');
 const db = require('../db');
 const settings = require('../lib/settings');
+const terms = require('../lib/terms');
 const { round2 } = require('../lib/money');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
@@ -25,7 +26,8 @@ const TAB_FOR = {
   '/deposit': 'pricing',
   '/discount': 'pricing',
   '/policy': 'charges',
-  '/mileage': 'charges'
+  '/mileage': 'charges',
+  '/terms': 'company'
 };
 
 /** Send the user back to the tab they saved from. */
@@ -39,6 +41,8 @@ async function render(res, status, extra = {}) {
     tab: String((res.req.query && res.req.query.tab) || ''),
     currency: settings.currency(),
     details: settings.company(),
+    termsText: settings.termsText(),
+    defaultTerms: terms.DEFAULT_TERMS,
     policy: settings.policy(),
     mileage: settings.mileage(),
     deposit: settings.deposit(),
@@ -80,7 +84,11 @@ const FIELDS = [
   { key: 'company_address', label: 'Address', max: 160 },
   { key: 'company_phone', label: 'Phone', max: 40 },
   { key: 'company_email', label: 'Email', max: 120, email: true },
-  { key: 'company_reg_no', label: 'Registration number', max: 40 }
+  { key: 'company_reg_no', label: 'Registration number', max: 40 },
+  { key: 'company_vat_no', label: 'VAT number', max: 40 },
+  { key: 'company_website', label: 'Website', max: 120 },
+  { key: 'company_bank', label: 'Bank or IBAN', max: 120 },
+  { key: 'company_footer', label: 'Contract footer note', max: 200 }
 ];
 
 router.post('/company', async (req, res) => {
@@ -106,7 +114,11 @@ router.post('/company', async (req, res) => {
         address: values.company_address,
         phone: values.company_phone,
         email: values.company_email,
-        regNo: values.company_reg_no
+        regNo: values.company_reg_no,
+        vatNo: values.company_vat_no,
+        website: values.company_website,
+        bank: values.company_bank,
+        footer: values.company_footer
       }
     });
   }
@@ -265,6 +277,30 @@ router.post('/currency/relabel', async (req, res) => {
   req.session.flash = {
     type: 'success',
     message: `${changed} contract${changed === 1 ? '' : 's'} relabelled from ${from} to ${to}. Amounts were not converted.`
+  };
+  res.redirect(backTo(req));
+});
+
+router.post('/terms', async (req, res) => {
+  const text = String(req.body.company_terms || '');
+  const clauses = terms.parse(text);
+
+  if (text.trim() && !clauses.length) {
+    return await render(res, 400, { errors: ['Enter one clause per line, or leave it blank to use the standard terms.'] });
+  }
+  if (clauses.length > 40) {
+    return await render(res, 400, { errors: ['That is more than 40 clauses — the contract is meant to fit one page.'] });
+  }
+  if (clauses.some((c) => c.length > 400)) {
+    return await render(res, 400, { errors: ['One of the clauses is longer than 400 characters.'] });
+  }
+
+  await settings.set('company_terms', clauses.join('\n'));
+  req.session.flash = {
+    type: 'success',
+    message: clauses.length
+      ? `Saved ${clauses.length} clause${clauses.length === 1 ? '' : 's'}. They appear on contracts issued from now on.`
+      : 'Cleared your clauses — contracts use the standard terms again.'
   };
   res.redirect(backTo(req));
 });

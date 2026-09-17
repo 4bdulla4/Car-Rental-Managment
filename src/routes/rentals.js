@@ -7,6 +7,7 @@ const { nextContractNo } = require('../lib/contracts');
 const { quote, quoteRental, settlement, rentalDays } = require('../lib/pricing');
 const { round2, formatMoney } = require('../lib/money');
 const settings = require('../lib/settings');
+const termsLib = require('../lib/terms');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -168,7 +169,15 @@ router.get('/:id/contract', async (req, res) => {
   const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   const q = quoteRental(rental);
-  res.render('contracts/handover', { layout: false, title: `Contract ${rental.contract_no}`, rental, quote: q, policy: rentalPolicy(rental), ...inCurrency(rental) });
+  res.render('contracts/handover', {
+    layout: false,
+    title: `Contract ${rental.contract_no}`,
+    rental,
+    quote: q,
+    policy: rentalPolicy(rental),
+    terms: termsLib.forCompany(settings.termsText(), settings.company().name),
+    ...inCurrency(rental)
+  });
 });
 
 router.post('/:id/sign', async (req, res) => {

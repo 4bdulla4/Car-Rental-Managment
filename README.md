@@ -195,10 +195,15 @@ New rentals use the current rates.
 
 ## Company details
 
-An admin edits the company name, address, phone, email and registration number under
-**Settings**; they appear in the header of every handover contract and return sheet,
-and the name is used throughout the UI. A live preview shows the contract header as it
-will print. The `COMPANY_*` env vars only seed the initial values.
+An admin edits the company details under **Settings → Company**: name, address, phone,
+email, website, registration number, VAT number, a bank account or IBAN, and a one-line
+footer note. They appear in the header of every handover contract and return sheet, and
+the name is used throughout the UI. A live preview shows the header as it will print.
+The `COMPANY_*` env vars only seed the initial values.
+
+The numbered **contract terms** are edited on the same tab, one clause per line. Leave
+the box empty to use the standard ten. Write `{company}` where the company name should
+appear, and any numbering you type is stripped so the contract numbers them itself.
 
 Unlike the currency, these are not snapshotted per contract — reprinting an old
 contract shows your current details. That is usually what you want for a rename or a

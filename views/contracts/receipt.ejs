@@ -24,7 +24,8 @@
         <h1><%= company.name %></h1>
       </div>
       <p><%= company.address %></p>
-      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %><%= company.regNo ? ' · CR ' + company.regNo : '' %></p>
+      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %><%= company.website ? ' · ' + company.website : '' %></p>
+      <p><%= company.regNo ? 'CR ' + company.regNo : '' %><%= company.vatNo ? (company.regNo ? ' · ' : '') + 'VAT ' + company.vatNo : '' %></p>
     </div>
     <div class="meta">
       <div class="type">Vehicle Return &amp; Settlement</div>
@@ -94,9 +95,15 @@
     </div>
   </div>
 
+  <% if (company.bank) { %>
+  <p style="font-size:10px;color:var(--soft);margin-top:8px">
+    <strong>Payment:</strong> <%= company.bank %>
+  </p>
+  <% } %>
+
   <footer class="doc">
     <span><%= rental.contract_no %> · return</span>
-    <span><%= company.name %></span>
+    <span><%= company.footer || company.name %></span>
   </footer>
 </div>
 </body>

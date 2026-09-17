@@ -18,7 +18,10 @@ const settings = {
     address: process.env.COMPANY_ADDRESS || '',
     phone: process.env.COMPANY_PHONE || '',
     email: process.env.COMPANY_EMAIL || '',
-    regNo: process.env.COMPANY_REG_NO || ''
+    regNo: process.env.COMPANY_REG_NO || '',
+    vatNo: process.env.COMPANY_VAT_NO || '',
+    website: process.env.COMPANY_WEBSITE || '',
+    bank: process.env.COMPANY_BANK || ''
   },
   currency: process.env.CURRENCY || 'SAR',
   // Charge applied per missing 1/8 of a tank at return.

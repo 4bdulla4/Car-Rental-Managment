@@ -26,7 +26,7 @@
 </nav>
 
 <section data-panel="company" <%= active === 'company' ? '' : 'hidden' %>>
-<div class="panel-single">
+<div class="grid cols-2">
   <div class="card">
     <h3>Company</h3>
     <p class="small muted" style="margin:-8px 0 16px">
@@ -53,10 +53,34 @@
           <input id="company_email" name="company_email" type="email" value="<%= details.email %>" maxlength="120">
         </div>
         <div class="field">
+          <label for="company_website">Website</label>
+          <input id="company_website" name="company_website" value="<%= details.website %>"
+                 maxlength="120" placeholder="example.com">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
           <label for="company_reg_no">Registration no.</label>
           <input id="company_reg_no" name="company_reg_no" value="<%= details.regNo %>" maxlength="40">
           <div class="hint">Printed after "CR" on contracts.</div>
         </div>
+        <div class="field">
+          <label for="company_vat_no">VAT number</label>
+          <input id="company_vat_no" name="company_vat_no" value="<%= details.vatNo %>" maxlength="40">
+          <div class="hint">Shown on contracts when set.</div>
+        </div>
+        <div class="field">
+          <label for="company_bank">Bank or IBAN</label>
+          <input id="company_bank" name="company_bank" value="<%= details.bank %>"
+                 maxlength="120" placeholder="SA00 0000 0000 0000 0000 0000">
+          <div class="hint">Printed so a customer can settle a balance.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="company_footer">Contract footer note</label>
+        <input id="company_footer" name="company_footer" value="<%= details.footer %>" maxlength="200"
+               placeholder="Thank you for choosing us — drive safely.">
+        <div class="hint">One line at the bottom of every contract. Optional.</div>
       </div>
       <button class="btn primary" type="submit">Save company details</button>
     </form>
@@ -67,6 +91,31 @@
       <span id="pv-address"><%= details.address || '—' %></span>
       <span id="pv-contact"></span>
     </div>
+  </div>
+
+  <div class="card">
+    <h3>Contract terms</h3>
+    <p class="small muted" style="margin:-8px 0 16px">
+      The numbered clauses printed on every handover contract. One per line. Leave it
+      blank to use the standard set below. Write <span class="mono">{company}</span>
+      where your company name should appear.
+    </p>
+    <form method="post" action="/settings/terms">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="company_terms">Clauses</label>
+        <textarea id="company_terms" name="company_terms" rows="12"
+                  placeholder="<%= defaultTerms.join('\n') %>"><%= termsText %></textarea>
+        <div class="hint">
+          <span data-terms-count></span> · contracts already issued keep the terms they
+          were printed with.
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="submit">Save terms</button>
+        <button class="btn" type="button" data-load-default>Load the standard terms</button>
+      </div>
+    </form>
   </div>
 </div>
 </section>
@@ -431,6 +480,27 @@
     };
     f.km_allowance_per_day.addEventListener('input', paint);
     f.excess_km_rate.addEventListener('input', paint);
+    paint();
+  })();
+</script>
+
+<script>
+  // Clause count, and a way back to the standard wording.
+  (function () {
+    var box = document.getElementById('company_terms');
+    if (!box) return;
+    var count = document.querySelector('[data-terms-count]');
+    var DEFAULTS = <%- JSON.stringify(defaultTerms) %>;
+    var paint = function () {
+      var n = box.value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).length;
+      count.textContent = n ? n + ' clause' + (n === 1 ? '' : 's') : 'Using the standard ' + DEFAULTS.length + ' clauses';
+    };
+    box.addEventListener('input', paint);
+    document.querySelector('[data-load-default]').addEventListener('click', function () {
+      box.value = DEFAULTS.join('\n');
+      paint();
+      box.focus();
+    });
     paint();
   })();
 </script>
