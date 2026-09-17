@@ -2,53 +2,106 @@
 <%- include('../partials/nav') %>
 
 <div class="page-head">
-  <div><h1>Rentals</h1><p class="sub"><%= rentals.length %> contract(s)</p></div>
-  <a class="btn primary" href="/rentals/new">New rental</a>
+  <div>
+    <h1>Rentals</h1>
+    <p class="sub">Open contracts first, soonest due at the top.</p>
+  </div>
+  <a class="btn primary" href="/rentals/new">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <span>New rental</span>
+  </a>
 </div>
 
-<form class="toolbar" method="get" action="/rentals">
-  <input type="search" name="q" placeholder="Search contract, plate or customer" value="<%= q %>">
-  <select name="status">
-    <option value="">All</option>
-    <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
-    <option value="closed" <%= status === 'closed' ? 'selected' : '' %>>Closed</option>
-    <option value="cancelled" <%= status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
-  </select>
-  <button class="btn" type="submit">Filter</button>
-  <% if (q || status) { %><a class="btn" href="/rentals">Clear</a><% } %>
-</form>
+<div class="grid stats">
+  <a class="card stat <%= view === 'active' ? 'picked' : '' %>" href="/rentals?view=active">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+    <div class="label">Open contracts</div>
+    <div class="value accent"><%= stats.active %></div>
+  </a>
+  <a class="card stat <%= view === 'due' ? 'picked' : '' %>" href="/rentals?view=due">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <div class="label">Due back today</div>
+    <div class="value"><%= stats.dueToday %></div>
+  </a>
+  <a class="card stat <%= view === 'overdue' ? 'picked' : '' %>" href="/rentals?view=overdue">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5H2.5z"/><path d="M12 10v4M12 17.2v.1"/></svg>
+    <div class="label">Overdue</div>
+    <div class="value <%= stats.overdue ? 'warn' : '' %>"><%= stats.overdue %></div>
+  </a>
+  <a class="card stat <%= view === 'closed' ? 'picked' : '' %>" href="/rentals?view=closed">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></svg>
+    <div class="label">Closed</div>
+    <div class="value"><%= stats.closed %></div>
+  </a>
+</div>
 
-<% var otherCurrency = rentals.some(function (r) { return r.currency && r.currency !== currency; }); %>
-<% if (otherCurrency) { %>
-  <p class="hint" style="margin:-8px 0 14px">
-    Totals show the currency each contract was issued in, which is why some differ
-    from your current <%= currency %>. Settings can relabel them if the old code was a mistake.
+<div class="list-bar">
+  <p class="sub">
+    <%= rentals.length %> shown<% if (view) { %> · <%= view %><% } %><% if (q) { %> · matching “<%= q %>”<% } %>
   </p>
-<% } %>
+  <div class="list-bar-actions">
+    <form method="get" action="/rentals" class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input type="search" name="q" value="<%= q %>" placeholder="Search contract, plate, customer…" aria-label="Search rentals">
+      <% if (view) { %><input type="hidden" name="view" value="<%= view %>"><% } %>
+    </form>
+    <% if (q || view) { %><a class="btn" href="/rentals">Clear</a><% } %>
+  </div>
+</div>
 
 <div class="card flush">
 <% if (!rentals.length) { %>
-  <div class="empty">No contracts yet. <a href="/rentals/new">Issue the first one</a>.</div>
+  <div class="empty">
+    <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+    <div>
+      <% if (q || view) { %>Nothing matches. <a href="/rentals">Show all</a>.<% } else { %>No contracts yet. <a href="/rentals/new">Issue the first one</a>.<% } %>
+    </div>
+  </div>
 <% } else { %>
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Contract</th><th>Car</th><th>Customer</th><th>Period</th><th>Status</th><th class="num">Total</th><th></th></tr></thead>
+    <thead>
+      <tr>
+        <th>Contract</th><th>Car</th><th>Customer</th><th>Period</th>
+        <th>Status</th><th class="num">Total</th><th class="right">Actions</th>
+      </tr>
+    </thead>
     <tbody>
       <% rentals.forEach(function (r) { %>
+      <% var overdue = r.status === 'active' && r.end_date < today; %>
+      <% var dueToday = r.status === 'active' && r.end_date === today; %>
       <tr>
-        <td class="mono"><a href="/rentals/<%= r.id %>"><%= r.contract_no %></a></td>
-        <td><span class="mono"><%= r.plate %></span><div class="muted small"><%= r.make %> <%= r.model %></div></td>
-        <td><%= r.full_name %></td>
-        <td class="small mono"><%= r.start_date %> → <%= r.end_date %></td>
         <td>
-          <span class="badge <%= r.status %>"><%= r.status %></span>
-          <% if (r.status === 'active' && r.end_date < today) { %><span class="badge overdue">Overdue</span><% } %>
+          <a class="mono" href="/rentals/<%= r.id %>"><%= r.contract_no %></a>
+          <div class="sub"><%= String(r.created_at).slice(0, 10) %></div>
         </td>
-        <td class="num"><%= moneyIn(r.total_amount, r.currency) %></td>
         <td>
-          <div class="actions">
+          <span class="mono"><%= r.plate %></span>
+          <div class="sub"><%= r.make %> <%= r.model %></div>
+        </td>
+        <td>
+          <%= r.full_name %>
+          <div class="sub mono"><%= r.phone %></div>
+        </td>
+        <td class="mono small">
+          <%= r.start_date %> → <%= r.end_date %>
+          <% if (overdue) { %>
+            <div><span class="badge overdue">Overdue</span></div>
+          <% } else if (dueToday) { %>
+            <div><span class="badge maintenance">Due today</span></div>
+          <% } %>
+        </td>
+        <td><span class="badge <%= r.status %>"><%= r.status %></span></td>
+        <td class="num"><%= moneyIn(r.total_amount, r.currency) %></td>
+        <td class="right">
+          <div class="row-actions">
+            <a class="btn sm" href="/rentals/<%= r.id %>">Open</a>
             <a class="btn sm" href="/rentals/<%= r.id %>/contract">Contract</a>
-            <% if (r.status === 'active') { %><a class="btn sm" href="/rentals/<%= r.id %>/return">Return</a><% } %>
+            <% if (r.status === 'active') { %>
+              <a class="btn sm primary" href="/rentals/<%= r.id %>/return">Return</a>
+            <% } else if (r.status === 'closed') { %>
+              <a class="btn sm" href="/rentals/<%= r.id %>/receipt">Receipt</a>
+            <% } %>
           </div>
         </td>
       </tr>

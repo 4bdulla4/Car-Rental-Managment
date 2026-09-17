@@ -45,21 +45,59 @@ async function findRental(id) {
   return db.prepare(`${RENTAL_SELECT} WHERE r.id = ?`).get(Number(id));
 }
 
+/** Counts across the whole table, used for the cards and their filters. */
+async function rentalStats(now) {
+  const row = await db
+    .prepare(
+      `SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active,
+              SUM(CASE WHEN status = 'active' AND end_date < ? THEN 1 ELSE 0 END) AS overdue,
+              SUM(CASE WHEN status = 'active' AND end_date = ? THEN 1 ELSE 0 END) AS due_today,
+              SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) AS closed
+       FROM rentals`
+    )
+    .get(now, now);
+  return {
+    active: Number(row.active) || 0,
+    overdue: Number(row.overdue) || 0,
+    dueToday: Number(row.due_today) || 0,
+    closed: Number(row.closed) || 0
+  };
+}
+
 router.get('/', async (req, res) => {
-  const status = ['active', 'closed', 'cancelled'].includes(req.query.status) ? req.query.status : '';
+  const now = today();
+  const view = ['active', 'overdue', 'due', 'closed', 'cancelled'].includes(req.query.view)
+    ? req.query.view
+    : '';
   const q = String(req.query.q || '').trim();
+
   const params = [];
   let sql = `${RENTAL_SELECT} WHERE 1 = 1`;
-  if (status) {
+  if (view === 'overdue') {
+    sql += " AND r.status = 'active' AND r.end_date < ?";
+    params.push(now);
+  } else if (view === 'due') {
+    sql += " AND r.status = 'active' AND r.end_date = ?";
+    params.push(now);
+  } else if (view) {
     sql += ' AND r.status = ?';
-    params.push(status);
+    params.push(view);
   }
   if (q) {
-    sql += ' AND (r.contract_no LIKE ? OR c.plate LIKE ? OR cu.full_name LIKE ?)';
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    sql += ' AND (r.contract_no LIKE ? OR c.plate LIKE ? OR cu.full_name LIKE ? OR cu.phone LIKE ?)';
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
-  sql += ' ORDER BY r.created_at DESC';
-  res.render('rentals/index', { title: 'Rentals', rentals: await db.prepare(sql).all(...params), status, q, today: today() });
+  // Open contracts first, soonest due at the top.
+  sql += " ORDER BY CASE r.status WHEN 'active' THEN 0 ELSE 1 END, r.end_date, r.created_at DESC";
+
+  res.render('rentals/index', {
+    title: 'Rentals',
+    rentals: await db.prepare(sql).all(...params),
+    stats: await rentalStats(now),
+    view,
+    q,
+    today: now
+  });
 });
 
 router.get('/new', async (req, res) => {

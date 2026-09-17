@@ -237,6 +237,18 @@ the sidebar, login page and printed contracts). The accent colour and the rest o
 palette are CSS variables at the top of `public/css/app.css`; `COMPANY_NAME` in `.env`
 sets the wordmark.
 
+## Rentals and the fleet
+
+Both lists open with counts that double as filters. **Rentals** shows open contracts,
+how many are due back today, how many are overdue and how many are closed, and sorts
+open contracts first with the soonest due at the top — so the work of the day is the
+first thing on screen. Each row marks Overdue or Due today.
+
+**Fleet** shows cars in the fleet, available, on rent, and off the road. A car that is
+out names the contract it is on and when it is due back, flagged if that date has
+passed, and its Rent button is disabled until it comes back. Each row also carries how
+many rentals the car has done.
+
 ## Customers
 
 The list shows counts across the top — total, how many are renting right now, and whose

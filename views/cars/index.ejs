@@ -2,42 +2,100 @@
 <%- include('../partials/nav') %>
 
 <div class="page-head">
-  <div><h1>Fleet</h1><p class="sub"><%= cars.length %> car(s)</p></div>
-  <a class="btn primary" href="/cars/new">Add car</a>
+  <div>
+    <h1>Fleet</h1>
+    <p class="sub">Every car, what it costs and where it is.</p>
+  </div>
+  <a class="btn primary" href="/cars/new">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <span>Add car</span>
+  </a>
 </div>
 
-<form class="toolbar" method="get" action="/cars">
-  <input type="search" name="q" placeholder="Search plate, make, model" value="<%= q %>">
-  <select name="status">
-    <option value="">All statuses</option>
-    <% statuses.forEach(function (s) { %>
-      <option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= s %></option>
-    <% }); %>
-  </select>
-  <button class="btn" type="submit">Filter</button>
-  <% if (q || status) { %><a class="btn" href="/cars">Clear</a><% } %>
-</form>
+<div class="grid stats">
+  <a class="card stat <%= status === '' ? 'picked' : '' %>" href="/cars">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M4 14.5a2.6 2.6 0 0 1 2-2.5l2.4-.5 2-2.8A3.4 3.4 0 0 1 13.1 7h2.8a3.4 3.4 0 0 1 2.8 1.5l1.6 2.4.8.2a2.6 2.6 0 0 1 1.9 2.5v1.6a1 1 0 0 1-1 1h-1.7M4 14.5V16a1 1 0 0 0 1 1h1.3M4 14.5h16"/><circle cx="8.2" cy="16.8" r="2.2"/><circle cx="16.8" cy="16.8" r="2.2"/></svg>
+    <div class="label">Cars in fleet</div>
+    <div class="value"><%= stats.total %></div>
+  </a>
+  <a class="card stat <%= status === 'available' ? 'picked' : '' %>" href="/cars?status=available">
+    <svg class="stat-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></svg>
+    <div class="label">Available</div>
+    <div class="value accent"><%= stats.available %></div>
+  </a>
+  <a class="card stat <%= status === 'rented' ? 'picked' : '' %>" href="/cars?status=rented">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2.5-6H21"/></svg>
+    <div class="label">On rent</div>
+    <div class="value"><%= stats.rented %></div>
+  </a>
+  <a class="card stat <%= status === 'maintenance' ? 'picked' : '' %>" href="/cars?status=maintenance">
+    <svg class="stat-ico" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L14 17a2.8 2.8 0 0 1-4-4z"/><path d="M7.5 16.5l-2 2"/></svg>
+    <div class="label">Off the road</div>
+    <div class="value <%= stats.offRoad ? 'warn' : '' %>"><%= stats.offRoad %></div>
+  </a>
+</div>
+
+<div class="list-bar">
+  <p class="sub">
+    <%= cars.length %> shown<% if (status) { %> · <%= status %><% } %><% if (q) { %> · matching “<%= q %>”<% } %>
+  </p>
+  <div class="list-bar-actions">
+    <form method="get" action="/cars" class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input type="search" name="q" value="<%= q %>" placeholder="Search plate, make, model, VIN…" aria-label="Search fleet">
+      <% if (status) { %><input type="hidden" name="status" value="<%= status %>"><% } %>
+    </form>
+    <% if (q || status) { %><a class="btn" href="/cars">Clear</a><% } %>
+  </div>
+</div>
 
 <div class="card flush">
 <% if (!cars.length) { %>
-  <div class="empty">No cars match. <a href="/cars/new">Add one</a>.</div>
+  <div class="empty">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+    <div>
+      <% if (q || status) { %>No car matches. <a href="/cars">Show all</a>.<% } else { %>No cars yet. <a href="/cars/new">Add the first one</a>.<% } %>
+    </div>
+  </div>
 <% } else { %>
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Plate</th><th>Vehicle</th><th>Status</th><th class="num">Daily rate</th><th class="num">Odometer</th><th>Fuel</th><th></th></tr></thead>
+    <thead>
+      <tr>
+        <th>Car</th><th>Status</th><th class="num">Daily rate</th><th class="num">Odometer</th>
+        <th>Fuel</th><th class="num">Rentals</th><th class="right">Actions</th>
+      </tr>
+    </thead>
     <tbody>
       <% cars.forEach(function (c) { %>
       <tr>
-        <td class="mono"><%= c.plate %></td>
-        <td><%= c.make %> <%= c.model %> <span class="muted small"><%= c.year || '' %> <%= c.color || '' %></span></td>
-        <td><span class="badge <%= c.status %>"><%= c.status %></span></td>
-        <td class="num"><%= money(c.daily_rate) %></td>
-        <td class="num"><%= c.odometer.toLocaleString('en-US') %> km</td>
-        <td class="mono small"><%= fuelLabel(c.fuel_level) %></td>
         <td>
-          <div class="actions">
+          <div class="user-meta">
+            <span class="user-name"><strong class="mono"><%= c.plate %></strong></span>
+            <span class="sub"><%= c.make %> <%= c.model %><%= c.year ? ' · ' + c.year : '' %><%= c.color ? ' · ' + c.color : '' %></span>
+          </div>
+        </td>
+        <td>
+          <span class="badge <%= c.status %>"><%= c.status %></span>
+          <% if (c.active_contract) { %>
+            <div class="sub mono">
+              <a href="/rentals?q=<%= c.active_contract %>"><%= c.active_contract %></a>
+              <% if (c.due_back) { %> · due <%= c.due_back %><%= c.due_back < today ? ' ⚠' : '' %><% } %>
+            </div>
+          <% } %>
+        </td>
+        <td class="num"><%= money(c.daily_rate) %></td>
+        <td class="num"><%= Number(c.odometer).toLocaleString('en-US') %> km</td>
+        <td class="mono small"><%= fuelLabel(c.fuel_level) %></td>
+        <td class="num"><%= c.rentals_count %></td>
+        <td class="right">
+          <div class="row-actions">
             <a class="btn sm" href="/cars/<%= c.id %>/edit">Edit</a>
-            <% if (c.status === 'available') { %><a class="btn sm" href="/rentals/new?car_id=<%= c.id %>">Rent</a><% } %>
+            <% if (c.status === 'available') { %>
+              <a class="btn sm primary" href="/rentals/new?car_id=<%= c.id %>">Rent</a>
+            <% } else if (c.status === 'rented') { %>
+              <span class="btn sm" style="opacity:.45;cursor:not-allowed" title="On rent until it is returned">Rent</span>
+            <% } %>
           </div>
         </td>
       </tr>

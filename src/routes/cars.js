@@ -41,23 +41,54 @@ function validate(car) {
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim();
   const status = CAR_STATUSES.includes(req.query.status) ? req.query.status : '';
+
   const params = [];
-  let sql = 'SELECT * FROM cars WHERE 1 = 1';
+  // Each car carries its rental history and, while out, the contract it is on.
+  let sql = `
+    SELECT c.*,
+           (SELECT COUNT(*) FROM rentals r WHERE r.car_id = c.id) AS rentals_count,
+           (SELECT r.contract_no FROM rentals r WHERE r.car_id = c.id AND r.status = 'active' LIMIT 1) AS active_contract,
+           (SELECT r.end_date FROM rentals r WHERE r.car_id = c.id AND r.status = 'active' LIMIT 1) AS due_back
+    FROM cars c
+    WHERE 1 = 1`;
   if (q) {
-    sql += ' AND (plate LIKE ? OR make LIKE ? OR model LIKE ?)';
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    sql += ' AND (c.plate LIKE ? OR c.make LIKE ? OR c.model LIKE ? OR c.vin LIKE ?)';
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (status) {
-    sql += ' AND status = ?';
+    sql += ' AND c.status = ?';
     params.push(status);
   }
-  sql += ' ORDER BY plate';
+  sql += ' ORDER BY c.plate';
+
+  const cars = (await db.prepare(sql).all(...params)).map((c) => ({
+    ...c,
+    rentals_count: Number(c.rentals_count) || 0
+  }));
+
+  const counts = await db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS available,
+              SUM(CASE WHEN status = 'rented' THEN 1 ELSE 0 END) AS rented,
+              SUM(CASE WHEN status IN ('maintenance','retired') THEN 1 ELSE 0 END) AS off_road
+       FROM cars`
+    )
+    .get();
+
   res.render('cars/index', {
     title: 'Fleet',
-    cars: await db.prepare(sql).all(...params),
+    cars,
     q,
     status,
-    statuses: CAR_STATUSES
+    statuses: CAR_STATUSES,
+    today: new Date().toISOString().slice(0, 10),
+    stats: {
+      total: Number(counts.total) || 0,
+      available: Number(counts.available) || 0,
+      rented: Number(counts.rented) || 0,
+      offRoad: Number(counts.off_road) || 0
+    }
   });
 });
 
