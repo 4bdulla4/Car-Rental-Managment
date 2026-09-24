@@ -245,9 +245,13 @@ router.get('/:id/contract', async (req, res) => {
 });
 
 /** The absolute address of the signing page, which email needs. */
+/** Where this deployment answers, for links and images sent out by email. */
+function origin(req) {
+  return mailConfig.baseUrl || `${req.protocol}://${req.get('host')}`;
+}
+
 function signUrl(req, token) {
-  const base = mailConfig.baseUrl || `${req.protocol}://${req.get('host')}`;
-  return `${base}/sign/${token}`;
+  return `${origin(req)}/sign/${token}`;
 }
 
 async function ensureToken(rental) {
@@ -277,7 +281,8 @@ router.post('/:id/send', async (req, res) => {
     to: rental.email,
     subject: `Your rental agreement ${rental.contract_no} — ${company.name}`,
     text: `Dear ${rental.full_name},\n\nYour rental agreement for ${rental.plate} (${rental.make} ${rental.model}) is ready to sign:\n\n${url}\n\nRental period: ${rental.start_date} to ${rental.end_date}.\n\n${company.name}${company.phone ? ' · ' + company.phone : ''}`,
-    html: `<p>Dear ${rental.full_name},</p>
+    html: `<p><img src="${origin(req)}/img/logo-stack-ink.png" width="176" height="80" alt="${company.name}"></p>
+<p>Dear ${rental.full_name},</p>
 <p>Your rental agreement for <strong>${rental.plate}</strong> (${rental.make} ${rental.model}) is ready to sign.</p>
 <p><a href="${url}" style="display:inline-block;padding:11px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none">Read and sign the agreement</a></p>
 <p style="color:#555;font-size:13px">Rental period: ${rental.start_date} to ${rental.end_date}.<br>

@@ -1,33 +1,20 @@
 <%
-  // Brand mark: sports car inside a speed swoosh.
-  // Colours are parameterised so the same artwork works on the dark UI and on
-  // printed white contracts. The car's windows, vents and wheel are cut with a
-  // mask, so they stay transparent on any background.
-  var h = (typeof size === 'undefined') ? 30 : size;
-  var w = Math.round(h * 200 / 116);
-  var car = (typeof carColor === 'undefined') ? '#ffffff' : carColor;
-  var themed = (typeof accent === 'undefined') ? null : accent;
-  var swoosh = (typeof swooshColor === 'undefined') ? (themed ? themed.base : '#8e2dff') : swooshColor;
-  var mid = 'carmask-' + Math.random().toString(36).slice(2, 9);
+  /**
+   * The Vida Miami mark, in three cuts:
+   *   badge   ring and car, no lettering — for small places, where the name
+   *           would only smudge
+   *   emblem  the complete roundel, name included
+   *   stack   car and name without the ring, for a space wider than it is tall
+   *
+   * The artwork is white on transparency, so it carries no background of its
+   * own. A light page inverts it to ink in the stylesheet. Paper and email get
+   * the black cut as a file instead: a printer or a mail client that drops the
+   * filter would otherwise print the mark as nothing at all.
+   */
+  var cut = (typeof variant === 'undefined') ? 'badge' : variant;
+  var ratio = { badge: 0.992, emblem: 0.992, stack: 2.205 }[cut] || 1;
+  var h = (typeof size === 'undefined') ? 32 : size;
+  var forPaper = (typeof ink !== 'undefined') && ink;
 %>
-<svg class="logo-mark" width="<%= w %>" height="<%= h %>" viewBox="0 0 200 116" role="img" aria-hidden="true">
-  <defs>
-    <mask id="<%= mid %>" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="116">
-      <path fill="#fff" d="M26 73c-1-6 4-10 11-12l19-4 11-10c3-2 7-3 11-3h18c7 0 13 2 18 6l13 8.5 19 3c5 1 6 5 1 7l-10 3-93 7c-12 1-18-1-18-5.5z"/>
-      <circle fill="#fff" cx="63" cy="71.5" r="12"/>
-      <path fill="#000" d="M61 57.5L73 48h11l-4 10z"/>
-      <path fill="#000" d="M88 48h10c4 0 7 1.5 10 4l6 5.5-29 .5z"/>
-      <path fill="#000" d="M30.5 64L45 60l2 3.5-14.5 4z"/>
-      <path fill="#000" d="M30 72l19-1.5V73l-19 1.5z"/>
-      <path fill="#000" d="M118 65.5l28-1.5v2l-28 1.5z"/>
-      <path fill="#000" d="M100 69.5l40-1.5v2l-40 1.5z"/>
-      <circle fill="#000" cx="63" cy="71.5" r="8"/>
-      <circle fill="#fff" cx="63" cy="71.5" r="3"/>
-    </mask>
-  </defs>
-  <g fill="<%= swoosh %>">
-    <path d="M34 41C68 13 118 5 148 24c28 17 32 49 9 69-24 20-67 23-101 8 32 7 72 1 90-19 17-19 9-39-13-49-27-13-69-5-99 8z"/>
-    <path d="M52 47c26-16 62-20 82-6 16 11 18 30 4 42-16 14-44 16-66 10 24 3 48-5 58-18 10-14 5-27-11-32-20-6-46-3-67 4z"/>
-  </g>
-  <rect x="0" y="0" width="200" height="116" fill="<%= car %>" mask="url(#<%= mid %>)"/>
-</svg>
+<img class="logo-mark<%= forPaper ? ' ink' : '' %>" src="/img/logo-<%= cut %><%= forPaper ? '-ink' : '' %>.png"
+     width="<%= Math.round(h * ratio) %>" height="<%= h %>" alt="" aria-hidden="true">

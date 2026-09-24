@@ -49,8 +49,18 @@ p { margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-svg.logo-mark { stroke: none; }
-svg.logo-mark * { stroke: none; }
+/* The brand mark is white line work on transparency. A light page needs it in
+   ink instead, and inverting keeps every shade of the chrome rather than
+   flattening it to one colour; .ink does the same on paper, which is white
+   whatever the screen is set to. */
+.logo-mark { display: block; height: auto; max-width: 100%; }
+/* .ink is already black, and the sheet it sits on is white in either theme. */
+:root[data-theme="light"] .logo-mark:not(.ink) { filter: invert(1); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 /* ---------- Shell ---------- */
 .shell { display: flex; min-height: 100vh; }
@@ -63,7 +73,8 @@ svg.logo-mark * { stroke: none; }
   border-right: 1px solid var(--border);
   padding: 18px 14px 14px;
 }
-.side-brand { display: flex; align-items: center; gap: 11px; padding: 0 6px 20px; color: var(--text); }
+.side-brand { display: block; padding: 2px 6px 22px; color: var(--text); }
+.side-brand .logo-mark { margin: 0 auto; }
 .side-brand:hover { text-decoration: none; }
 .wordmark { display: flex; flex-direction: column; font-weight: 700; font-size: 16px; letter-spacing: -0.02em; line-height: 1.15; }
 .wordmark small { font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em; color: var(--faint); text-transform: uppercase; }
@@ -389,7 +400,7 @@ input[type="checkbox"] { width: auto; }
   mask-image: radial-gradient(circle at 50% 40%, #000, transparent 76%);
 }
 .auth-brand > * { position: relative; z-index: 1; }
-.auth-brand .top { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.auth-brand .top { display: flex; align-items: center; gap: 12px; }
 .auth-brand h1 { font-size: 40px; line-height: 1.12; letter-spacing: -0.035em; max-width: 12ch; }
 .auth-brand .lede { color: var(--muted); font-size: 15px; margin-top: 16px; max-width: 42ch; }
 .auth-points { display: flex; flex-direction: column; gap: 13px; margin-top: 34px; }
@@ -446,11 +457,11 @@ input[type="checkbox"] { width: auto; }
     padding: 10px 16px; background: var(--surface);
     border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20;
   }
-  .mobile-brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -0.02em; }
+  .mobile-brand { display: flex; align-items: center; }
   main { padding: 22px 16px 60px; }
   .auth { grid-template-columns: 1fr; }
   .auth-brand { display: none; }
-  .auth-card .mobile-logo { display: flex; align-items: center; gap: 11px; margin-bottom: 26px; font-weight: 700; font-size: 18px; }
+  .auth-card .mobile-logo { display: flex; align-items: center; margin-bottom: 26px; }
 }
 @media (max-width: 640px) {
   /* Two per row and shorter, or six stacked full-height cards bury the page. */

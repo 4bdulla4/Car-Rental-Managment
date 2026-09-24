@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= title %> · <%= company.name %></title>
-<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/img/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -45,8 +46,8 @@
 <body>
 <div class="sign-wrap">
   <div class="sign-head">
-    <%- include('../partials/logo', { size: 34 }) %>
-    <span class="wordmark"><%= company.name %><small>Rental agreement</small></span>
+    <%- include('../partials/logo', { variant: 'stack', size: 54 }) %>
+    <span class="wordmark"><small>Rental agreement</small></span>
   </div>
 
   <% if (signed) { %>

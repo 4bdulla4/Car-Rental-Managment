@@ -19,19 +19,6 @@ if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
-app.get('/logo.svg', async (req, res) => {
-  const theme = require('./lib/theme');
-  let accent = theme.get();
-  try {
-    await require('./db').ready();
-    await settings.load();
-    accent = settings.accent();
-  } catch {
-    // Fall back to the default mark if the database is not reachable yet.
-  }
-  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=60').render('partials/favicon', { accent });
-});
-
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: false }));
 

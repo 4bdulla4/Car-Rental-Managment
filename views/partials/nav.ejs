@@ -3,8 +3,8 @@
 
   <aside class="sidebar" id="sidebar">
     <a class="side-brand" href="/">
-      <%- include('logo', { size: 30 }) %>
-      <span class="wordmark"><%= company.name %><small>fleet &amp; contracts</small></span>
+      <%- include('logo', { variant: 'stack', size: 70 }) %>
+      <span class="sr-only"><%= company.name %></span>
     </a>
 
     <nav class="side-nav">
@@ -88,7 +88,7 @@
       <button class="icon-btn" type="button" data-open-nav aria-label="Open menu">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
-      <span class="mobile-brand"><%- include('logo', { size: 22 }) %><%= company.name %></span>
+      <span class="mobile-brand"><%- include('logo', { variant: 'stack', size: 30 }) %></span>
     </header>
     <main>
 <% if (flash) { %>
