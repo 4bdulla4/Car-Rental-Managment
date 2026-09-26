@@ -56,6 +56,72 @@
 </div>
 
 <div class="card">
+  <h3>Driving licence</h3>
+  <p class="small muted" style="margin:-8px 0 16px">
+    <%= shots.complete
+        ? 'Both sides are attached to this contract and printed on the agreement.'
+        : 'The customer photographs these when they sign, or you can add them here.' %>
+  </p>
+
+  <div class="shots">
+    <% [['front', 'Front'], ['back', 'Back']].forEach(function (pair) {
+         var side = pair[0], label = pair[1], shot = shots[side]; %>
+      <figure class="shot shot-static <%= shot ? 'filled' : '' %>">
+        <% if (shot) { %>
+          <a href="/rentals/<%= rental.id %>/licence/licence_<%= side %>" target="_blank" rel="noopener">
+            <img src="/rentals/<%= rental.id %>/licence/licence_<%= side %>" alt="Driving licence, <%= label.toLowerCase() %>">
+          </a>
+          <figcaption>
+            <%= label %> · <%= String(shot.captured_at).slice(0, 16) %> UTC
+            · <%= String(shot.captured_by || '').startsWith('staff') ? 'added at the desk' : 'sent by the customer' %>
+          </figcaption>
+          <% if (!rental.signature_data) { %>
+            <form method="post" action="/rentals/<%= rental.id %>/licence/licence_<%= side %>/delete">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn sm danger" type="submit">Remove</button>
+            </form>
+          <% } %>
+        <% } else { %>
+          <span class="shot-face">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2.2"/><path d="M13 10h5M13 13.5h5M5 16.5h6"/></svg>
+            <strong><%= label %></strong>
+            <span class="shot-hint">Not provided yet</span>
+          </span>
+        <% } %>
+      </figure>
+    <% }); %>
+  </div>
+
+  <% if (!rental.signature_data) { %>
+    <form method="post" action="/rentals/<%= rental.id %>/licence" data-licence-form style="margin-top:16px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="shots">
+        <% [['licence_front', 'Scan or photo — front'], ['licence_back', 'Scan or photo — back']].forEach(function (pair) { %>
+          <label class="shot" data-shot>
+            <input type="file" accept="image/*" data-file hidden>
+            <input type="hidden" name="<%= pair[0] %>" data-field>
+            <img data-preview hidden alt="">
+            <span class="shot-face">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/></svg>
+              <strong><%= pair[1] %></strong>
+              <span class="shot-hint">Choose a file</span>
+            </span>
+            <span class="shot-status" data-status></span>
+          </label>
+        <% }); %>
+      </div>
+      <button class="btn" type="submit" data-licence-submit style="margin-top:12px" disabled>Attach both sides</button>
+      <p class="hint">Large photos are shrunk before they are sent. Both sides are needed.</p>
+    </form>
+  <% } else { %>
+    <p class="hint">
+      This agreement is signed, so the licence copy is fixed: it is part of what was
+      signed, and the fingerprint recorded with the signature covers it.
+    </p>
+  <% } %>
+</div>
+
+<div class="card">
   <h3>Signature</h3>
   <% if (rental.signature_data) { %>
     <div class="signed-row">
@@ -195,4 +261,5 @@
   </form>
 </div>
 <% } %>
+<script src="/js/licence-capture.js" defer></script>
 <%- include('../partials/foot') %>

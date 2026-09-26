@@ -70,7 +70,34 @@
     <p class="small-print">Browser reported: <span class="mono"><%= rental.signed_user_agent %></span></p>
   <% } %>
 
-  <h2 class="section">2. What the signer confirmed</h2>
+  <h2 class="section">2. The driving licence produced</h2>
+  <% if (shots.front || shots.back) { %>
+    <p>
+      Photographed by the signer and attached to the agreement. Each fingerprint below is
+      of the image itself, and is included in the document fingerprint in section 4 below:
+      replace a photograph afterwards and the agreement stops verifying.
+    </p>
+    <div class="licence-pair">
+      <% [['front', 'Front'], ['back', 'Back']].forEach(function (pair) {
+           var side = pair[0], label = pair[1], shot = shots[side]; %>
+        <figure>
+          <% if (shot) { %>
+            <img src="<%= licenceBase %>/licence_<%= side %>" alt="Driving licence, <%= label.toLowerCase() %>">
+            <figcaption>
+              <%= label %> · <%= String(shot.captured_at).slice(0, 16) %> UTC ·
+              <span class="mono"><%= String(shot.digest).slice(0, 16).replace(/(.{4})(?=.)/g, '$1 ').toUpperCase() %></span>
+            </figcaption>
+          <% } else { %>
+            <div class="licence-missing"><%= label %> not provided</div>
+          <% } %>
+        </figure>
+      <% }); %>
+    </div>
+  <% } else { %>
+    <p>No copy of the driving licence was attached to this agreement.</p>
+  <% } %>
+
+  <h2 class="section">3. What the signer confirmed</h2>
   <% if (consents.length) { %>
     <p>
       Each was a separate statement, unticked when the page opened, and quoted here in the
@@ -86,7 +113,7 @@
     </p>
   <% } %>
 
-  <h2 class="section">3. That the agreement has not changed since</h2>
+  <h2 class="section">4. That the agreement has not changed since</h2>
   <% if (integrity.state === 'intact') { %>
     <p class="verdict ok">Verified — the agreement today is word for word the one that was signed.</p>
   <% } else if (integrity.state === 'altered') { %>
@@ -109,7 +136,7 @@
     <dt>Method</dt><dd class="mono">SHA-256 of the parties, vehicle, dates, charges and terms</dd>
   </dl>
 
-  <h2 class="section">4. What happened, and when</h2>
+  <h2 class="section">5. What happened, and when</h2>
   <table class="charges trail">
     <% trail.forEach(function (e) { %>
       <tr>
@@ -120,7 +147,7 @@
     <% }); %>
   </table>
 
-  <h2 class="section">5. What kind of signature this is</h2>
+  <h2 class="section">6. What kind of signature this is</h2>
   <p>
     A simple electronic signature supported by an audit trail. The signer was sent a
     private link<%= rental.sign_code_at ? ', entered an access code issued to them through a separate channel' : '' %>,

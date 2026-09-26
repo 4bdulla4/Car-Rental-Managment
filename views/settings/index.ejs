@@ -196,6 +196,17 @@
         this off makes signing quicker and the evidence thinner.
       </div>
 
+      <label class="check" style="margin-top:16px">
+        <input type="checkbox" name="licence_required" value="1" <%= signing.licenceRequired ? 'checked' : '' %>>
+        <span>Ask for a photo of both sides of the driving licence</span>
+      </label>
+      <div class="hint" style="margin-bottom:6px">
+        The customer photographs the licence on their phone before signing, and both
+        sides are printed on the agreement and kept with it. The renter holding a valid
+        licence is what the whole contract turns on, so it is worth the evidence rather
+        than a tick-box claim.
+      </div>
+
       <div class="field" style="margin-top:18px">
         <label for="sign_link_days">A signing link lasts (days)</label>
         <input id="sign_link_days" name="sign_link_days" type="number" min="1" max="90" step="1"

@@ -159,6 +159,7 @@ function signing() {
   const days = Number(stored.sign_link_days);
   return {
     codeRequired: stored.sign_code_required === undefined ? true : stored.sign_code_required === '1',
+    licenceRequired: stored.licence_required === undefined ? true : stored.licence_required === '1',
     linkDays: Number.isFinite(days) && days >= 1 && days <= 90 ? Math.round(days) : 14
   };
 }

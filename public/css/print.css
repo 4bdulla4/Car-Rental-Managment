@@ -76,3 +76,16 @@ footer.doc { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 7
 .verdict.ok { color: #0f7a46; }
 .verdict.bad { color: #b3261e; }
 table.trail td { font-size: 11px; vertical-align: top; }
+
+/* Driving licence, reproduced on the agreement */
+.licence-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.licence-pair figure { margin: 0; }
+.licence-pair img {
+  display: block; width: 100%; border: 1px solid var(--line); border-radius: 4px;
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+.licence-pair figcaption { font-size: 9.5px; color: var(--soft); margin-top: 3px; }
+.licence-missing {
+  border: 1px dashed var(--line); border-radius: 4px; padding: 22px 8px;
+  text-align: center; font-size: 10.5px; color: var(--soft);
+}

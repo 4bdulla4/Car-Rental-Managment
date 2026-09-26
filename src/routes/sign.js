@@ -5,6 +5,7 @@ const config = require('../config');
 const settings = require('../lib/settings');
 const esign = require('../lib/esign');
 const agreementSnapshot = require('../lib/agreement');
+const licence = require('../lib/licence');
 const mailer = require('../lib/mailer');
 const mailConfig = require('../lib/config-mail');
 const { quoteRental } = require('../lib/pricing');
@@ -12,6 +13,9 @@ const { formatMoney } = require('../lib/money');
 const { fuelLabel } = require('../lib/contracts');
 
 const router = express.Router();
+
+/** Two shrunk photographs, base64, comfortably inside a megabyte and a half. */
+const photoBody = express.urlencoded({ extended: false, limit: '1800kb' });
 
 const MAX_CODE_TRIES = 6;
 
@@ -59,11 +63,12 @@ function agreementLocals(rental) {
 }
 
 /** The parts the document hash is taken over. */
-const hashParts = (locals) => ({
+const hashParts = (locals, licenceDigests) => ({
   terms: locals.terms,
   agreement: locals.agreement,
   company: locals.company,
-  currency: locals.currency
+  currency: locals.currency,
+  licence: licenceDigests
 });
 
 const dead = (res, status, title, message) =>
@@ -115,16 +120,84 @@ router.get('/:token', async (req, res) => {
   if (needsCode && !unlocked(req, rental.sign_token)) return gate(req, res, rental);
 
   const locals = agreementLocals(rental);
+  const shots = await licence.summary(rental.id);
   res.render('sign/index', {
     title: `Sign ${rental.contract_no}`,
     ...locals,
     consents: esign.CONSENTS,
     signed,
-    integrity: esign.integrity(rental, hashParts(locals)),
+    integrity: esign.integrity(rental, hashParts(locals, await licence.digests(rental.id))),
     fingerprint: esign.fingerprint(rental.sign_doc_hash),
     signedConsents: esign.consentsOf(rental),
+    licenceRequired: settings.signing().licenceRequired,
+    shots,
     errors: []
   });
+});
+
+/**
+ * Both sides of the driving licence, taken by the person about to sign.
+ *
+ * It is a step of its own rather than part of the signing form: the photographs
+ * are the bulk of what is sent, and the signer should see them land — and be
+ * able to take one again — before they put their name to anything.
+ */
+router.post('/:token/licence', photoBody, async (req, res) => {
+  const rental = await findByToken(req.params.token);
+  if (!rental) return dead(res, 404, 'Link not valid', 'This signing link is not one we recognise.');
+  if (rental.signature_data) return res.redirect(`/sign/${rental.sign_token}`);
+  if (esign.isExpired(rental)) {
+    return dead(res, 410, 'Link expired', 'This signing link has expired. Ask us to send you a new one.');
+  }
+  if (settings.signing().codeRequired && rental.sign_code && !unlocked(req, rental.sign_token)) {
+    return gate(req, res, rental, ['Enter the access code first.']);
+  }
+
+  const errors = [];
+  for (const [field, kind] of [['licence_front', 'licence_front'], ['licence_back', 'licence_back']]) {
+    const given = req.body[field];
+    if (!given) continue;
+    const parsed = licence.parseUpload(given);
+    if (!parsed.ok) {
+      errors.push(`${licence.LABELS[kind]}: ${parsed.reason}`);
+      continue;
+    }
+    await licence.save(rental.id, kind, parsed, { by: 'customer', ip: clientIp(req) });
+  }
+
+  if (errors.length) {
+    const locals = agreementLocals(rental);
+    return res.status(400).render('sign/index', {
+      title: `Sign ${rental.contract_no}`,
+      ...locals,
+      consents: esign.CONSENTS,
+      signed: false,
+      integrity: { state: 'unsigned' },
+      fingerprint: '',
+      signedConsents: [],
+      licenceRequired: settings.signing().licenceRequired,
+      shots: await licence.summary(rental.id),
+      errors
+    });
+  }
+
+  res.redirect(`/sign/${rental.sign_token}#licence`);
+});
+
+/** The photographs themselves, for the page and the printed agreement. */
+router.get('/:token/licence/:kind', async (req, res) => {
+  const rental = await findByToken(req.params.token);
+  if (!rental) return res.status(404).send('Not found');
+  if (!rental.signature_data && settings.signing().codeRequired && rental.sign_code && !unlocked(req, rental.sign_token)) {
+    return res.status(403).send('Enter your access code first.');
+  }
+  const row = await licence.image(rental.id, req.params.kind);
+  if (!row) return res.status(404).send('Not found');
+  // Personal documents are never handed to a shared cache.
+  res.type(row.mime)
+    .set('Cache-Control', 'private, no-store')
+    .set('X-Content-Type-Options', 'nosniff')
+    .send(Buffer.from(row.image, 'base64'));
 });
 
 router.post('/:token/code', async (req, res) => {
@@ -162,6 +235,8 @@ router.get('/:token/document', async (req, res) => {
   res.render('contracts/handover', {
     title: rental.contract_no,
     embedded: true,
+    shots: await licence.summary(rental.id),
+    licenceBase: `/sign/${rental.sign_token}/licence`,
     ...agreementLocals(rental)
   });
 });
@@ -183,7 +258,12 @@ router.post('/:token', async (req, res) => {
   const name = String(req.body.signed_name || '').trim();
   const signature = String(req.body.signature_data || '');
   const ticked = esign.CONSENTS.filter((c) => req.body['consent_' + c.id] === '1');
+  const shots = await licence.summary(rental.id);
   const errors = [];
+
+  if (settings.signing().licenceRequired && !shots.complete) {
+    errors.push('Please add a photo of both sides of your driving licence before signing.');
+  }
 
   if (name.length < 3) errors.push('Please type your full name as it appears on your licence.');
   if (name.length > 80) errors.push('That name is too long.');
@@ -210,6 +290,8 @@ router.post('/:token', async (req, res) => {
       integrity: { state: 'unsigned' },
       fingerprint: '',
       signedConsents: [],
+      licenceRequired: settings.signing().licenceRequired,
+      shots,
       errors,
       submitted: { name, ticked: ticked.map((c) => c.id) }
     });
@@ -217,7 +299,7 @@ router.post('/:token', async (req, res) => {
 
   // The hash is taken over the terms as they stand at this moment, so what was
   // agreed to can be checked against the record for the life of the contract.
-  const hash = esign.documentHash(rental, hashParts(locals));
+  const hash = esign.documentHash(rental, hashParts(locals, await licence.digests(rental.id)));
   const result = await db.prepare(
     `UPDATE rentals SET signature_data = ?, signed_name = ?, signed_ip = ?, signed_user_agent = ?,
                         signed_email = ?, sign_doc_hash = ?, sign_consents = ?,

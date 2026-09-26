@@ -17,6 +17,14 @@ let code;
 
 const PNG = 'data:image/png;base64,' + 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQ'.repeat(12) + '==';
 
+// A real JPEG — the server checks the first bytes, not just the label — padded
+// past the minimum size that rejects a blank or accidental shot.
+const JPEG = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAZACgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDraKKKsQUUUUAFFFFABRRRQAUUUUAFFFFAH//Z';
+const PHOTO = 'data:image/jpeg;base64,' + JPEG + 'A'.repeat(2800);
+
+/** Both sides of the licence, as the capture form posts them. */
+const bothSides = () => ({ licence_front: PHOTO, licence_back: PHOTO });
+
 /** Every confirmation ticked, as the form posts them. */
 const allConsents = () =>
   Object.fromEntries(esign.CONSENTS.map((c) => ['consent_' + c.id, '1']));
@@ -173,6 +181,48 @@ test('an empty pad is refused even though it is a valid PNG', async () => {
   assert.match(res.body, /looks empty/i);
 });
 
+test('the licence is refused unless it is really an image', async () => {
+  const res = await post(`/sign/${token}/licence`, {
+    licence_front: 'data:image/jpeg;base64,' + 'QUJD'.repeat(900)
+  }, `/sign/${token}`);
+  assert.equal(res.status, 400);
+  assert.match(res.body, /not the kind of image it claims to be/i);
+});
+
+test('signing is refused until both sides of the licence are on file', async () => {
+  await post(`/sign/${token}/licence`, { licence_front: PHOTO }, `/sign/${token}`);
+
+  const res = await post(`/sign/${token}`, {
+    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...allConsents()
+  }, `/sign/${token}`);
+  assert.equal(res.status, 400);
+  assert.match(res.body, /both sides of your driving licence/i);
+});
+
+test('both sides are stored, and served back only through the link', async () => {
+  const res = await post(`/sign/${token}/licence`, bothSides(), `/sign/${token}`);
+  assert.equal(res.status, 302);
+
+  const rows = await db.prepare('SELECT kind, mime, bytes, digest, captured_by FROM contract_documents WHERE rental_id = ?')
+    .all(rentalId);
+  assert.deepEqual(rows.map((r) => r.kind).sort(), ['licence_back', 'licence_front']);
+  rows.forEach((r) => {
+    assert.equal(r.mime, 'image/jpeg');
+    assert.equal(r.captured_by, 'customer', 'who produced it is part of the record');
+    assert.match(String(r.digest), /^[a-f0-9]{64}$/);
+    assert.ok(Number(r.bytes) > 2000);
+  });
+
+  const shot = await fetch(`${base}/sign/${token}/licence/licence_front`, { headers: { cookie: jar } });
+  assert.equal(shot.status, 200);
+  assert.equal(shot.headers.get('content-type'), 'image/jpeg');
+  assert.match(shot.headers.get('cache-control'), /no-store/, 'a personal document is never cached');
+  assert.equal(shot.headers.get('x-content-type-options'), 'nosniff');
+
+  const nobody = await fetch(`${base}/sign/${'c'.repeat(48)}/licence/licence_front`);
+  assert.equal(nobody.status, 404, 'and is not reachable without the link');
+});
+
 test('signing records the signature and the evidence around it', async () => {
   const res = await post(`/sign/${token}`, {
     signed_name: 'Omar Al-Harbi', signature_data: PNG, ...allConsents()
@@ -208,6 +258,33 @@ test('the signer is shown their own record afterwards', async () => {
   assert.match(page.body, /Your signing record/);
   assert.match(page.body, /Document fingerprint/);
   assert.match(page.body, /word for word/, 'and told it still matches');
+});
+
+test('swapping the licence photo after signing breaks the fingerprint', async () => {
+  const r = await row();
+  const parts = {
+    terms: ['A term'], agreement: { governingLaw: 'KSA' }, company: { name: 'Co' }, currency: 'SAR'
+  };
+  const withShots = { ...parts, licence: { front: 'aaa', back: 'bbb' } };
+  const hash = esign.documentHash(r, withShots);
+
+  assert.equal(esign.integrity({ ...r, sign_doc_hash: hash }, withShots).state, 'intact');
+  assert.equal(
+    esign.integrity({ ...r, sign_doc_hash: hash }, { ...parts, licence: { front: 'zzz', back: 'bbb' } }).state,
+    'altered',
+    'the copy on file must be the copy that was signed for'
+  );
+});
+
+test('a signed contract will not give up its licence photos', async () => {
+  jar = '';
+  await signIn();
+  const res = await post(`/rentals/${rentalId}/licence/licence_front/delete`, {}, `/rentals/${rentalId}`);
+  assert.equal(res.status, 302);
+  const still = await db.prepare("SELECT COUNT(*) AS n FROM contract_documents WHERE rental_id = ? AND kind = 'licence_front'")
+    .get(rentalId);
+  assert.equal(Number(still.n), 1, 'it is part of what was signed');
+  jar = '';
 });
 
 test('changing a term after signing is detected', async () => {
@@ -324,4 +401,7 @@ test('the signature is printed on the contract', async () => {
   const contract = await get(`/rentals/${rentalId}/contract`);
   assert.match(contract.body, /class="signature"/);
   assert.match(contract.body, /Signed electronically by Omar Al-Harbi/);
+  assert.match(contract.body, /Driving licence/, 'the licence is a section of the agreement');
+  assert.match(contract.body, /licence\/licence_front/, 'and both sides are printed on it');
+  assert.match(contract.body, /licence\/licence_back/);
 });

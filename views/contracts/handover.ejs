@@ -164,7 +164,37 @@
     </dl>
   </div>
 
-  <h2 class="section"><%= agreement.governingLaw ? 13 : 12 %>. Signatures</h2>
+  <h2 class="section"><%= agreement.governingLaw ? 13 : 12 %>. Driving licence</h2>
+  <% var shotsOn = typeof shots !== 'undefined' && shots; %>
+  <% if (shotsOn && (shots.front || shots.back)) { %>
+    <p>
+      The Lessee produced the driving licence below, which is reproduced here as it was
+      shown and forms part of this Agreement.
+    </p>
+    <div class="licence-pair">
+      <% [['front', 'Front'], ['back', 'Back']].forEach(function (pair) {
+           var side = pair[0], label = pair[1], shot = shots[side]; %>
+        <figure>
+          <% if (shot) { %>
+            <img src="<%= licenceBase %>/licence_<%= side %>" alt="Driving licence, <%= label.toLowerCase() %>">
+            <figcaption>
+              <%= label %> · taken <%= String(shot.captured_at).slice(0, 10) %>
+              · <span class="mono"><%= String(shot.digest).slice(0, 8).toUpperCase() %></span>
+            </figcaption>
+          <% } else { %>
+            <div class="licence-missing"><%= label %> not provided</div>
+          <% } %>
+        </figure>
+      <% }); %>
+    </div>
+  <% } else { %>
+    <p class="small-print">
+      No copy of the driving licence is attached to this Agreement. The Lessee's licence
+      number is recorded above and was checked at handover.
+    </p>
+  <% } %>
+
+  <h2 class="section"><%= agreement.governingLaw ? 14 : 13 %>. Signatures</h2>
   <p class="small-print">
     IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first
     written above.

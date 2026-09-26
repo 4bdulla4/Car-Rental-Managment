@@ -123,6 +123,61 @@
   </p>
 
   <% if (!signed) { %>
+  <div class="card" id="licence" style="margin-top:18px">
+    <h3>Your driving licence</h3>
+    <p class="small muted" style="margin:-8px 0 16px">
+      <% if (licenceRequired) { %>
+        Photograph both sides before you sign. They are attached to this agreement,
+        and kept with it.
+      <% } else { %>
+        Optional, but it saves a trip to the desk: photograph both sides and they are
+        attached to this agreement.
+      <% } %>
+    </p>
+
+    <% if (shots.complete) { %>
+      <div class="shots">
+        <% [['front', 'Front'], ['back', 'Back']].forEach(function (pair) { %>
+          <figure class="shot filled">
+            <img src="/sign/<%= rental.sign_token %>/licence/licence_<%= pair[0] %>" alt="Licence <%= pair[1].toLowerCase() %>">
+            <figcaption><%= pair[1] %> · received</figcaption>
+          </figure>
+        <% }); %>
+      </div>
+      <p class="hint">
+        If either photo is hard to read, take it again below — you can replace them until
+        you sign.
+      </p>
+    <% } %>
+
+    <form method="post" action="/sign/<%= rental.sign_token %>/licence" data-licence-form
+          style="margin-top:<%= shots.complete ? '16px' : '0' %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="shots">
+        <% [['licence_front', 'Front of the licence'], ['licence_back', 'Back of the licence']].forEach(function (pair) { %>
+          <label class="shot" data-shot>
+            <input type="file" accept="image/*" capture="environment" data-file hidden>
+            <input type="hidden" name="<%= pair[0] %>" data-field>
+            <img data-preview hidden alt="">
+            <span class="shot-face">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2.2"/><path d="M13 10h5M13 13.5h5M5 16.5h6"/></svg>
+              <strong><%= pair[1] %></strong>
+              <span class="shot-hint">Tap to take a photo</span>
+            </span>
+            <span class="shot-status" data-status></span>
+          </label>
+        <% }); %>
+      </div>
+      <button class="btn primary" type="submit" data-licence-submit style="margin-top:14px" disabled>
+        <%= shots.complete ? 'Replace both photos' : 'Send both photos' %>
+      </button>
+      <p class="hint">
+        The photos are shrunk on your phone before they are sent, so this works on a slow
+        connection. They are stored with your agreement and shown to nobody else.
+      </p>
+    </form>
+  </div>
+
   <div class="card" style="margin-top:18px">
     <h3>Sign here</h3>
     <%- include('../partials/errors') %>
@@ -256,5 +311,6 @@
   </script>
   <% } %>
 </div>
+<script src="/js/licence-capture.js" defer></script>
 </body>
 </html>

@@ -12,8 +12,12 @@ const mailConfig = require('../lib/config-mail');
 const settings = require('../lib/settings');
 const esign = require('../lib/esign');
 const agreementSnapshot = require('../lib/agreement');
+const licence = require('../lib/licence');
 
 const router = express.Router();
+
+/** Photographs do not fit in the default body limit. */
+const photoBody = express.urlencoded({ extended: false, limit: '1800kb' });
 router.use(requireAuth);
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -229,10 +233,76 @@ router.get('/:id', async (req, res) => {
     signing: settings.signing(),
     trail: esign.auditTrail(rental),
     fingerprint: esign.fingerprint(rental.sign_doc_hash),
-    integrity: esign.integrity(rental, { ...agreementSnapshot.restore(rental), currency }),
+    integrity: esign.integrity(rental, {
+      ...agreementSnapshot.restore(rental),
+      currency,
+      licence: await licence.digests(rental.id)
+    }),
     linkExpired: esign.isExpired(rental),
+    shots: await licence.summary(rental.id),
     ...inCurrency(rental)
   });
+});
+
+/**
+ * The licence taken at the counter, for a rental that never goes out by email.
+ * Same slots, same contract: whoever captured it is recorded either way.
+ */
+router.post('/:id/licence', photoBody, async (req, res) => {
+  const rental = await findRental(req.params.id);
+  if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+
+  const problems = [];
+  for (const kind of licence.KINDS) {
+    const given = req.body[kind];
+    if (!given) continue;
+    const parsed = licence.parseUpload(given);
+    if (!parsed.ok) {
+      problems.push(`${licence.LABELS[kind]}: ${parsed.reason}`);
+      continue;
+    }
+    await licence.save(rental.id, kind, parsed, {
+      by: `staff:${req.user.name}`,
+      ip: String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim()
+    });
+  }
+
+  req.session.flash = problems.length
+    ? { type: 'error', message: problems.join(' ') }
+    : { type: 'success', message: 'Licence photos saved to this contract.' };
+  res.redirect(`/rentals/${rental.id}`);
+});
+
+router.get('/:id/licence/:kind', async (req, res) => {
+  const row = await licence.image(req.params.id, req.params.kind);
+  if (!row) return res.status(404).send('Not found');
+  res.type(row.mime)
+    .set('Cache-Control', 'private, no-store')
+    .set('X-Content-Type-Options', 'nosniff')
+    .send(Buffer.from(row.image, 'base64'));
+});
+
+/**
+ * Removing a photograph. Allowed while the contract is unsigned — a bad photo
+ * should be retaken — but never afterwards: the signature was given against
+ * that copy, and the hash recorded with it would no longer verify.
+ */
+router.post('/:id/licence/:kind/delete', async (req, res) => {
+  const rental = await findRental(req.params.id);
+  if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+
+  if (rental.signature_data) {
+    req.session.flash = {
+      type: 'error',
+      message: 'That agreement is signed. The licence copy is part of what was signed and cannot be removed.'
+    };
+  } else if (!licence.isKind(req.params.kind)) {
+    req.session.flash = { type: 'error', message: 'There is nothing of that kind on this contract.' };
+  } else {
+    await licence.remove(rental.id, req.params.kind);
+    req.session.flash = { type: 'success', message: 'Photo removed. Take it again when you can.' };
+  }
+  res.redirect(`/rentals/${rental.id}`);
 });
 
 /**
@@ -254,6 +324,7 @@ router.get('/:id/certificate', async (req, res) => {
 
   const currency = rental.currency || settings.currency();
   const wording = agreementSnapshot.restore(rental);
+  const shots = await licence.summary(rental.id);
 
   res.render('contracts/certificate', {
     title: `Certificate ${rental.contract_no}`,
@@ -261,8 +332,10 @@ router.get('/:id/certificate', async (req, res) => {
     company: wording.company,
     trail: esign.auditTrail(rental),
     consents: esign.consentsOf(rental),
-    integrity: esign.integrity(rental, { ...wording, currency }),
+    integrity: esign.integrity(rental, { ...wording, currency, licence: await licence.digests(rental.id) }),
     fingerprint: esign.fingerprint(rental.sign_doc_hash),
+    shots,
+    licenceBase: `/rentals/${rental.id}/licence`,
     ...inCurrency(rental)
   });
 });
@@ -278,6 +351,8 @@ router.get('/:id/contract', async (req, res) => {
     rental,
     quote: q,
     policy: rentalPolicy(rental),
+    shots: await licence.summary(rental.id),
+    licenceBase: `/rentals/${rental.id}/licence`,
     ...agreementSnapshot.restore(rental),
     ...inCurrency(rental)
   });

@@ -153,6 +153,25 @@ CREATE TABLE IF NOT EXISTS settings (
   value      TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Photographs attached to one contract: the driving licence as it was shown on
+-- the day. They live in their own table rather than on the rental, because
+-- every list query selects r.* and would otherwise drag a megabyte per row.
+CREATE TABLE IF NOT EXISTS contract_documents (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  rental_id   INTEGER NOT NULL REFERENCES rentals(id),
+  kind        TEXT NOT NULL,
+  mime        TEXT NOT NULL,
+  image       TEXT NOT NULL,
+  bytes       INTEGER NOT NULL,
+  digest      TEXT NOT NULL,
+  captured_by TEXT,
+  captured_ip TEXT,
+  captured_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_contract_documents_slot
+  ON contract_documents(rental_id, kind);
 `;
 
 // Created once per process and awaited before the first request is served.

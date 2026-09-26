@@ -229,6 +229,10 @@ async function load() {
 /** Deletes exactly what load() created, and nothing else. */
 async function remove() {
   const before = await summary();
+  // Attachments go with the contracts they belong to, or they are orphaned.
+  await db.prepare(
+    'DELETE FROM contract_documents WHERE rental_id IN (SELECT id FROM rentals WHERE is_sample = 1)'
+  ).run();
   await db.prepare('DELETE FROM rentals WHERE is_sample = 1').run();
   // A sample customer or car that was later used on a real contract stays.
   await db.prepare(

@@ -364,6 +364,7 @@ router.post('/signing', async (req, res) => {
     return await render(res, 400, { errors: ['A signing link must last between 1 and 90 days.'] });
   }
   await settings.set('sign_code_required', req.body.sign_code_required === '1' ? '1' : '0');
+  await settings.set('licence_required', req.body.licence_required === '1' ? '1' : '0');
   await settings.set('sign_link_days', String(Math.round(days)));
   req.session.flash = { type: 'success', message: 'Signing rules saved. They apply to links issued from now on.' };
   res.redirect(backTo(req));

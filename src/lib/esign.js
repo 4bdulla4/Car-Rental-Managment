@@ -76,7 +76,7 @@ function sameSecret(a, b) {
  * longer matches, which is precisely what an argument about "that is not what I
  * signed" needs to be able to settle.
  */
-function canonical(rental, { terms, agreement, company, currency }) {
+function canonical(rental, { terms, agreement, company, currency, licence }) {
   const v = (x) => (x === null || x === undefined ? '' : String(x));
   return [
     'contract=' + v(rental.contract_no),
@@ -89,6 +89,9 @@ function canonical(rental, { terms, agreement, company, currency }) {
     'charges=' + [rental.fuel_charge_per_eighth, rental.late_day_multiplier, rental.deductible].map(v).join('|'),
     'handover=' + [rental.pickup_odometer, rental.pickup_fuel, rental.pickup_notes].map(v).join('|'),
     'law=' + v(agreement && agreement.governingLaw),
+    // The licence photographs are bound in by their digests: replace the copy on
+    // file afterwards and the agreement stops verifying, which is the point.
+    'licence=' + [licence && licence.front, licence && licence.back].map(v).join('|'),
     'terms=' + (terms || []).map(v).join(' ~ ')
   ].join('\n');
 }
