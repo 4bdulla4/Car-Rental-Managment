@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-theme="<%= theme %>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> · <%= company.name %></title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  :root { --accent: <%= accent.base %>; --accent-lit: <%= accent.lit %>; --accent-to: <%= accent.to %>; }
+  .code-input {
+    font-family: var(--mono); font-size: 27px; letter-spacing: 0.32em;
+    text-align: center; padding: 15px 10px;
+  }
+</style>
+</head>
+<body>
+<div class="auth"><section class="auth-form" style="grid-column:1/-1">
+  <div class="auth-card">
+    <div style="display:flex;justify-content:center;margin-bottom:18px">
+      <%- include('../partials/logo', { variant: 'emblem', size: 92 }) %>
+    </div>
+
+    <% if (locked) { %>
+      <h2>Too many attempts</h2>
+      <p class="sub">
+        This link is now closed for safety. Call <%= company.name %><%= company.phone ? ' on ' + company.phone : '' %>
+        and we will send you a fresh one.
+      </p>
+    <% } else { %>
+      <h2>Your access code</h2>
+      <p class="sub">
+        Agreement <strong><%= rental.contract_no %></strong> for <strong><%= rental.plate %></strong>.
+        Enter the six-digit code we gave you when you booked. We send it separately from
+        this link, so that only you can sign.
+      </p>
+
+      <%- include('../partials/errors') %>
+
+      <form method="post" action="/sign/<%= rental.sign_token %>/code">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field">
+          <label for="code">Access code</label>
+          <input class="code-input" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+                 pattern="[0-9]*" maxlength="6" required autofocus placeholder="000000">
+        </div>
+        <button class="btn primary" type="submit">Continue</button>
+      </form>
+
+      <p class="auth-note" style="margin-top:18px">
+        Do not have the code?
+        <% if (company.phone) { %>Call <%= company.phone %><% } else { %>Contact <%= company.name %><% } %>
+        and we will read it out to you.
+      </p>
+    <% } %>
+  </div>
+</section></div>
+</body>
+</html>

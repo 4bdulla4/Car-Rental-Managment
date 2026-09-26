@@ -31,6 +31,7 @@ const TAB_FOR = {
   '/mileage': 'charges',
   '/terms': 'contract',
   '/agreement': 'contract',
+  '/signing': 'contract',
   '/appearance': 'company',
   '/sample-data/load': 'data',
   '/sample-data/remove': 'data'
@@ -56,6 +57,7 @@ async function render(res, status, extra = {}) {
     mileage: settings.mileage(),
     deposit: settings.deposit(),
     discount: settings.discount(),
+    signing: settings.signing(),
     dailyRate: settings.dailyRate(),
     fleetRates: await db.prepare('SELECT MIN(daily_rate) AS low, MAX(daily_rate) AS high FROM cars WHERE daily_rate > 0')
       .get(),
@@ -353,6 +355,17 @@ router.post('/agreement', async (req, res) => {
   await settings.set('return_location', returnLocation);
   await settings.set('governing_law', governingLaw);
   req.session.flash = { type: 'success', message: 'Agreement details saved. They appear on contracts issued from now on.' };
+  res.redirect(backTo(req));
+});
+
+router.post('/signing', async (req, res) => {
+  const days = Number(req.body.sign_link_days);
+  if (!Number.isFinite(days) || days < 1 || days > 90) {
+    return await render(res, 400, { errors: ['A signing link must last between 1 and 90 days.'] });
+  }
+  await settings.set('sign_code_required', req.body.sign_code_required === '1' ? '1' : '0');
+  await settings.set('sign_link_days', String(Math.round(days)));
+  req.session.flash = { type: 'success', message: 'Signing rules saved. They apply to links issued from now on.' };
   res.redirect(backTo(req));
 });
 

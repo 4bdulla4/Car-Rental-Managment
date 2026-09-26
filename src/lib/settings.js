@@ -149,6 +149,20 @@ function contract() {
   };
 }
 
+/**
+ * How strictly a signing link is handled. The access code is on by default:
+ * a link on its own only proves that whoever opened the mailbox signed, and a
+ * code passed on by the branch puts a second channel between the two.
+ */
+function signing() {
+  const stored = all();
+  const days = Number(stored.sign_link_days);
+  return {
+    codeRequired: stored.sign_code_required === undefined ? true : stored.sign_code_required === '1',
+    linkDays: Number.isFinite(days) && days >= 1 && days <= 90 ? Math.round(days) : 14
+  };
+}
+
 /** The interface accent colour. */
 function accent() {
   return require('./theme').get(all().accent);
@@ -161,5 +175,6 @@ function isValidCurrency(code) {
 
 module.exports = {
   load, get, set, all, currency, company, termsText, contract, accent, policy, mileage, deposit, discount, dailyRate,
+  signing,
   isValidCurrency, clearCache: () => { cache = null; }
 };

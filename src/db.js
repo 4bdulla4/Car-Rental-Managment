@@ -190,6 +190,23 @@ function ready() {
         ['rentals', 'signed_ip', 'TEXT'],
         ['rentals', 'sent_at', 'TEXT'],
         ['rentals', 'sent_to', 'TEXT'],
+        // Signing: the evidence around the signature — who opened the link and
+        // when, which access code was cleared, what was ticked, and the hash of
+        // the exact terms the signature was given for.
+        ['rentals', 'sign_code', 'TEXT'],
+        ['rentals', 'sign_code_tries', 'INTEGER NOT NULL DEFAULT 0'],
+        ['rentals', 'sign_code_at', 'TEXT'],
+        ['rentals', 'sign_expires_at', 'TEXT'],
+        ['rentals', 'sign_opened_at', 'TEXT'],
+        ['rentals', 'sign_opened_ip', 'TEXT'],
+        ['rentals', 'sign_doc_hash', 'TEXT'],
+        ['rentals', 'sign_consents', 'TEXT'],
+        ['rentals', 'signed_user_agent', 'TEXT'],
+        ['rentals', 'signed_email', 'TEXT'],
+        ['rentals', 'signed_copy_at', 'TEXT'],
+        // The wording the contract was issued under, so editing the standard
+        // terms later cannot rewrite an agreement that is already signed.
+        ['rentals', 'contract_snapshot', 'TEXT'],
         // Marks the demonstration records, so they can be removed again exactly.
         ['cars', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],
         ['customers', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],

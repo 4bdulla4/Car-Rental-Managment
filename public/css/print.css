@@ -68,3 +68,11 @@ footer.doc { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 7
   .sheet { margin: 0; box-shadow: none; width: auto; min-height: 0; padding: 0; }
   @page { size: A4; margin: 14mm; }
 }
+
+/* Certificate of completion */
+.consent-list { margin: 6px 0 0; padding-left: 15px; font-size: 11.5px; line-height: 1.55; }
+.consent-list li { margin-bottom: 4px; }
+.verdict { font-weight: 600; margin-top: 6px; }
+.verdict.ok { color: #0f7a46; }
+.verdict.bad { color: #b3261e; }
+table.trail td { font-size: 11px; vertical-align: top; }

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= rental.contract_no %> · Certificate of completion</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/print.css">
+</head>
+<body>
+<% if (typeof embedded === 'undefined' || !embedded) { %>
+<div class="toolbar-print">
+  <button onclick="window.print()">Print / Save as PDF</button>
+  <a href="/rentals/<%= rental.id %>">Back to contract</a>
+  <a href="/rentals/<%= rental.id %>/contract">The agreement</a>
+</div>
+<% } %>
+
+<div class="sheet">
+  <header class="doc">
+    <div class="co">
+      <div class="co-title">
+        <%- include('../partials/logo', { size: 44, ink: true }) %>
+        <h1><%= company.name %></h1>
+      </div>
+      <p><%= company.address %></p>
+      <p><%= company.phone %><%= company.email ? ' · ' + company.email : '' %></p>
+    </div>
+    <div class="meta">
+      <div class="type">Certificate of Completion</div>
+      <div class="no"><%= rental.contract_no %></div>
+      <div class="date">Issued <%= new Date().toISOString().slice(0, 10) %></div>
+    </div>
+  </header>
+
+  <p class="preamble">
+    This certificate records how rental agreement <strong><%= rental.contract_no %></strong> came to be
+    signed electronically. It is produced by <strong><%= company.name %></strong> from its own records,
+    and reproduces them unaltered.
+  </p>
+
+  <h2 class="section">1. The signature</h2>
+  <div class="cols">
+    <dl class="kv">
+      <dt>Signed by</dt><dd><%= rental.signed_name %></dd>
+      <dt>Lessee on file</dt><dd><%= rental.full_name %></dd>
+      <dt>Licence number</dt><dd class="mono"><%= rental.license_number || '—' %></dd>
+      <dt>Link sent to</dt><dd class="mono"><%= rental.sent_to || rental.signed_email || 'Not emailed' %></dd>
+      <dt>Signed at (UTC)</dt><dd class="mono"><%= rental.handover_signed_at %></dd>
+      <dt>Network address</dt><dd class="mono"><%= rental.signed_ip || 'Not recorded' %></dd>
+    </dl>
+    <div class="sign-box" style="border-top:none">
+      <div class="role">Signature as drawn</div>
+      <div class="line" style="height:44px;display:flex;align-items:flex-end">
+        <img class="signature" style="max-height:44px" src="<%= rental.signature_data %>" alt="Signature">
+      </div>
+      <div style="border-top:1px solid var(--ink);padding-top:4px"><%= rental.signed_name %></div>
+    </div>
+  </div>
+  <% if (String(rental.signed_name).trim().toLowerCase() !== String(rental.full_name).trim().toLowerCase()) { %>
+    <p class="small-print">
+      The name typed at signing differs from the name held on file. Both appear above as
+      recorded, so that the difference can be explained rather than quietly reconciled.
+    </p>
+  <% } %>
+  <% if (rental.signed_user_agent) { %>
+    <p class="small-print">Browser reported: <span class="mono"><%= rental.signed_user_agent %></span></p>
+  <% } %>
+
+  <h2 class="section">2. What the signer confirmed</h2>
+  <% if (consents.length) { %>
+    <p>
+      Each was a separate statement, unticked when the page opened, and quoted here in the
+      words the signer was shown.
+    </p>
+    <ol class="consent-list">
+      <% consents.forEach(function (c) { %><li><%= c.text %></li><% }); %>
+    </ol>
+  <% } else { %>
+    <p>
+      This agreement was signed before the separate confirmations were introduced. The
+      signer accepted the agreement, its details and its terms as one statement.
+    </p>
+  <% } %>
+
+  <h2 class="section">3. That the agreement has not changed since</h2>
+  <% if (integrity.state === 'intact') { %>
+    <p class="verdict ok">Verified — the agreement today is word for word the one that was signed.</p>
+  <% } else if (integrity.state === 'altered') { %>
+    <p class="verdict bad">
+      Not verified — the agreement no longer matches the one that was signed. The two
+      fingerprints differ, and the signature covers the original terms only.
+    </p>
+  <% } else { %>
+    <p class="verdict">
+      Not applicable — this agreement was signed before fingerprints were recorded, so no
+      comparison can be made. That is not itself evidence of any change.
+    </p>
+  <% } %>
+  <dl class="kv" style="margin-top:6px">
+    <dt>Fingerprint at signing</dt><dd class="mono"><%= fingerprint || 'Not recorded' %></dd>
+    <% if (integrity.state === 'altered') { %>
+      <dt>Fingerprint today</dt>
+      <dd class="mono"><%= integrity.current.slice(0, 16).replace(/(.{4})(?=.)/g, '$1 ').toUpperCase() %></dd>
+    <% } %>
+    <dt>Method</dt><dd class="mono">SHA-256 of the parties, vehicle, dates, charges and terms</dd>
+  </dl>
+
+  <h2 class="section">4. What happened, and when</h2>
+  <table class="charges trail">
+    <% trail.forEach(function (e) { %>
+      <tr>
+        <td class="mono" style="width:34%"><%= e.at %> UTC</td>
+        <td><%= e.what %></td>
+        <td class="mono" style="text-align:right"><%= e.detail %></td>
+      </tr>
+    <% }); %>
+  </table>
+
+  <h2 class="section">5. What kind of signature this is</h2>
+  <p>
+    A simple electronic signature supported by an audit trail. The signer was sent a
+    private link<%= rental.sign_code_at ? ', entered an access code issued to them through a separate channel' : '' %>,
+    was shown the whole agreement, confirmed each statement above by a deliberate act, and
+    drew their signature. It is <strong>not</strong> a certificate-based or qualified
+    electronic signature, and is not offered as one.
+  </p>
+
+  <footer class="doc">
+    <span>Certificate for <%= rental.contract_no %> · <%= company.name %></span>
+    <span class="mono">Issued <%= new Date().toISOString().slice(0, 19).replace('T', ' ') %> UTC</span>
+  </footer>
+</div>
+</body>
+</html>

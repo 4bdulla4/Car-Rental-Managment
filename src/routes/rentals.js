@@ -10,7 +10,8 @@ const crypto = require('crypto');
 const mailer = require('../lib/mailer');
 const mailConfig = require('../lib/config-mail');
 const settings = require('../lib/settings');
-const termsLib = require('../lib/terms');
+const esign = require('../lib/esign');
+const agreementSnapshot = require('../lib/agreement');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -192,14 +193,15 @@ router.post('/', async (req, res) => {
                             pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
                             currency, fuel_charge_per_eighth, late_day_multiplier,
                             start_time, end_time, deductible, return_location,
-                            status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
+                            contract_snapshot, status, created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
     ).run(
       contract_no, form.car_id, form.customer_id, form.start_date, form.end_date, form.daily_rate,
       form.km_allowance_per_day, form.excess_km_rate, form.deposit, form.discount, form.pickup_odometer,
       form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue,
       settings.currency(), issuePolicy.fuelChargePerEighth, issuePolicy.lateDayMultiplier,
       form.start_time, form.end_time, form.deductible, form.return_location,
+      agreementSnapshot.serialise(),
       req.user.id
     );
     await t.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
@@ -216,6 +218,7 @@ router.get('/:id', async (req, res) => {
   const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   const q = quoteRental(rental);
+  const currency = rental.currency || settings.currency();
   res.render('rentals/show', {
     title: rental.contract_no,
     rental,
@@ -223,6 +226,43 @@ router.get('/:id', async (req, res) => {
     today: today(),
     signUrl: rental.sign_token ? signUrl(req, rental.sign_token) : null,
     mailReady: mailer.isConfigured(),
+    signing: settings.signing(),
+    trail: esign.auditTrail(rental),
+    fingerprint: esign.fingerprint(rental.sign_doc_hash),
+    integrity: esign.integrity(rental, { ...agreementSnapshot.restore(rental), currency }),
+    linkExpired: esign.isExpired(rental),
+    ...inCurrency(rental)
+  });
+});
+
+/**
+ * The certificate of completion: the evidence, on one printable page.
+ *
+ * It exists to be produced if the signature is ever challenged, so it states
+ * what kind of signature this is rather than overclaiming, quotes the
+ * confirmations in the words the signer saw, and recomputes the document hash
+ * at the moment of printing so the page says whether the agreement still
+ * matches what was signed.
+ */
+router.get('/:id/certificate', async (req, res) => {
+  const rental = await findRental(req.params.id);
+  if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+  if (!rental.signature_data) {
+    req.session.flash = { type: 'error', message: 'That agreement has not been signed yet.' };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
+
+  const currency = rental.currency || settings.currency();
+  const wording = agreementSnapshot.restore(rental);
+
+  res.render('contracts/certificate', {
+    title: `Certificate ${rental.contract_no}`,
+    rental,
+    company: wording.company,
+    trail: esign.auditTrail(rental),
+    consents: esign.consentsOf(rental),
+    integrity: esign.integrity(rental, { ...wording, currency }),
+    fingerprint: esign.fingerprint(rental.sign_doc_hash),
     ...inCurrency(rental)
   });
 });
@@ -238,8 +278,7 @@ router.get('/:id/contract', async (req, res) => {
     rental,
     quote: q,
     policy: rentalPolicy(rental),
-    terms: termsLib.forCompany(settings.termsText(), settings.company().name),
-    agreement: settings.contract(),
+    ...agreementSnapshot.restore(rental),
     ...inCurrency(rental)
   });
 });
@@ -254,12 +293,45 @@ function signUrl(req, token) {
   return `${origin(req)}/sign/${token}`;
 }
 
+/**
+ * The link, the access code and the deadline are issued together.
+ *
+ * The code deliberately never travels in the email: a link and a code in the
+ * same message prove the same single thing, that someone reached the mailbox.
+ * Staff read the code out instead, which puts a second channel between the two.
+ */
 async function ensureToken(rental) {
-  if (rental.sign_token) return rental.sign_token;
-  const token = crypto.randomBytes(24).toString('hex');
-  await db.prepare('UPDATE rentals SET sign_token = ? WHERE id = ?').run(token, rental.id);
+  if (rental.sign_token && rental.sign_code && rental.sign_expires_at) return rental.sign_token;
+  const token = rental.sign_token || esign.newToken();
+  const code = rental.sign_code || esign.newCode();
+  const expires = rental.sign_expires_at || esign.expiryFrom(settings.signing().linkDays);
+  await db.prepare('UPDATE rentals SET sign_token = ?, sign_code = ?, sign_expires_at = ? WHERE id = ?')
+    .run(token, code, expires, rental.id);
+  rental.sign_token = token;
+  rental.sign_code = code;
+  rental.sign_expires_at = expires;
   return token;
 }
+
+/** A fresh link, code and deadline — after too many wrong codes, or a lapse. */
+router.post('/:id/reissue', async (req, res) => {
+  const rental = await findRental(req.params.id);
+  if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+  if (rental.signature_data) {
+    req.session.flash = { type: 'error', message: 'That agreement is already signed, so its link cannot be reissued.' };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
+
+  await db.prepare(
+    `UPDATE rentals SET sign_token = ?, sign_code = ?, sign_expires_at = ?, sign_code_tries = 0,
+                        sign_code_at = NULL, sign_opened_at = NULL, sign_opened_ip = NULL,
+                        sent_at = NULL, sent_to = NULL
+     WHERE id = ?`
+  ).run(esign.newToken(), esign.newCode(), esign.expiryFrom(settings.signing().linkDays), rental.id);
+
+  req.session.flash = { type: 'success', message: 'New signing link and access code issued. The old link no longer works.' };
+  res.redirect(`/rentals/${rental.id}`);
+});
 
 router.post('/:id/send', async (req, res) => {
   const rental = await findRental(req.params.id);
@@ -269,10 +341,21 @@ router.post('/:id/send', async (req, res) => {
   const url = signUrl(req, token);
   const company = settings.company();
 
+  const code = settings.signing().codeRequired ? rental.sign_code : null;
+
   if (!mailer.isConfigured()) {
     req.session.flash = {
       type: 'success',
       message: `Signing link ready: ${url} — email is not configured, so send this to the customer yourself.`
+        + (code ? ' Read the access code out to them; it is on this page.' : '')
+    };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
+
+  if (!rental.email) {
+    req.session.flash = {
+      type: 'error',
+      message: `${rental.full_name} has no email address on file. Add one, or send the link yourself: ${url}`
     };
     return res.redirect(`/rentals/${rental.id}`);
   }
@@ -280,12 +363,15 @@ router.post('/:id/send', async (req, res) => {
   const result = await mailer.send({
     to: rental.email,
     subject: `Your rental agreement ${rental.contract_no} — ${company.name}`,
-    text: `Dear ${rental.full_name},\n\nYour rental agreement for ${rental.plate} (${rental.make} ${rental.model}) is ready to sign:\n\n${url}\n\nRental period: ${rental.start_date} to ${rental.end_date}.\n\n${company.name}${company.phone ? ' · ' + company.phone : ''}`,
+    text: `Dear ${rental.full_name},\n\nYour rental agreement for ${rental.plate} (${rental.make} ${rental.model}) is ready to sign:\n\n${url}\n\nRental period: ${rental.start_date} to ${rental.end_date}.\n${code ? '\nYou will be asked for the six-digit access code we gave you. For your protection it is not in this email' + (company.phone ? `; call ${company.phone} if you do not have it` : '') + '.\n' : ''}\nThis link expires on ${String(rental.sign_expires_at).slice(0, 10)}.\n\n${company.name}${company.phone ? ' · ' + company.phone : ''}`,
     html: `<p><img src="${origin(req)}/img/logo-stack-ink.png" width="176" height="80" alt="${company.name}"></p>
 <p>Dear ${rental.full_name},</p>
 <p>Your rental agreement for <strong>${rental.plate}</strong> (${rental.make} ${rental.model}) is ready to sign.</p>
 <p><a href="${url}" style="display:inline-block;padding:11px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none">Read and sign the agreement</a></p>
+${code ? `<p style="color:#555;font-size:13px">You will be asked for the <strong>six-digit access code</strong> we gave you.
+For your protection it is not in this email${company.phone ? ` — call ${company.phone} if you do not have it` : ''}.</p>` : ''}
 <p style="color:#555;font-size:13px">Rental period: ${rental.start_date} to ${rental.end_date}.<br>
+This link expires on ${String(rental.sign_expires_at).slice(0, 10)}.<br>
 If the button does not work, open this link:<br>${url}</p>
 <p style="color:#555;font-size:13px">${company.name}${company.phone ? ' · ' + company.phone : ''}</p>`
   });
@@ -413,7 +499,14 @@ router.get('/:id/receipt', async (req, res) => {
     },
     rentalPolicy(rental)
   );
-  res.render('contracts/receipt', { title: `Return ${rental.contract_no}`, rental, s, policy: rentalPolicy(rental), ...inCurrency(rental) });
+  res.render('contracts/receipt', {
+    title: `Return ${rental.contract_no}`,
+    rental,
+    s,
+    policy: rentalPolicy(rental),
+    company: agreementSnapshot.restore(rental).company,
+    ...inCurrency(rental)
+  });
 });
 
 router.post('/:id/cancel', async (req, res) => {

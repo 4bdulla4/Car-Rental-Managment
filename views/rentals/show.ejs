@@ -67,17 +67,81 @@
         </div>
       </div>
     </div>
+
+    <div class="integrity <%= integrity.state %>">
+      <% if (integrity.state === 'intact') { %>
+        <strong>Agreement unchanged since signing.</strong>
+        Fingerprint <span class="mono"><%= fingerprint %></span>.
+      <% } else if (integrity.state === 'altered') { %>
+        <strong>The agreement has changed since it was signed.</strong>
+        The signature covers the original terms only — reissue and have it signed again.
+      <% } else { %>
+        <strong>No fingerprint recorded.</strong>
+        This was signed before fingerprints were kept, so no comparison can be made.
+      <% } %>
+    </div>
+
+    <% if (trail.length) { %>
+      <h3 style="margin-top:22px">Audit trail</h3>
+      <table class="trail-table">
+        <% trail.forEach(function (e) { %>
+          <tr>
+            <td class="mono"><%= e.at %></td>
+            <td><%= e.what %></td>
+            <td class="mono muted"><%= e.detail %></td>
+          </tr>
+        <% }); %>
+      </table>
+    <% } %>
+
+    <div class="actions" style="margin-top:16px">
+      <a class="btn" href="/rentals/<%= rental.id %>/certificate">
+        <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14.5l1.8 1.8 3.7-4"/></svg>
+        <span>Certificate of completion</span>
+      </a>
+    </div>
   <% } else { %>
     <p class="small muted">Not signed yet.</p>
     <% if (signUrl) { %>
+      <% if (linkExpired) { %>
+        <div class="alert error" style="margin-top:12px">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.2v.1"/></svg>
+          <div>This link expired on <%= String(rental.sign_expires_at).slice(0, 10) %>. Issue a new one below.</div>
+        </div>
+      <% } %>
+
       <div class="field" style="margin-top:12px">
         <label for="signlink">Signing link</label>
         <input id="signlink" value="<%= signUrl %>" readonly onclick="this.select()">
         <div class="hint">
           <%= rental.sent_at ? 'Emailed to ' + rental.sent_to + ' on ' + rental.sent_at + ' UTC.' : 'Send this to the customer, or use the button above.' %>
-          Anyone with the link can sign, so treat it like a document you are handing over.
+          <%= rental.sign_expires_at ? 'Expires ' + String(rental.sign_expires_at).slice(0, 10) + '.' : '' %>
         </div>
       </div>
+
+      <% if (signing.codeRequired && rental.sign_code) { %>
+        <div class="field">
+          <label for="signcode">Access code — read this out, do not email it</label>
+          <input id="signcode" class="code-field" value="<%= rental.sign_code %>" readonly onclick="this.select()">
+          <div class="hint">
+            The customer needs this to open the agreement. Keeping it out of the email is
+            what stops a forwarded message being enough to sign.
+            <% if (Number(rental.sign_code_tries) > 0) { %>
+              <strong><%= rental.sign_code_tries %> failed attempt<%= Number(rental.sign_code_tries) === 1 ? '' : 's' %> so far.</strong>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (rental.sign_opened_at) { %>
+        <p class="hint">Opened by the customer on <%= rental.sign_opened_at %> UTC<%= rental.sign_opened_ip ? ' from ' + rental.sign_opened_ip : '' %>.</p>
+      <% } %>
+
+      <form method="post" action="/rentals/<%= rental.id %>/reissue" style="margin-top:14px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn sm" type="submit">Issue a new link and code</button>
+        <span class="hint" style="margin-left:8px">The current link stops working.</span>
+      </form>
     <% } else { %>
       <p class="hint">Use the button above to create a link the customer can sign on their phone.</p>
     <% } %>

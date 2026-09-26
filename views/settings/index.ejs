@@ -176,6 +176,39 @@
       </div>
     </form>
   </div>
+
+  <div class="card">
+    <h3>Electronic signing</h3>
+    <p class="small muted" style="margin:-8px 0 16px">
+      How a signing link behaves once it leaves the branch.
+    </p>
+    <form method="post" action="/settings/signing">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <label class="check">
+        <input type="checkbox" name="sign_code_required" value="1" <%= signing.codeRequired ? 'checked' : '' %>>
+        <span>Ask the customer for an access code before they can sign</span>
+      </label>
+      <div class="hint" style="margin-bottom:6px">
+        A six-digit code is issued with every link and shown on the rental page for you to
+        read out. It is deliberately left out of the email: a link and a code in the same
+        message prove the same single thing — that somebody reached the mailbox. Turning
+        this off makes signing quicker and the evidence thinner.
+      </div>
+
+      <div class="field" style="margin-top:18px">
+        <label for="sign_link_days">A signing link lasts (days)</label>
+        <input id="sign_link_days" name="sign_link_days" type="number" min="1" max="90" step="1"
+               value="<%= signing.linkDays %>" required>
+        <div class="hint">
+          After that the link stops working and you issue a new one. A link that never
+          expires is a link that can still be signed a year after the car came back.
+        </div>
+      </div>
+
+      <button class="btn primary" type="submit">Save signing rules</button>
+    </form>
+  </div>
 </div>
 </section>
 

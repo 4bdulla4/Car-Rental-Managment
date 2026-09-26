@@ -23,24 +23,40 @@
   .sign-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
   .sign-head .wordmark { display: flex; flex-direction: column; font-weight: 700; letter-spacing: -0.02em; }
   .sign-head small { font-size: 11px; color: var(--faint); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  /* Ink on paper, not chalk on slate: the drawing is stored as it is and later
+     printed on a white agreement, so it has to be dark from the start. */
   .pad {
-    position: relative; background: var(--field); border: 1px dashed var(--border-lit);
+    position: relative; background: #fbfbfd; border: 1px dashed var(--border-lit);
     border-radius: 10px; touch-action: none;
   }
   .pad canvas { display: block; width: 100%; height: 180px; border-radius: 10px; cursor: crosshair; }
-  .pad .baseline { position: absolute; left: 22px; right: 22px; bottom: 44px; border-bottom: 1px solid var(--border); }
+  .pad .baseline { position: absolute; left: 22px; right: 22px; bottom: 44px; border-bottom: 1px solid #d3d6e0; }
   .pad .placeholder {
     position: absolute; left: 0; right: 0; bottom: 18px; text-align: center;
-    font-size: 12.5px; color: var(--faint); pointer-events: none;
+    font-size: 12.5px; color: #8a8fa0; pointer-events: none;
   }
   .pad.drawn .placeholder { display: none; }
-  .agreed { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0 6px; font-size: 14px; }
+  .agreed {
+    display: flex; align-items: flex-start; gap: 11px; margin: 0; font-size: 13.5px; line-height: 1.5;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2);
+    cursor: pointer;
+  }
+  .agreed:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
   .agreed input { width: 17px; height: 17px; margin-top: 2px; flex: none; accent-color: var(--accent); }
   .done-badge {
     display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 10px;
     background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); color: var(--ok);
   }
   .done-badge svg { width: 19px; height: 19px; flex: none; }
+
+  .consents { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+  .consents-lead { font-size: 12.5px; color: var(--faint); margin: 0 0 2px; }
+  .consent-record { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .consent-record li { display: flex; gap: 10px; font-size: 13.5px; color: var(--muted); }
+  .consent-record svg {
+    width: 15px; height: 15px; flex: none; margin-top: 2px; color: var(--ok);
+    fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  }
 </style>
 </head>
 <body>
@@ -55,8 +71,40 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></svg>
       <div>
         <strong>Signed.</strong> Thank you, <%= rental.signed_name %> — a copy of this agreement
-        is below. There is nothing further to do.
+        is below, and one has been emailed to you. There is nothing further to do.
       </div>
+    </div>
+
+    <div class="card receipt-card" style="margin-bottom:18px">
+      <h3>Your signing record</h3>
+      <p class="small muted" style="margin:-8px 0 14px">
+        Keep this. It shows what you signed and when, and lets either of us prove
+        the agreement has not been changed since.
+      </p>
+      <dl class="kv">
+        <dt>Agreement</dt><dd class="mono"><%= rental.contract_no %></dd>
+        <dt>Signed by</dt><dd><%= rental.signed_name %></dd>
+        <dt>Signed at</dt><dd class="mono"><%= rental.handover_signed_at %> UTC</dd>
+        <% if (rental.signed_ip) { %><dt>From</dt><dd class="mono"><%= rental.signed_ip %></dd><% } %>
+        <dt>Document fingerprint</dt><dd class="mono"><%= fingerprint %></dd>
+      </dl>
+      <% if (integrity.state === 'intact') { %>
+        <p class="hint" style="color:var(--ok)">Checked just now: the agreement is word for word the one you signed.</p>
+      <% } else if (integrity.state === 'altered') { %>
+        <p class="hint" style="color:var(--danger)">
+          This agreement no longer matches the one that was signed. Please contact
+          <%= company.name %><%= company.phone ? ' on ' + company.phone : '' %>.
+        </p>
+      <% } %>
+
+      <% if (signedConsents.length) { %>
+        <h3 style="margin-top:22px">What you confirmed</h3>
+        <ul class="consent-record">
+          <% signedConsents.forEach(function (c) { %>
+            <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7.2"/></svg><span><%= c.text %></span></li>
+          <% }); %>
+        </ul>
+      <% } %>
     </div>
   <% } else { %>
     <p class="sub" style="margin-bottom:18px">
@@ -82,7 +130,10 @@
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="field">
         <label for="signed_name">Your full name</label>
-        <input id="signed_name" name="signed_name" value="<%= rental.full_name %>" required maxlength="80">
+        <input id="signed_name" name="signed_name"
+               value="<%= typeof submitted === 'undefined' ? rental.full_name : submitted.name %>"
+               required minlength="3" maxlength="80" autocomplete="name">
+        <div class="hint">Type it as it appears on your driving licence.</div>
       </div>
 
       <div class="field">
@@ -97,13 +148,22 @@
         </div>
       </div>
 
-      <label class="agreed">
-        <input type="checkbox" name="agreed" value="1" required>
-        <span>
-          I confirm I have read and agree to this agreement, that the details above are
-          correct, and that I hold a valid driving licence.
-        </span>
-      </label>
+      <div class="consents">
+        <p class="consents-lead">Please confirm each of these. They are separate statements.</p>
+        <% consents.forEach(function (c) { %>
+          <label class="agreed">
+            <input type="checkbox" name="consent_<%= c.id %>" value="1" required
+                   <%= (typeof submitted !== 'undefined' && submitted.ticked.indexOf(c.id) !== -1) ? 'checked' : '' %>>
+            <span><%= c.text %></span>
+          </label>
+        <% }); %>
+      </div>
+
+      <p class="hint" style="margin-top:14px">
+        When you sign, we record the date and time, your network address and the browser
+        you used, together with a fingerprint of this exact agreement. That record is what
+        makes an electronic signature stand up, and it is kept with the contract.
+      </p>
 
       <input type="hidden" name="signature_data" id="signature_data">
       <button class="btn primary" type="submit" style="margin-top:10px">Sign the agreement</button>
@@ -130,7 +190,7 @@
         ctx.lineWidth = 2.2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('color') || '#fff';
+        ctx.strokeStyle = '#14161c';
         if (data) {
           var img = new Image();
           img.onload = function () { ctx.drawImage(img, 0, 0, box.width, box.height); };

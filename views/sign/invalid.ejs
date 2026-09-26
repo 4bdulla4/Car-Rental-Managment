@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= title %> · <%= company.name %></title>
+<link rel="icon" type="image/png" sizes="32x32" href="/img/icon-32.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/app.css">
 <style>:root { --accent: <%= accent.base %>; --accent-lit: <%= accent.lit %>; }</style>
@@ -11,9 +12,12 @@
 <body>
 <div class="auth"><section class="auth-form" style="grid-column:1/-1">
   <div class="auth-card" style="text-align:center">
-    <h2>This link is not valid</h2>
+    <%- include('../partials/logo', { variant: 'emblem', size: 92 }) %>
+    <h2 style="margin-top:18px"><%= title %></h2>
     <p class="sub">
-      It may have been mistyped, or the agreement may already have been completed.
+      <%= typeof message === 'undefined' || !message
+            ? 'It may have been mistyped, or the agreement may already have been completed.'
+            : message %>
       Please ask <%= company.name %> for a new link.
     </p>
     <% if (company.phone) { %><p class="auth-note">Call <%= company.phone %></p><% } %>
