@@ -28,7 +28,7 @@
      aria-selected="<%= active === 'charges' ? 'true' : 'false' %>">Charges</a>
   <a href="/settings?tab=data" data-tab="data" role="tab"
      class="<%= active === 'data' ? 'active' : '' %>"
-     aria-selected="<%= active === 'data' ? 'true' : 'false' %>">Sample data</a>
+     aria-selected="<%= active === 'data' ? 'true' : 'false' %>">Data</a>
 </nav>
 
 <section data-panel="company" <%= active === 'company' ? '' : 'hidden' %>>
@@ -488,45 +488,74 @@
 </section>
 
 <section data-panel="data" <%= active === 'data' ? '' : 'hidden' %>>
-<div class="panel-single">
+<div class="grid cols-2">
 <div class="card">
-  <h3>Sample data</h3>
+  <h3>Demo and sample data</h3>
   <p class="small muted" style="margin:-8px 0 16px">
-    A made-up year of trading, so the dashboard and the reports have something to
-    show before the first real contract is written.
+    The made-up fleet, customers and contracts used to show the app off — the
+    sample year of trading, and the earlier demo set that came before it.
   </p>
 
-  <% if (sample.rentals) { %>
-    <div class="alert note" style="margin-bottom:18px">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8v.1"/></svg>
-      <div>
-        <strong>Loaded.</strong>
-        <%= sample.rentals %> closed contracts, <%= sample.cars %> cars and
-        <%= sample.customers %> customers are marked as sample records. Their plates
-        and licence numbers all start with <code>SMP-</code>, so they are easy to tell apart.
-      </div>
+  <% if (demo.any) { %>
+    <div class="count-strip">
+      <div><strong><%= demo.cars %></strong><span>cars</span></div>
+      <div><strong><%= demo.customers %></strong><span>customers</span></div>
+      <div><strong><%= demo.rentals %></strong><span>contracts</span></div>
     </div>
-    <form method="post" action="/settings/sample-data/remove">
+    <% if (demo.keptCars || demo.keptCustomers) { %>
+      <p class="hint">
+        <%= demo.keptCars + demo.keptCustomers %> demo record<%= demo.keptCars + demo.keptCustomers === 1 ? '' : 's' %>
+        will be kept, because you have written a contract of your own on them.
+      </p>
+    <% } %>
+    <form method="post" action="/settings/sample-data/remove" style="margin-top:14px"
+          onsubmit="return confirm('Remove <%= demo.cars %> demo cars, <%= demo.customers %> customers and <%= demo.rentals %> contracts? This cannot be undone.')">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button class="btn danger" type="submit">Remove sample data</button>
+      <button class="btn danger" type="submit">Remove demo data</button>
     </form>
     <p class="hint">
-      Only the flagged records are deleted. Anything you created yourself stays, and a
-      sample car or customer that has since been put on a real contract is kept too.
+      Only the demo records are touched. Anything you entered yourself stays, and a
+      contract of your own is never deleted because of the car or customer it names.
     </p>
   <% } else { %>
     <p class="small muted" style="margin-bottom:16px">
-      Loading it creates <%= sampleCars %> cars, <%= sampleCustomers %> customers and around
-      thirty closed contracts spread over the last twelve months, priced in
-      <%= currency %> at the charges set above. Nothing you already have is changed.
+      There is no demo data here. You can load a sample year — <%= sampleCars %> cars,
+      <%= sampleCustomers %> customers and around forty closed contracts, priced in
+      <%= currency %> — to see the reports filled in, and remove it again whenever you like.
     </p>
     <form method="post" action="/settings/sample-data/load">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <button class="btn primary" type="submit">Load sample data</button>
+      <button class="btn" type="submit">Load sample data</button>
     </form>
-    <p class="hint">You can remove it again from here at any time.</p>
   <% } %>
 </div>
+
+<% if (isOwner && !impersonating) { %>
+<div class="card danger-zone">
+  <h3>Start with a clean slate</h3>
+  <p class="small muted" style="margin:-8px 0 16px">
+    Deletes every car, customer and contract in the business, demo or not, and the
+    licence photos attached to them. Accounts, settings and the activity history stay.
+    Only you, as the owner, can do this.
+  </p>
+  <div class="count-strip">
+    <div><strong><%= everything.cars %></strong><span>cars</span></div>
+    <div><strong><%= everything.customers %></strong><span>customers</span></div>
+    <div><strong><%= everything.rentals %></strong><span>contracts</span></div>
+    <div><strong><%= everything.documents %></strong><span>photos</span></div>
+  </div>
+  <form method="post" action="/settings/data/clear" style="margin-top:14px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="confirm">Type <span class="mono">DELETE</span> to confirm</label>
+      <input id="confirm" name="confirm" autocomplete="off" spellcheck="false" placeholder="DELETE" required
+             pattern="DELETE" oninput="this.form.querySelector('button').disabled = this.value !== 'DELETE'">
+    </div>
+    <button class="btn danger" type="submit" disabled>Delete everything</button>
+  </form>
+  <p class="hint">This cannot be undone. It is recorded in the activity history as done by you.</p>
+</div>
+<% } %>
 </div>
 </section>
 

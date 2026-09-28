@@ -226,22 +226,97 @@ async function load() {
   return { ...(await summary()), created: true };
 }
 
-/** Deletes exactly what load() created, and nothing else. */
+/**
+ * An earlier demo, put on a live site through its own forms before sample
+ * rows were flagged. It cannot be told apart by a flag, so it is named here,
+ * record by record, and nothing outside this list is ever treated as part of
+ * it. Every contract written on these cars or customers is demo too: they
+ * existed only to be shown.
+ */
+const EARLIER_DEMO = {
+  plates: ['RUH-4412', 'RUH-7781', 'JED-2093', 'DMM-5560', 'RUH-3327', 'JED-8814'],
+  licences: ['DL-778812', 'DL-440231', 'DL-991044', 'DL-663301', 'DL-220987']
+};
+
+const marks = (list) => list.map(() => '?').join(',');
+// Parenthesised because these get more conditions appended with AND, and AND
+// binds tighter than OR: unbracketed, every sample car counted as "kept".
+const DEMO_CARS = `SELECT id FROM cars WHERE (is_sample = 1 OR plate IN (${marks(EARLIER_DEMO.plates)}))`;
+const DEMO_CUSTOMERS = `SELECT id FROM customers WHERE (is_sample = 1 OR license_number IN (${marks(EARLIER_DEMO.licences)}))`;
+const EARLIER_CARS = `SELECT id FROM cars WHERE plate IN (${marks(EARLIER_DEMO.plates)})`;
+const EARLIER_CUSTOMERS = `SELECT id FROM customers WHERE license_number IN (${marks(EARLIER_DEMO.licences)})`;
+// Flagged sample contracts, and anything written on the earlier demo's records.
+const DEMO_RENTALS = `SELECT id FROM rentals WHERE is_sample = 1
+                        OR car_id IN (${EARLIER_CARS}) OR customer_id IN (${EARLIER_CUSTOMERS})`;
+const rentalArgs = [...EARLIER_DEMO.plates, ...EARLIER_DEMO.licences];
+
+/**
+ * What "Remove demo data" would take away, counted exactly the way remove()
+ * deletes, so the number on the button is the number that goes.
+ */
+async function demoSummary() {
+  const count = async (sql, args) => Number((await db.prepare(`SELECT COUNT(*) AS n FROM (${sql})`).get(...args)).n);
+  const rentals = await count(DEMO_RENTALS, rentalArgs);
+  // A demo car or customer on a contract that stays is kept, and said so.
+  const keptCars = await count(
+    `${DEMO_CARS} AND id IN (SELECT car_id FROM rentals WHERE id NOT IN (${DEMO_RENTALS}))`,
+    [...EARLIER_DEMO.plates, ...rentalArgs]
+  );
+  const keptCustomers = await count(
+    `${DEMO_CUSTOMERS} AND id IN (SELECT customer_id FROM rentals WHERE id NOT IN (${DEMO_RENTALS}))`,
+    [...EARLIER_DEMO.licences, ...rentalArgs]
+  );
+  const cars = await count(DEMO_CARS, EARLIER_DEMO.plates) - keptCars;
+  const customers = await count(DEMO_CUSTOMERS, EARLIER_DEMO.licences) - keptCustomers;
+  return { cars, customers, rentals, keptCars, keptCustomers, any: cars + customers + rentals > 0 };
+}
+
+/**
+ * Removes the sample and the earlier demo, and nothing else.
+ * A demo car or customer later used on a contract of your own stays, with
+ * that contract: a real agreement is never deleted because of what it names.
+ */
 async function remove() {
-  const before = await summary();
-  // Attachments go with the contracts they belong to, or they are orphaned.
-  await db.prepare(
-    'DELETE FROM contract_documents WHERE rental_id IN (SELECT id FROM rentals WHERE is_sample = 1)'
-  ).run();
-  await db.prepare('DELETE FROM rentals WHERE is_sample = 1').run();
-  // A sample customer or car that was later used on a real contract stays.
-  await db.prepare(
-    'DELETE FROM customers WHERE is_sample = 1 AND id NOT IN (SELECT customer_id FROM rentals)'
-  ).run();
-  await db.prepare(
-    'DELETE FROM cars WHERE is_sample = 1 AND id NOT IN (SELECT car_id FROM rentals)'
-  ).run();
+  const before = await demoSummary();
+  await db.tx(async (t) => {
+    // Attachments go with the contracts they belong to, or they are orphaned.
+    await t.prepare(`DELETE FROM contract_documents WHERE rental_id IN (${DEMO_RENTALS})`).run(...rentalArgs);
+    await t.prepare(`DELETE FROM rentals WHERE id IN (${DEMO_RENTALS})`).run(...rentalArgs);
+    await t.prepare(`DELETE FROM customers WHERE id IN (${DEMO_CUSTOMERS}) AND id NOT IN (SELECT customer_id FROM rentals)`)
+      .run(...EARLIER_DEMO.licences);
+    await t.prepare(`DELETE FROM cars WHERE id IN (${DEMO_CARS}) AND id NOT IN (SELECT car_id FROM rentals)`)
+      .run(...EARLIER_DEMO.plates);
+  });
   return before;
 }
 
-module.exports = { load, remove, summary, CARS, CUSTOMERS };
+/** Everything the business holds: the fleet, the customers, the contracts. */
+async function everythingSummary() {
+  const one = async (table) => Number((await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).n);
+  return {
+    cars: await one('cars'),
+    customers: await one('customers'),
+    rentals: await one('rentals'),
+    documents: await one('contract_documents')
+  };
+}
+
+/**
+ * A clean slate: every car, customer, contract and licence photo. Accounts,
+ * settings and the activity history stay — who did this, and when, is exactly
+ * the kind of thing the history is for.
+ */
+async function clearEverything() {
+  const before = await everythingSummary();
+  await db.tx(async (t) => {
+    await t.prepare('DELETE FROM contract_documents').run();
+    await t.prepare('DELETE FROM rentals').run();
+    await t.prepare('DELETE FROM customers').run();
+    await t.prepare('DELETE FROM cars').run();
+  });
+  return before;
+}
+
+module.exports = {
+  load, remove, summary, demoSummary, everythingSummary, clearEverything, CARS, CUSTOMERS, EARLIER_DEMO
+};

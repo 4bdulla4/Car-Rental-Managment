@@ -6,7 +6,7 @@ const terms = require('../lib/terms');
 const theme = require('../lib/theme');
 const sampleData = require('../lib/sample-data');
 const { round2 } = require('../lib/money');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireOwner } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin);
@@ -34,7 +34,8 @@ const TAB_FOR = {
   '/signing': 'contract',
   '/appearance': 'company',
   '/sample-data/load': 'data',
-  '/sample-data/remove': 'data'
+  '/sample-data/remove': 'data',
+  '/data/clear': 'data'
 };
 
 /** Send the user back to the tab they saved from. */
@@ -65,6 +66,8 @@ async function render(res, status, extra = {}) {
     common: COMMON,
     inUse,
     sample: await sampleData.summary(),
+    demo: await sampleData.demoSummary(),
+    everything: await sampleData.everythingSummary(),
     sampleCars: sampleData.CARS.length,
     sampleCustomers: sampleData.CUSTOMERS.length,
     errors: [],
@@ -398,11 +401,34 @@ router.post('/sample-data/load', async (req, res) => {
 
 router.post('/sample-data/remove', async (req, res) => {
   const removed = await sampleData.remove();
+  const kept = removed.keptCars + removed.keptCustomers;
   req.session.flash = {
     type: 'success',
-    message: removed.rentals
-      ? `Removed ${removed.rentals} sample contracts, ${removed.cars} cars and ${removed.customers} customers. Your own records were not touched.`
-      : 'There was no sample data to remove.'
+    message: removed.any
+      ? `Removed ${removed.cars} demo cars, ${removed.customers} customers and ${removed.rentals} contracts.`
+        + (kept ? ` Kept ${kept} that appear on contracts of your own.` : ' Your own records were not touched.')
+      : 'There was no demo data to remove.'
+  };
+  res.redirect(backTo(req));
+});
+
+/**
+ * A clean slate, for the owner only, and only on a typed confirmation — the
+ * one action here that cannot be taken back.
+ */
+router.post('/data/clear', requireOwner, async (req, res) => {
+  if (req.impersonating) {
+    req.session.flash = { type: 'error', message: 'Return to your own account before clearing data.' };
+    return res.redirect(backTo(req));
+  }
+  if (String(req.body.confirm || '').trim() !== 'DELETE') {
+    req.session.flash = { type: 'error', message: 'Nothing was deleted. Type DELETE in capitals to confirm.' };
+    return res.redirect(backTo(req));
+  }
+  const gone = await sampleData.clearEverything();
+  req.session.flash = {
+    type: 'success',
+    message: `Cleared ${gone.cars} cars, ${gone.customers} customers, ${gone.rentals} contracts and ${gone.documents} licence photos. Accounts and settings are unchanged.`
   };
   res.redirect(backTo(req));
 });

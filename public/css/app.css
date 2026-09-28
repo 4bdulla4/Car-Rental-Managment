@@ -703,3 +703,14 @@ table.activity .as-tag {
   font-size: 11px; color: var(--warn); background: rgba(251, 191, 36, 0.1);
 }
 table.activity .ip { display: block; margin-top: 2px; font-size: 11px; color: var(--faint); }
+
+/* ---------- Data: what a deletion would take ---------- */
+.count-strip { display: flex; flex-wrap: wrap; gap: 8px; }
+.count-strip > div {
+  flex: 1 1 88px; display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-2);
+}
+.count-strip strong { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+.count-strip span { font-size: 12px; color: var(--muted); }
+.card.danger-zone { border-color: rgba(248, 113, 113, 0.28); }
+.card.danger-zone h3 { color: var(--danger); }

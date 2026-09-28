@@ -234,3 +234,23 @@ test('the activity page shows who did what, and filters by person', async () => 
   const sara = await owner.get(`/owner/activity?user=${ids['sara@test.local']}`);
   assert.match(sara.body, /Failed sign-in/);
 });
+
+test('only the owner can clear the business, and only by typing DELETE', async () => {
+  await db.prepare("INSERT INTO cars (plate, make, model, daily_rate) VALUES ('KEEP-1','Toyota','Yaris',120)").run();
+  const cars = async () => Number((await db.prepare('SELECT COUNT(*) AS n FROM cars').get()).n);
+  const start = await cars();
+
+  const admin = agent();
+  await admin.signIn('admin@test.local', 'CorrectHorseBattery');
+  assert.equal((await admin.post('/settings/data/clear', { confirm: 'DELETE' }, '/settings')).status, 403);
+  assert.equal(await cars(), start, 'an ordinary admin deletes nothing');
+
+  const owner = agent();
+  await owner.signIn('owner@test.local', 'CorrectHorseBattery');
+  await owner.post('/settings/data/clear', { confirm: 'delete' }, '/settings');
+  assert.equal(await cars(), start, 'a near miss deletes nothing');
+
+  await owner.post('/settings/data/clear', { confirm: 'DELETE' }, '/settings');
+  assert.equal(await cars(), 0);
+  assert.equal((await lastLog()).action, 'Cleared business data', 'and it is on the record');
+});
