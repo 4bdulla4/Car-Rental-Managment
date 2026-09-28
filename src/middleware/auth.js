@@ -11,7 +11,10 @@ async function loadUser(req, res, next) {
       .prepare('SELECT id, email, name, role, active FROM users WHERE id = ?')
       .get(userId);
     if (user && user.active) req.user = user;
-    else req.session = null;
+    // Signing someone out means forgetting who they are, not discarding the
+    // session object: everything after this reads req.session, and a null one
+    // turned a disabled account's next click into a 500 instead of the sign-in page.
+    else delete req.session.userId;
   }
   res.locals.currentUser = req.user;
   next();
