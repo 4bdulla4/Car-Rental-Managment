@@ -99,10 +99,11 @@ router.get('/', async (req, res) => {
   // Open contracts first, soonest due at the top.
   sql += " ORDER BY CASE r.status WHEN 'active' THEN 0 ELSE 1 END, r.end_date, r.created_at DESC";
 
+  const [rentals, stats] = await Promise.all([db.prepare(sql).all(...params), rentalStats(now)]);
   res.render('rentals/index', {
     title: 'Rentals',
-    rentals: await db.prepare(sql).all(...params),
-    stats: await rentalStats(now),
+    rentals,
+    stats,
     view,
     q,
     today: now
@@ -223,6 +224,7 @@ router.get('/:id', async (req, res) => {
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
   const q = quoteRental(rental);
   const currency = rental.currency || settings.currency();
+  const shots = await licence.summary(rental.id);
   res.render('rentals/show', {
     title: rental.contract_no,
     rental,
@@ -236,10 +238,10 @@ router.get('/:id', async (req, res) => {
     integrity: esign.integrity(rental, {
       ...agreementSnapshot.restore(rental),
       currency,
-      licence: await licence.digests(rental.id)
+      licence: licence.digestsOf(shots)
     }),
     linkExpired: esign.isExpired(rental),
-    shots: await licence.summary(rental.id),
+    shots,
     ...inCurrency(rental)
   });
 });

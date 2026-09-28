@@ -13,7 +13,7 @@ router.get('/', requireAuth, async (req, res) => {
   const soon = day(SOON_DAYS);
   const monthStart = today.slice(0, 8) + '01';
 
-  const fleet = await db
+  const fleetQuery = db
     .prepare(
       `SELECT COUNT(*) AS total,
               SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS available,
@@ -23,7 +23,7 @@ router.get('/', requireAuth, async (req, res) => {
     )
     .get();
 
-  const contracts = await db
+  const contractsQuery = db
     .prepare(
       `SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active,
               SUM(CASE WHEN status = 'active' AND end_date < ? THEN 1 ELSE 0 END) AS overdue,
@@ -32,17 +32,17 @@ router.get('/', requireAuth, async (req, res) => {
     )
     .get(today, today);
 
-  const customers = await db.prepare('SELECT COUNT(*) AS n FROM customers').get();
+  const customersQuery = db.prepare('SELECT COUNT(*) AS n FROM customers').get();
 
   // Revenue is grouped by currency, because totals in different currencies
   // must never be added together.
-  const revenueMonth = await db
+  const revenueMonthQuery = db
     .prepare(
       `SELECT currency, SUM(total_amount) AS total FROM rentals
        WHERE status = 'closed' AND closed_at >= ? GROUP BY currency ORDER BY total DESC`
     )
     .all(monthStart);
-  const revenueAll = await db
+  const revenueAllQuery = db
     .prepare(
       `SELECT currency, SUM(total_amount) AS total FROM rentals
        WHERE status = 'closed' GROUP BY currency ORDER BY total DESC`
@@ -50,7 +50,7 @@ router.get('/', requireAuth, async (req, res) => {
     .all();
 
   // The day's work: everything still out, soonest due first.
-  const open = await db
+  const openQuery = db
     .prepare(
       `SELECT r.id, r.contract_no, r.end_date, r.total_amount, r.currency,
               c.plate, c.make, c.model, cu.full_name, cu.phone
@@ -63,7 +63,7 @@ router.get('/', requireAuth, async (req, res) => {
     )
     .all();
 
-  const closed = await db
+  const closedQuery = db
     .prepare(
       `SELECT r.id, r.contract_no, r.return_date, r.total_amount, r.balance_due, r.currency,
               c.plate, cu.full_name
@@ -77,7 +77,7 @@ router.get('/', requireAuth, async (req, res) => {
     .all();
 
   // Licences worth chasing before they block a booking.
-  const licences = await db
+  const licencesQuery = db
     .prepare(
       `SELECT id, full_name, phone, license_number, license_expiry
        FROM customers
@@ -86,6 +86,12 @@ router.get('/', requireAuth, async (req, res) => {
        LIMIT 5`
     )
     .all(soon);
+
+  // None of these depend on each other, so they go to the database together:
+  // one wait for all of them rather than one wait after another.
+  const [fleet, contracts, customers, revenueMonth, revenueAll, open, closed, licences] = await Promise.all([
+    fleetQuery, contractsQuery, customersQuery, revenueMonthQuery, revenueAllQuery, openQuery, closedQuery, licencesQuery
+  ]);
 
   res.render('dashboard', {
     title: 'Dashboard',

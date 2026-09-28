@@ -61,20 +61,17 @@ router.get('/', async (req, res) => {
   }
   sql += ' ORDER BY c.plate';
 
-  const cars = (await db.prepare(sql).all(...params)).map((c) => ({
-    ...c,
-    rentals_count: Number(c.rentals_count) || 0
-  }));
-
-  const counts = await db
-    .prepare(
+  const [rows, counts] = await Promise.all([
+    db.prepare(sql).all(...params),
+    db.prepare(
       `SELECT COUNT(*) AS total,
               SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) AS available,
               SUM(CASE WHEN status = 'rented' THEN 1 ELSE 0 END) AS rented,
               SUM(CASE WHEN status IN ('maintenance','retired') THEN 1 ELSE 0 END) AS off_road
        FROM cars`
-    )
-    .get();
+    ).get()
+  ]);
+  const cars = rows.map((c) => ({ ...c, rentals_count: Number(c.rentals_count) || 0 }));
 
   res.render('cars/index', {
     title: 'Fleet',

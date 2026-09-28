@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
   }
   const clause = where.join(' AND ');
 
-  const totals = await db
+  const totalsQuery = db
     .prepare(
       `SELECT COUNT(*) AS contracts,
               COALESCE(SUM(total_amount), 0) AS revenue,
@@ -60,7 +60,7 @@ router.get('/', async (req, res) => {
     )
     .get(...params);
 
-  const byMonth = await db
+  const byMonthQuery = db
     .prepare(
       `SELECT substr(r.closed_at, 1, 7) AS month, SUM(r.total_amount) AS total, COUNT(*) AS n
        FROM rentals r WHERE ${clause}
@@ -68,7 +68,7 @@ router.get('/', async (req, res) => {
     )
     .all(...params);
 
-  const byCar = await db
+  const byCarQuery = db
     .prepare(
       `SELECT c.plate, c.make, c.model, SUM(r.total_amount) AS total, COUNT(*) AS n
        FROM rentals r JOIN cars c ON c.id = r.car_id
@@ -78,12 +78,16 @@ router.get('/', async (req, res) => {
     .all(...params);
 
   // Other currencies are reported separately rather than folded in.
-  const otherCurrencies = await db
+  const otherCurrenciesQuery = db
     .prepare(
       `SELECT currency, COUNT(*) AS n FROM rentals
        WHERE status = 'closed' AND currency <> ? GROUP BY currency`
     )
     .all(currency);
+
+  const [totals, byMonth, byCar, otherCurrencies] = await Promise.all([
+    totalsQuery, byMonthQuery, byCarQuery, otherCurrenciesQuery
+  ]);
 
   const contracts = Number(totals.contracts) || 0;
   const revenue = round2(totals.revenue);

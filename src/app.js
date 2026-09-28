@@ -3,7 +3,7 @@ const path = require('path');
 const express = require('express');
 const cookieSession = require('cookie-session');
 const config = require('./config');
-const { loadUser, csrf } = require('./middleware/auth');
+const { resolveUser, csrf } = require('./middleware/auth');
 const { formatMoney } = require('./lib/money');
 const { fuelLabel, FUEL_LABELS } = require('./lib/contracts');
 const settings = require('./lib/settings');
@@ -72,7 +72,8 @@ app.use((req, res, next) => {
 app.use(async (req, res, next) => {
   try {
     await bootstrap();
-    await settings.load();
+    // Settings and the signed-in user, fetched together rather than in turn.
+    await Promise.all([settings.load(), resolveUser(req, res)]);
     next();
   } catch (err) {
     bootstrapped = null;
@@ -80,7 +81,6 @@ app.use(async (req, res, next) => {
   }
 });
 
-app.use(loadUser);
 
 // View locals must be in place before csrf, which can itself render the error page.
 app.use((req, res, next) => {

@@ -20,8 +20,9 @@ async function page(req, extra = {}) {
   }
   sql += " ORDER BY role = 'admin' DESC, name";
 
-  const users = await db.prepare(sql).all(...params);
-  const totals = await db
+  const [users, totals] = await Promise.all([
+    db.prepare(sql).all(...params),
+    db
     .prepare(
       `SELECT COUNT(*) AS total,
               SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admins,
@@ -29,7 +30,8 @@ async function page(req, extra = {}) {
               SUM(CASE WHEN active = 0 THEN 1 ELSE 0 END) AS disabled
        FROM users`
     )
-    .get();
+    .get()
+  ]);
 
   return {
     title: 'Users',

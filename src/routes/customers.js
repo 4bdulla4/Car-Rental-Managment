@@ -97,10 +97,11 @@ async function stats() {
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim();
   const filter = ['expired', 'expiring', 'renting'].includes(req.query.filter) ? req.query.filter : '';
+  const [customers, customerStats] = await Promise.all([listCustomers(q, filter), stats()]);
   res.render('customers/index', {
     title: 'Customers',
-    customers: await listCustomers(q, filter),
-    stats: await stats(),
+    customers,
+    stats: customerStats,
     q,
     filter,
     soonDays: SOON_DAYS

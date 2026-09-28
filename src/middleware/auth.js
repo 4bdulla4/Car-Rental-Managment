@@ -16,7 +16,7 @@ const findUser = (id) =>
  * every request: if the account stops being the owner, the borrowed session
  * ends there and then.
  */
-async function loadUser(req, res, next) {
+async function resolveUser(req, res) {
   req.user = null;
   req.realUser = null;
   req.impersonating = false;
@@ -29,16 +29,20 @@ async function loadUser(req, res, next) {
     delete req.session.ownerId;
   };
 
+  // Both accounts are looked up at once: each lookup is a round trip to the
+  // database, and neither depends on the other.
   const userId = req.session && req.session.userId;
+  const ownerId = req.session && req.session.ownerId;
+  const [user, real] = await Promise.all([
+    userId ? findUser(userId) : null,
+    userId && ownerId ? findUser(ownerId) : null
+  ]);
   if (userId) {
-    const user = await findUser(userId);
     if (user && user.active) req.user = user;
     else signOut();
   }
 
-  const ownerId = req.session && req.session.ownerId;
   if (req.user && ownerId) {
-    const real = await findUser(ownerId);
     if (real && owner.isOwner(real) && real.id !== req.user.id) {
       req.realUser = real;
       req.impersonating = true;
@@ -54,6 +58,10 @@ async function loadUser(req, res, next) {
   res.locals.realUser = req.realUser;
   res.locals.impersonating = req.impersonating;
   res.locals.isOwner = owner.isOwner(req.realUser);
+}
+
+async function loadUser(req, res, next) {
+  await resolveUser(req, res);
   next();
 }
 
@@ -92,4 +100,4 @@ function csrf(req, res, next) {
   return next();
 }
 
-module.exports = { loadUser, requireAuth, requireAdmin, requireOwner, csrf };
+module.exports = { loadUser, resolveUser, requireAuth, requireAdmin, requireOwner, csrf };

@@ -106,9 +106,10 @@ const removeAll = (rentalId) =>
  * copy on file is the copy that was shown: swap the photograph afterwards and
  * the agreement no longer verifies.
  */
+const digestsOf = ({ front, back }) => ({ front: front ? front.digest : '', back: back ? back.digest : '' });
+
 async function digests(rentalId) {
-  const { front, back } = await summary(rentalId);
-  return { front: front ? front.digest : '', back: back ? back.digest : '' };
+  return digestsOf(await summary(rentalId));
 }
 
-module.exports = { KINDS, LABELS, MAX_BYTES, ALLOWED, isKind, parseUpload, save, summary, image, remove, removeAll, digests };
+module.exports = { KINDS, LABELS, MAX_BYTES, ALLOWED, isKind, parseUpload, save, summary, image, remove, removeAll, digests, digestsOf };
