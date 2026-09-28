@@ -110,4 +110,22 @@ async function ensureDemoRemoved() {
   return true;
 }
 
-module.exports = { ensureFirstAdmin, ensureSampleData, ensureDemoRemoved };
+/**
+ * Sets the accent from SET_ACCENT, for a deployment nobody can sign in to.
+ *
+ * Applied once per value: the value applied is remembered, so a choice made
+ * later in Settings is not overridden on the next cold start by a variable
+ * that was left set.
+ */
+async function ensureAccent() {
+  const wanted = String(process.env.SET_ACCENT || '').trim().toLowerCase();
+  if (!wanted || !require('./theme').isAccent(wanted)) return false;
+  await settings.load();
+  if (settings.get('accent_applied_from_env') === wanted) return false;
+  await settings.set('accent', wanted);
+  await settings.set('accent_applied_from_env', wanted);
+  await activity.record({ account: null, actor: null, action: 'Changed settings', detail: `Accent colour set to ${wanted} by the deployment`, path: 'SET_ACCENT' });
+  return true;
+}
+
+module.exports = { ensureFirstAdmin, ensureSampleData, ensureDemoRemoved, ensureAccent };

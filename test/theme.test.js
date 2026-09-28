@@ -89,9 +89,14 @@ test('links are readable on white, and distinct from body text there', () => {
     const ratio = contrast(accent.linkDeep, '#ffffff');
     assert.ok(ratio >= 4.5, `${accent.name} links are ${ratio.toFixed(2)}:1 on white`);
   }
-  // Chrome's fill on paper is black, and so is the text: its links need a hue.
+  // Chrome's fill on paper is black, and so is the text: its links sit a step of grey away.
   const chrome = theme.get('chrome');
   assert.notEqual(chrome.linkDeep, chrome.deep, 'a link must not look exactly like body text');
+  // And chrome carries no hue anywhere — every colour it uses is a pure grey.
+  for (const k of ['base', 'lit', 'deep', 'linkDeep', 'hover', 'hoverDeep', 'from', 'to', 'fromDeep', 'toDeep']) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(chrome[k].slice(i, i + 2), 16));
+    assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 12, `chrome ${k} ${chrome[k]} has a tint`);
+  }
 });
 
 test('the avatar letter reads across its whole gradient', () => {

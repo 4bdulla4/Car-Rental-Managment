@@ -43,3 +43,21 @@ test('it runs once: a variable left set does not keep deleting', async () => {
   assert.equal(await ensureDemoRemoved(), false);
   assert.ok(await db.prepare("SELECT 1 FROM cars WHERE plate = 'RUH-7781'").get());
 });
+
+test('SET_ACCENT applies once, and a later choice in Settings stands', async () => {
+  const { ensureAccent } = require('../src/lib/bootstrap');
+  process.env.SET_ACCENT = 'chrome';
+  await settings.set('accent', 'teal');
+  assert.equal(await ensureAccent(), true);
+  await settings.load();
+  assert.equal(settings.get('accent'), 'chrome');
+
+  await settings.set('accent', 'rose');            // someone picks another in Settings
+  assert.equal(await ensureAccent(), false, 'a variable left set does not override it');
+  await settings.load();
+  assert.equal(settings.get('accent'), 'rose');
+
+  process.env.SET_ACCENT = 'neon';                 // not an accent: ignored
+  assert.equal(await ensureAccent(), false);
+  delete process.env.SET_ACCENT;
+});

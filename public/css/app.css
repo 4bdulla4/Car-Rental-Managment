@@ -12,16 +12,16 @@
   --faint: #66666f;
   /* Accent fallbacks; the real values are set per page by partials/accent-vars. */
   --accent: #e4e6eb;
-  --accent-lit: #b9c5d7;
+  --accent-lit: #c4c6cc;
   --accent-soft: rgba(228, 230, 235, 0.14);
   --accent-rgb: 228, 230, 235;
-  --accent-from: #f4f5f7;
-  --accent-to: #a3a8b3;
+  --accent-from: #f4f4f5;
+  --accent-to: #a6a7ab;
   --accent-hover: #c7cbd3;
   --on-accent: #0b0c0e;
-  --link: #b9c5d7;
-  --avatar-from: #f4f5f7;
-  --avatar-to: #a3a8b3;
+  --link: #c4c6cc;
+  --avatar-from: #f4f4f5;
+  --avatar-to: #a6a7ab;
   --avatar-ink: #0b0c0e;
   --ok: #34d399;
   --warn: #fbbf24;

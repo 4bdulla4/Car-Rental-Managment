@@ -15,17 +15,17 @@
  * reads better on that fill, measured.
  *
  * Chrome is the Vida Miami mark: silver line work on black. It is nearly
- * colourless by design, so it carries two things the others do not need —
- * a cool silver for links, which would otherwise be indistinguishable from
- * body text, and a steel blue for links on the light theme, where its fill is
- * black and so is the text.
+ * colourless by design, so its links are a step of grey away from body text
+ * rather than a hue, and links inside sentences are underlined.
  */
 const ACCENTS = {
   chrome: {
-    name: 'Chrome', base: '#e4e6eb', lit: '#b9c5d7', deep: '#17181c',
+    // Pure neutral: no hue at all. Links are told apart by weight of grey and,
+    // inside sentences, an underline — not by a tint of blue.
+    name: 'Chrome', base: '#e4e6eb', lit: '#c4c6cc', deep: '#17181c',
     // Near-black barely changes when darkened, so on paper it lifts instead.
-    hoverDeep: '#2e3037', linkDeep: '#34507a',
-    from: '#f4f5f7', to: '#a3a8b3', fromDeep: '#3a3c44', toDeep: '#101114'
+    hoverDeep: '#2e3037', linkDeep: '#4b4e56',
+    from: '#f4f4f5', to: '#a6a7ab', fromDeep: '#3b3c40', toDeep: '#101012'
   },
   purple:  { name: 'Purple',  base: '#8e2dff', lit: '#b47cff', deep: '#6d17d4', from: '#a855f7', to: '#6d17d4' },
   blue:    { name: 'Blue',    base: '#2a64f5', lit: '#8fb0ff', deep: '#1f4fd8', from: '#5b8cff', to: '#1f4fd8' },
