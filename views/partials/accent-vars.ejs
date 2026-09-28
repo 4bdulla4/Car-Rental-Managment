@@ -1,10 +1,9 @@
 <%
-  // One accent, resolved for one theme. Pages outside the app shell — the
-  // signing pages — include this too, so a button there reads the same.
-  var dark = (typeof theme === 'undefined' ? 'dark' : theme) !== 'light';
-%>
-<style>
-  :root {
+  // One accent, resolved for each theme. Both themes are written into the page
+  // so switching is instant: the light values sit under [data-theme="light"].
+  // Paper passes `fixed`, since it is white whatever the screen is set to.
+  var only = (typeof fixed !== 'undefined' && fixed) ? (typeof theme === 'undefined' ? 'dark' : theme) : null;
+  function block(dark) { %>
     --accent: <%= dark ? accent.base : accent.deep %>;
     --accent-lit: <%= dark ? accent.lit : accent.deep %>;
     --accent-soft: rgba(<%= dark ? accent.rgb : accent.deepRgb %>, <%= dark ? '0.14' : '0.10' %>);
@@ -17,5 +16,12 @@
     --avatar-ink: <%= dark ? accent.avatarInk : accent.avatarInkDeep %>;
     --accent-from: <%= accent.from %>;
     --accent-to: <%= accent.to %>;
-  }
+<% } %>
+<style>
+<% if (only) { %>
+  :root {<% block(only !== 'light') %>}
+<% } else { %>
+  :root {<% block(true) %>}
+  :root[data-theme="light"] {<% block(false) %>}
+<% } %>
 </style>

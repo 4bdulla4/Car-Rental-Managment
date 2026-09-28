@@ -721,3 +721,12 @@ table.activity .ip { display: block; margin-top: 2px; font-size: 11px; color: va
 .count-strip span { font-size: 12px; color: var(--muted); }
 .card.danger-zone { border-color: rgba(248, 113, 113, 0.28); }
 .card.danger-zone h3 { color: var(--danger); }
+
+/* ---------- Theme switch ---------- */
+/* Both labels are in the button; the one shown is the theme you would get. */
+.theme-toggle .to-light, .theme-toggle .to-dark { display: inline-flex; align-items: center; gap: 7px; }
+.theme-toggle .to-dark { display: none; }
+:root[data-theme="light"] .theme-toggle .to-light { display: none; }
+:root[data-theme="light"] .theme-toggle .to-dark { display: inline-flex; }
+/* No colour transitions for the frame the theme flips in. */
+.theme-switching, .theme-switching * { transition: none !important; }

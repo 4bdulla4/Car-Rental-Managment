@@ -111,6 +111,8 @@ app.use('/owner', require('./routes/owner'));
 // Open to anyone, including the sign-in page, so the switch works before login.
 app.post('/theme', (req, res) => {
   req.session.theme = req.body.theme === 'light' ? 'light' : 'dark';
+  // The page has already switched itself; it only needs the choice saved.
+  if (req.get('x-theme-switch')) return res.status(204).end();
   const next = String(req.body.next || '/');
   res.redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/');
 });
