@@ -3,6 +3,7 @@ const db = require('../db');
 const { hashPassword } = require('./passwords');
 const settings = require('./settings');
 const sampleData = require('./sample-data');
+const activity = require('./activity');
 
 /**
  * Creates the admin account named by SEED_ADMIN_* at startup, because a hosted
@@ -85,4 +86,28 @@ async function ensureSampleData() {
   return result.created;
 }
 
-module.exports = { ensureFirstAdmin, ensureSampleData };
+/**
+ * Removes the demo data when REMOVE_DEMO_DATA is set — the startup equivalent
+ * of Settings → Data → Remove demo data, for a deployment nobody can sign in to
+ * from a shell.
+ *
+ * It runs once and records that it has, because a variable left set must not
+ * go on deleting: a car added later under a demo plate would otherwise vanish
+ * on the next cold start. Only the named demo records are touched, never a
+ * contract of the business's own.
+ */
+async function ensureDemoRemoved() {
+  if (!/^(1|true|yes)$/i.test(String(process.env.REMOVE_DEMO_DATA || ''))) return false;
+  await settings.load();
+  if (settings.get('demo_data_removed_at')) return false;
+
+  const removed = await sampleData.remove();
+  await settings.set('demo_data_removed_at', new Date().toISOString());
+  const detail = `Removed ${removed.cars} demo cars, ${removed.customers} customers and ${removed.rentals} contracts`
+    + (removed.keptCars + removed.keptCustomers ? `; kept ${removed.keptCars + removed.keptCustomers} used on contracts of your own` : '');
+  await activity.record({ account: null, actor: null, action: 'Removed demo data (deployment setting)', detail, path: 'REMOVE_DEMO_DATA' });
+  console.log(detail + ' because REMOVE_DEMO_DATA is set. Remove the variable now.');
+  return true;
+}
+
+module.exports = { ensureFirstAdmin, ensureSampleData, ensureDemoRemoved };

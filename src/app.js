@@ -8,7 +8,7 @@ const { formatMoney } = require('./lib/money');
 const { fuelLabel, FUEL_LABELS } = require('./lib/contracts');
 const settings = require('./lib/settings');
 const db = require('./db');
-const { ensureFirstAdmin, ensureSampleData } = require('./lib/bootstrap');
+const { ensureFirstAdmin, ensureSampleData, ensureDemoRemoved } = require('./lib/bootstrap');
 
 const app = express();
 
@@ -37,7 +37,7 @@ app.use(
 // served. On serverless this runs on a cold start; afterwards it is a no-op.
 let bootstrapped = null;
 const bootstrap = () => {
-  if (!bootstrapped) bootstrapped = db.ready().then(() => ensureFirstAdmin()).then(() => ensureSampleData());
+  if (!bootstrapped) bootstrapped = db.ready().then(() => ensureFirstAdmin()).then(() => ensureDemoRemoved()).then(() => ensureSampleData());
   return bootstrapped;
 };
 
