@@ -16,5 +16,5 @@
   var h = (typeof size === 'undefined') ? 32 : size;
   var forPaper = (typeof ink !== 'undefined') && ink;
 %>
-<img class="logo-mark<%= forPaper ? ' ink' : '' %>" src="/img/logo-<%= cut %><%= forPaper ? '-ink' : '' %>.png"
+<img class="logo-mark<%= forPaper ? ' ink' : '' %>" src="<%= asset('/img/logo-' + cut + (forPaper ? '-ink' : '') + '.png') %>"
      width="<%= Math.round(h * ratio) %>" height="<%= h %>" alt="" aria-hidden="true">

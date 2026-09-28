@@ -19,7 +19,19 @@ if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Every stylesheet, script and image is linked with ?v=<release>, so a
+// browser can keep it for a year and never ask again: a new release changes
+// the URL, and nobody is served a stale file. Without the stamp, every page
+// view re-checked each file across the world and back.
+const RELEASE = String(process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString(36)).slice(0, 10);
+app.locals.asset = (file) => `${file}?v=${RELEASE}`;
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders(res) {
+    res.setHeader('Cache-Control', res.req.query.v === RELEASE
+      ? 'public, max-age=31536000, immutable'
+      : 'public, max-age=300');
+  }
+}));
 app.use(express.urlencoded({ extended: false }));
 
 app.use(
