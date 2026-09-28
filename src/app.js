@@ -17,6 +17,20 @@ const app = express();
 // cookie below is refused and every sign-in fails. See test/session.test.js.
 if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
 
+// How long the server itself spent on each response, database included,
+// as a standard Server-Timing header. It separates time spent here from time
+// spent crossing the network to reach here, which is otherwise indistinguishable.
+app.use((req, res, next) => {
+  const started = process.hrtime.bigint();
+  const writeHead = res.writeHead;
+  res.writeHead = function (...args) {
+    const ms = Number(process.hrtime.bigint() - started) / 1e6;
+    if (!res.headersSent) res.setHeader('Server-Timing', `app;dur=${ms.toFixed(1)}`);
+    return writeHead.apply(this, args);
+  };
+  next();
+});
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 // Every stylesheet, script and image is linked with ?v=<release>, so a

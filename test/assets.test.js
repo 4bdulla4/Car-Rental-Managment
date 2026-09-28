@@ -31,3 +31,8 @@ test('a stamped file is kept for a year; anything else is re-checked soon', asyn
   const stale = await fetch(base + '/css/app.css?v=an-old-release');
   assert.match(stale.headers.get('cache-control'), /max-age=300/, 'an old stamp is not cached for a year');
 });
+
+test('every response says how long the server spent on it', async () => {
+  const res = await fetch(base + '/login');
+  assert.match(res.headers.get('server-timing') || '', /^app;dur=\d+(\.\d+)?$/);
+});
