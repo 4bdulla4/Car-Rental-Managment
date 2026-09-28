@@ -3,7 +3,6 @@ const express = require('express');
 const db = require('../db');
 const settings = require('../lib/settings');
 const terms = require('../lib/terms');
-const theme = require('../lib/theme');
 const sampleData = require('../lib/sample-data');
 const { round2 } = require('../lib/money');
 const { requireAuth, requireAdmin, requireOwner } = require('../middleware/auth');
@@ -32,7 +31,6 @@ const TAB_FOR = {
   '/terms': 'contract',
   '/agreement': 'contract',
   '/signing': 'contract',
-  '/appearance': 'company',
   '/sample-data/load': 'data',
   '/sample-data/remove': 'data',
   '/data/clear': 'data'
@@ -51,8 +49,6 @@ async function render(res, status, extra = {}) {
     details: settings.company(),
     termsText: settings.termsText(),
     agreement: settings.contract(),
-    accents: theme.list(),
-    accentKey: settings.all().accent || theme.DEFAULT,
     defaultTerms: terms.DEFAULT_TERMS,
     policy: settings.policy(),
     mileage: settings.mileage(),
@@ -370,16 +366,6 @@ router.post('/signing', async (req, res) => {
   await settings.set('licence_required', req.body.licence_required === '1' ? '1' : '0');
   await settings.set('sign_link_days', String(Math.round(days)));
   req.session.flash = { type: 'success', message: 'Signing rules saved. They apply to links issued from now on.' };
-  res.redirect(backTo(req));
-});
-
-router.post('/appearance', async (req, res) => {
-  const key = String(req.body.accent || '');
-  if (!theme.isAccent(key)) {
-    return await render(res, 400, { errors: ['Pick one of the colours shown.'] });
-  }
-  await settings.set('accent', key);
-  req.session.flash = { type: 'success', message: `Accent colour set to ${theme.get(key).name}.` };
   res.redirect(backTo(req));
 });
 

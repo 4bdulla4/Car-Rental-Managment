@@ -1,39 +1,31 @@
 'use strict';
 
 /**
- * Accent colours the interface can be set to.
+ * The interface accent: Chrome, the Vida Miami mark — silver line work on
+ * black. It is the only accent; the colour picker was removed so the app
+ * always wears the brand.
  *
- * Each accent is used four ways, and each use has its own contrast problem:
+ * It is used four ways, and each use has its own contrast problem:
  *   lit   text and highlights on the dark theme
  *   base  the fill of a primary button on the dark theme
  *   deep  both of those on the light theme, where a pale tint vanishes
  *   ink   the text written on top of the fill
  *
- * `ink` is not chosen by eye. The brighter accents — teal, emerald, amber —
- * are too light to carry white text (teal manages 2.6:1 against the 4.5:1 a
- * button label needs), so the label colour is whichever of white and near-black
- * reads better on that fill, measured.
+ * `ink` is not chosen by eye but measured: whichever of white and near-black
+ * reads better on the fill. Chrome carries no hue, so its links sit a step of
+ * grey away from body text, and links inside sentences are underlined.
  *
- * Chrome is the Vida Miami mark: silver line work on black. It is nearly
- * colourless by design, so its links are a step of grey away from body text
- * rather than a hue, and links inside sentences are underlined.
+ * The rest of the machinery (measured ink, hovers that move away from the
+ * label) is kept, so that adding a brand colour again is one entry here.
  */
 const ACCENTS = {
   chrome: {
-    // Pure neutral: no hue at all. Links are told apart by weight of grey and,
-    // inside sentences, an underline — not by a tint of blue.
+    // Pure neutral: no hue at all.
     name: 'Chrome', base: '#e4e6eb', lit: '#c4c6cc', deep: '#17181c',
     // Near-black barely changes when darkened, so on paper it lifts instead.
     hoverDeep: '#2e3037', linkDeep: '#4b4e56',
     from: '#f4f4f5', to: '#a6a7ab', fromDeep: '#3b3c40', toDeep: '#101012'
-  },
-  purple:  { name: 'Purple',  base: '#8e2dff', lit: '#b47cff', deep: '#6d17d4', from: '#a855f7', to: '#6d17d4' },
-  blue:    { name: 'Blue',    base: '#2a64f5', lit: '#8fb0ff', deep: '#1f4fd8', from: '#5b8cff', to: '#1f4fd8' },
-  teal:    { name: 'Teal',    base: '#00b3a4', lit: '#63dbd1', deep: '#00706a', from: '#2ed3c4', to: '#008f83' },
-  emerald: { name: 'Emerald', base: '#12b76a', lit: '#6ee7b7', deep: '#0a7343', from: '#34d399', to: '#0b8f52' },
-  amber:   { name: 'Amber',   base: '#e8910c', lit: '#fbc24d', deep: '#96450a', from: '#fbbf24', to: '#b45309' },
-  rose:    { name: 'Rose',    base: '#f43f5e', lit: '#fda4af', deep: '#be123c', from: '#fb7185', to: '#be123c' },
-  slate:   { name: 'Steel',   base: '#5b7cfa', lit: '#9db3ff', deep: '#3a4db8', from: '#8da2fb', to: '#4054c8' }
+  }
 };
 
 const DEFAULT = 'chrome';

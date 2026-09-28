@@ -24,8 +24,14 @@ test('an unknown or missing accent falls back to the default', () => {
   assert.equal(theme.get(null).base, theme.ACCENTS[theme.DEFAULT].base);
 });
 
+test('Chrome is the only accent, and a colour stored before the picker went is ignored', () => {
+  assert.deepEqual(theme.list().map((a) => a.key), ['chrome']);
+  assert.equal(theme.isAccent('chrome'), true);
+  assert.equal(theme.isAccent('teal'), false);
+  assert.equal(theme.get('teal').name, 'Chrome', 'a site still storing teal is shown in Chrome');
+});
+
 test('only the listed keys are accepted', () => {
-  assert.equal(theme.isAccent('teal'), true);
   assert.equal(theme.isAccent('neon'), false);
   // A prototype key must not be mistaken for a colour.
   assert.equal(theme.isAccent('constructor'), false);
