@@ -10,15 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/app.css">
+<%- include('../partials/accent-vars') %>
 <style>
-  :root {
-    --accent: <%= accent.base %>;
-    --accent-lit: <%= accent.lit %>;
-    --accent-soft: rgba(<%= accent.rgb %>, 0.14);
-    --accent-rgb: <%= accent.rgb %>;
-    --accent-from: <%= accent.from %>;
-    --accent-to: <%= accent.to %>;
-  }
   .sign-wrap { max-width: 860px; margin: 0 auto; padding: 26px 18px 70px; }
   .sign-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
   .sign-head .wordmark { display: flex; flex-direction: column; font-weight: 700; letter-spacing: -0.02em; }

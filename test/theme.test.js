@@ -11,6 +11,9 @@ test('every accent supplies the variables the stylesheet needs', () => {
     assert.match(accent.soft, /^rgba\(/, `${accent.key} soft`);
     assert.match(accent.from, /^#[0-9a-f]{6}$/i, `${accent.key} gradient start`);
     assert.match(accent.to, /^#[0-9a-f]{6}$/i, `${accent.key} gradient end`);
+    for (const k of ['ink', 'inkDeep', 'hover', 'hoverDeep', 'linkDeep', 'fromDeep', 'toDeep', 'avatarInk', 'avatarInkDeep']) {
+      assert.match(accent[k], /^#[0-9a-f]{6}$/i, `${accent.key} ${k}`);
+    }
     assert.ok(accent.name, `${accent.key} needs a label`);
   }
 });
@@ -43,10 +46,15 @@ const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
+// The surfaces text actually sits on, from public/css/app.css.
+const DARK = { bg: '#060607', card: '#111113', card2: '#17171a' };
+
 test('every accent is readable on the dark theme', () => {
   for (const accent of theme.list()) {
-    const ratio = contrast(accent.lit, '#08080c');
-    assert.ok(ratio >= 4.5, `${accent.name} is only ${ratio.toFixed(2)}:1 on the dark background`);
+    for (const [where, ground] of Object.entries(DARK)) {
+      const ratio = contrast(accent.lit, ground);
+      assert.ok(ratio >= 4.5, `${accent.name} is only ${ratio.toFixed(2)}:1 on the dark ${where}`);
+    }
   }
 });
 
@@ -55,4 +63,53 @@ test('every accent is readable on the light theme', () => {
     const ratio = contrast(accent.deep, '#ffffff');
     assert.ok(ratio >= 4.5, `${accent.name} is only ${ratio.toFixed(2)}:1 on white`);
   }
+});
+
+test('a primary button can be read, whatever the accent and theme', () => {
+  // White on teal was 2.6:1; the label colour now comes with the accent.
+  for (const accent of theme.list()) {
+    const dark = contrast(accent.ink, accent.base);
+    const light = contrast(accent.inkDeep, accent.deep);
+    assert.ok(dark >= 4.5, `${accent.name} button label is ${dark.toFixed(2)}:1 on the dark theme`);
+    assert.ok(light >= 4.5, `${accent.name} button label is ${light.toFixed(2)}:1 on the light theme`);
+  }
+});
+
+test('the button still reads when hovered', () => {
+  for (const accent of theme.list()) {
+    const dark = contrast(accent.ink, accent.hover);
+    const light = contrast(accent.inkDeep, accent.hoverDeep);
+    assert.ok(dark >= 4.5, `${accent.name} hovered label is ${dark.toFixed(2)}:1 on the dark theme`);
+    assert.ok(light >= 4.5, `${accent.name} hovered label is ${light.toFixed(2)}:1 on the light theme`);
+  }
+});
+
+test('links are readable on white, and distinct from body text there', () => {
+  for (const accent of theme.list()) {
+    const ratio = contrast(accent.linkDeep, '#ffffff');
+    assert.ok(ratio >= 4.5, `${accent.name} links are ${ratio.toFixed(2)}:1 on white`);
+  }
+  // Chrome's fill on paper is black, and so is the text: its links need a hue.
+  const chrome = theme.get('chrome');
+  assert.notEqual(chrome.linkDeep, chrome.deep, 'a link must not look exactly like body text');
+});
+
+test('the avatar letter reads across its whole gradient', () => {
+  for (const accent of theme.list()) {
+    const worst = Math.min(contrast(accent.avatarInk, accent.from), contrast(accent.avatarInk, accent.to));
+    assert.ok(worst >= 3, `${accent.name} avatar letter drops to ${worst.toFixed(2)}:1`);
+  }
+});
+
+test('secondary text is readable on the dark surfaces', () => {
+  const muted = '#8f8f98';
+  for (const [where, ground] of Object.entries(DARK)) {
+    const ratio = contrast(muted, ground);
+    assert.ok(ratio >= 4.5, `muted text is ${ratio.toFixed(2)}:1 on the dark ${where}`);
+  }
+});
+
+test('the Vida Miami chrome is the default look', () => {
+  assert.equal(theme.DEFAULT, 'chrome');
+  assert.equal(theme.get(undefined).name, 'Chrome');
 });

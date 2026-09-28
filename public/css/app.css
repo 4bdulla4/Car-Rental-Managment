@@ -1,23 +1,32 @@
+/* Graphite rather than violet-grey: a neutral that sits under a chrome mark
+   and under every accent alike, instead of quietly tinting them all purple. */
 :root {
-  --bg: #08080c;
-  --surface: #101017;
-  --card: #14141d;
-  --card-2: #1a1a25;
-  --border: #23232f;
-  --border-lit: #32323f;
-  --text: #edeef4;
-  --muted: #8d8ea6;
-  --faint: #63647c;
-  --accent: #8e2dff;
-  --accent-lit: #b47cff;
-  --accent-soft: rgba(142, 45, 255, 0.13);
-  --accent-rgb: 142, 45, 255;
-  --accent-from: #a855f7;
-  --accent-to: #6d17d4;
+  --bg: #060607;
+  --surface: #0c0c0e;
+  --card: #111113;
+  --card-2: #17171a;
+  --border: #222226;
+  --border-lit: #333339;
+  --text: #ededf0;
+  --muted: #8f8f98;
+  --faint: #66666f;
+  /* Accent fallbacks; the real values are set per page by partials/accent-vars. */
+  --accent: #e4e6eb;
+  --accent-lit: #b9c5d7;
+  --accent-soft: rgba(228, 230, 235, 0.14);
+  --accent-rgb: 228, 230, 235;
+  --accent-from: #f4f5f7;
+  --accent-to: #a3a8b3;
+  --accent-hover: #c7cbd3;
+  --on-accent: #0b0c0e;
+  --link: #b9c5d7;
+  --avatar-from: #f4f5f7;
+  --avatar-to: #a3a8b3;
+  --avatar-ink: #0b0c0e;
   --ok: #34d399;
   --warn: #fbbf24;
   --danger: #f87171;
-  --field: #0c0c12;
+  --field: #09090b;
   --sidebar-w: 252px;
   --r: 12px;
   --sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -35,7 +44,17 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--accent-lit); text-decoration: none; }
+a { color: var(--link); text-decoration: none; }
+/* A link inside a sentence is underlined. Colour alone cannot pick it out of
+   the text around it — with a near-colourless accent like chrome it is no cue
+   at all. Links that stand alone (card headers, tables, the nav) do not need it. */
+:is(p, li, .empty, .hint, .alert, .sub) a:not(.btn) {
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--accent-rgb), 0.5);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+:is(p, li, .empty, .hint, .alert, .sub) a:not(.btn):hover { text-decoration-color: currentColor; }
 a:hover { text-decoration: underline; }
 h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
 h1 { font-size: 24px; }
@@ -99,9 +118,9 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 .side-cta {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 10px; border-radius: 10px; margin-bottom: 12px;
-  background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
+  background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 14px;
 }
-.side-cta:hover { background: var(--accent-to); text-decoration: none; }
+.side-cta:hover { background: var(--accent-hover); text-decoration: none; }
 .side-cta svg { width: 17px; height: 17px; stroke-width: 2.2; }
 .side-user { display: flex; align-items: center; gap: 10px; padding: 4px 2px; }
 .side-user-link {
@@ -112,8 +131,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 .side-user-link:hover .side-user-text strong { color: var(--accent-lit); }
 .avatar {
   width: 32px; height: 32px; flex: none; border-radius: 9px;
-  display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff;
-  background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+  display: grid; place-items: center; font-weight: 700; font-size: 14px; color: var(--avatar-ink);
+  background: linear-gradient(135deg, var(--avatar-from), var(--avatar-to));
 }
 .side-user-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .side-user-text strong { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -354,8 +373,10 @@ input[type="checkbox"] { width: auto; }
 }
 .btn svg { width: 16px; height: 16px; }
 .btn:hover { border-color: var(--border-lit); background: var(--card-2); text-decoration: none; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.btn.primary:hover { background: var(--accent-to); border-color: var(--accent-to); }
+/* The label colour comes with the accent: white on a deep fill, near-black on a
+   bright one. White on teal was 2.6:1, well short of legible. */
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn.danger { color: var(--danger); }
 .btn.danger:hover { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.08); }
 .btn.sm { padding: 6px 11px; font-size: 13px; border-radius: 8px; }
@@ -519,7 +540,6 @@ input[type="checkbox"] { width: auto; }
 :root[data-theme="light"] .card,
 :root[data-theme="light"] .sidebar { box-shadow: 0 1px 2px rgba(16, 20, 30, 0.04); }
 :root[data-theme="light"] th { background: var(--card-2); }
-:root[data-theme="light"] .avatar { color: #fff; }
 :root[data-theme="light"] .auth-brand {
   background:
     radial-gradient(600px 420px at 78% 12%, var(--accent-soft), transparent 62%),

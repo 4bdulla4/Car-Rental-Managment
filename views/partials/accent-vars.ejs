@@ -1,0 +1,21 @@
+<%
+  // One accent, resolved for one theme. Pages outside the app shell — the
+  // signing pages — include this too, so a button there reads the same.
+  var dark = (typeof theme === 'undefined' ? 'dark' : theme) !== 'light';
+%>
+<style>
+  :root {
+    --accent: <%= dark ? accent.base : accent.deep %>;
+    --accent-lit: <%= dark ? accent.lit : accent.deep %>;
+    --accent-soft: rgba(<%= dark ? accent.rgb : accent.deepRgb %>, <%= dark ? '0.14' : '0.10' %>);
+    --accent-rgb: <%= dark ? accent.rgb : accent.deepRgb %>;
+    --accent-hover: <%= dark ? accent.hover : accent.hoverDeep %>;
+    --on-accent: <%= dark ? accent.ink : accent.inkDeep %>;
+    --link: <%= dark ? accent.lit : accent.linkDeep %>;
+    --avatar-from: <%= dark ? accent.from : accent.fromDeep %>;
+    --avatar-to: <%= dark ? accent.to : accent.toDeep %>;
+    --avatar-ink: <%= dark ? accent.avatarInk : accent.avatarInkDeep %>;
+    --accent-from: <%= accent.from %>;
+    --accent-to: <%= accent.to %>;
+  }
+</style>

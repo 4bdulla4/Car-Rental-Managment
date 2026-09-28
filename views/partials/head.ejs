@@ -11,17 +11,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/app.css">
-<style>
-  /* The light tint is legible on a dark ground; on white the deeper shade is,
-     so each theme takes the end of the accent's range that it can carry. */
-  :root {
-    --accent: <%= theme === 'light' ? accent.deep : accent.base %>;
-    --accent-lit: <%= theme === 'light' ? accent.deep : accent.lit %>;
-    --accent-soft: rgba(<%= theme === 'light' ? accent.deepRgb : accent.rgb %>, <%= theme === 'light' ? '0.10' : '0.14' %>);
-    --accent-rgb: <%= theme === 'light' ? accent.deepRgb : accent.rgb %>;
-    --accent-from: <%= accent.from %>;
-    --accent-to: <%= accent.to %>;
-  }
-</style>
+<%- include('accent-vars') %>
 </head>
 <body>

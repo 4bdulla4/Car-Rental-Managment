@@ -2,7 +2,9 @@
   --ink: #101014;
   --soft: #55555f;
   --line: #d4d4dd;
-  --accent: #8e2dff;
+  /* Overridden per document by partials/accent-vars, resolved for paper. */
+  --accent: #17181c;
+  --on-accent: #ffffff;
   --sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
 }
@@ -14,7 +16,7 @@ body { margin: 0; background: #e9e9ef; color: var(--ink); font-family: var(--san
   font-family: var(--sans); font-size: 13px; padding: 8px 14px; border-radius: 7px; cursor: pointer;
   border: 1px solid var(--line); background: #fff; color: var(--ink); text-decoration: none;
 }
-.toolbar-print button { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.toolbar-print button { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
 header.doc { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
 header.doc .co-title { display: flex; align-items: center; gap: 10px; }
