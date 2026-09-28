@@ -1,0 +1,82 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>Activity</h1>
+    <p class="sub">Everything every account has done, newest first. Only you can see this page.</p>
+  </div>
+</div>
+
+<div class="list-bar">
+  <form method="get" action="/owner/activity" class="filter-form">
+    <label for="user" class="sr-only">Person</label>
+    <select id="user" name="user" onchange="this.form.submit()">
+      <option value="">Everyone</option>
+      <% users.forEach(function (u) { %>
+        <option value="<%= u.id %>" <%= userId === u.id ? 'selected' : '' %>>
+          <%= u.name %><%= u.active ? '' : ' (disabled)' %>
+        </option>
+      <% }); %>
+    </select>
+    <noscript><button class="btn sm" type="submit">Show</button></noscript>
+  </form>
+  <% if (userId) { %><a class="small" href="/owner/activity">Show everyone</a><% } %>
+</div>
+
+<div class="card flush">
+  <% if (!rows.length) { %>
+    <div class="empty">
+      <svg viewBox="0 0 24 24"><path d="M12 7v5l3.2 2"/><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 4v4h4"/></svg>
+      <div>Nothing recorded yet. Sign-ins and every change anyone makes will appear here.</div>
+    </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="activity">
+      <thead>
+        <tr><th>When (UTC)</th><th>Who</th><th>What</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function (r) {
+             var borrowed = r.actor_id && r.user_id && r.actor_id !== r.user_id; %>
+          <tr class="<%= r.outcome === 'refused' ? 'refused' : '' %>">
+            <td class="mono small nowrap"><%= r.at %></td>
+            <td>
+              <% if (borrowed) { %>
+                <strong><%= r.actor_name %></strong>
+                <span class="as-tag">as <%= r.user_name %></span>
+              <% } else if (!r.actor_id && r.user_id) { %>
+                <span class="muted">Someone, at</span> <strong><%= r.user_name %></strong>
+              <% } else { %>
+                <strong><%= r.user_name || r.actor_name || '—' %></strong>
+              <% } %>
+            </td>
+            <td>
+              <%= r.action %>
+              <% if (r.outcome === 'refused') { %><span class="badge cancelled">refused</span><% } %>
+            </td>
+            <td class="small muted">
+              <%= r.detail || '' %>
+              <% if (r.ip) { %><span class="mono ip"><%= r.ip %></span><% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<% if (more) { %>
+  <p style="margin-top:14px">
+    <a class="btn sm" href="/owner/activity?<%= userId ? 'user=' + userId + '&' : '' %>before=<%= nextBefore %>">Older</a>
+  </p>
+<% } %>
+
+<p class="hint" style="margin-top:14px">
+  Recorded: every sign-in and failed sign-in, and every change to cars, customers,
+  contracts, accounts and settings — including anything you do while signed in as
+  someone else, which shows as you. Page views are not recorded. Entries older than
+  about a year are cleared automatically.
+</p>
+<%- include('../partials/foot') %>

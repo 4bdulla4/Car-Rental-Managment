@@ -1,23 +1,66 @@
 'use strict';
 const crypto = require('crypto');
 const db = require('../db');
+const owner = require('../lib/owner');
 
-/** Loads the signed-in user onto req.user for every request. */
+const findUser = (id) =>
+  db.prepare('SELECT id, email, name, role, active FROM users WHERE id = ?').get(id);
+
+/**
+ * Loads the signed-in user onto req.user for every request.
+ *
+ * When the owner is signed in as someone else, req.user is the account being
+ * used — so every page and permission behaves exactly as it does for that
+ * person — and req.realUser is the owner, so that nothing done in their name is
+ * ever recorded as if they had done it themselves. The owner is re-checked on
+ * every request: if the account stops being the owner, the borrowed session
+ * ends there and then.
+ */
 async function loadUser(req, res, next) {
   req.user = null;
+  req.realUser = null;
+  req.impersonating = false;
+
+  // Signing someone out means forgetting who they are, not discarding the
+  // session object: everything after this reads req.session, and a null one
+  // turned a disabled account's next click into a 500 instead of the sign-in page.
+  const signOut = () => {
+    delete req.session.userId;
+    delete req.session.ownerId;
+  };
+
   const userId = req.session && req.session.userId;
   if (userId) {
-    const user = await db
-      .prepare('SELECT id, email, name, role, active FROM users WHERE id = ?')
-      .get(userId);
+    const user = await findUser(userId);
     if (user && user.active) req.user = user;
-    // Signing someone out means forgetting who they are, not discarding the
-    // session object: everything after this reads req.session, and a null one
-    // turned a disabled account's next click into a 500 instead of the sign-in page.
-    else delete req.session.userId;
+    else signOut();
   }
+
+  const ownerId = req.session && req.session.ownerId;
+  if (req.user && ownerId) {
+    const real = await findUser(ownerId);
+    if (real && owner.isOwner(real) && real.id !== req.user.id) {
+      req.realUser = real;
+      req.impersonating = true;
+    } else {
+      // No longer the owner, or no longer anyone: drop the borrowed session.
+      signOut();
+      req.user = null;
+    }
+  }
+  if (req.user && !req.realUser) req.realUser = req.user;
+
   res.locals.currentUser = req.user;
+  res.locals.realUser = req.realUser;
+  res.locals.impersonating = req.impersonating;
+  res.locals.isOwner = owner.isOwner(req.realUser);
   next();
+}
+
+/** The owner, signed in as themselves or as anyone else. */
+function requireOwner(req, res, next) {
+  if (req.realUser && owner.isOwner(req.realUser)) return next();
+  return res.status(403).render('error', { title: 'Forbidden', message: 'Only the owner can open this page.' });
 }
 
 function requireAuth(req, res, next) {
@@ -49,4 +92,4 @@ function csrf(req, res, next) {
   return next();
 }
 
-module.exports = { loadUser, requireAuth, requireAdmin, csrf };
+module.exports = { loadUser, requireAuth, requireAdmin, requireOwner, csrf };

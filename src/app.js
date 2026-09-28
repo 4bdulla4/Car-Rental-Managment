@@ -92,6 +92,9 @@ app.use((req, res, next) => {
 
 app.use(csrf);
 
+// After csrf, so a forged request never reaches the log as if it had happened.
+app.use(require('./lib/activity').track);
+
 
 app.use('/', require('./routes/auth'));
 app.use('/', require('./routes/dashboard'));
@@ -103,6 +106,7 @@ app.use('/users', require('./routes/users'));
 app.use('/settings', require('./routes/settings'));
 app.use('/sign', require('./routes/sign'));
 app.use('/account', require('./routes/account'));
+app.use('/owner', require('./routes/owner'));
 
 // Open to anyone, including the sign-in page, so the switch works before login.
 app.post('/theme', (req, res) => {

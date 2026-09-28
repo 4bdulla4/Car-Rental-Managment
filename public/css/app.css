@@ -680,3 +680,26 @@ input[type="checkbox"] { width: auto; }
    smaller and carry their own controls rather than being one big target. */
 .shot-static { cursor: default; }
 .shot-static:hover { border-color: var(--border-lit); }
+
+/* ---------- Owner: a borrowed account, and the activity log ---------- */
+.borrowed {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 13px 16px; margin-bottom: 20px; border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.08);
+}
+.borrowed svg { width: 20px; height: 20px; flex: none; color: var(--warn); }
+.borrowed > div { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.borrowed strong { color: var(--text); font-weight: 600; }
+.borrowed span { color: var(--muted); }
+
+.tag.owner { background: var(--accent-soft); color: var(--accent-lit); border-color: transparent; }
+
+.filter-form select { width: auto; min-width: 220px; }
+table.activity td { vertical-align: top; }
+table.activity .nowrap { white-space: nowrap; }
+table.activity tr.refused td { background: rgba(248, 113, 113, 0.04); }
+table.activity .as-tag {
+  display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px;
+  font-size: 11px; color: var(--warn); background: rgba(251, 191, 36, 0.1);
+}
+table.activity .ip { display: block; margin-top: 2px; font-size: 11px; color: var(--faint); }

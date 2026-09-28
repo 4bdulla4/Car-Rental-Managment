@@ -14,6 +14,15 @@ router.get('/', (req, res) => {
 });
 
 router.post('/password', async (req, res) => {
+  // Seeing someone's account is not the same as holding their keys. The owner
+  // can look at and act in any account, but a password is the account holder's.
+  if (req.impersonating) {
+    return res.status(403).render('account', {
+      title: 'My account',
+      errors: [`You are signed in as ${req.user.name}. Their password is theirs to change — return to your own account first.`]
+    });
+  }
+
   const current = String(req.body.current_password || '');
   const next = String(req.body.new_password || '');
   const confirm = String(req.body.confirm_password || '');

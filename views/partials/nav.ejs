@@ -43,6 +43,13 @@
           <span>Settings</span>
         </a>
       <% } %>
+      <% if (typeof isOwner !== 'undefined' && isOwner && !impersonating) { %>
+        <p class="side-label">Owner</p>
+        <a href="/owner/activity" class="<%= path.startsWith('/owner') ? 'active' : '' %>">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3.2 2"/><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 4v4h4"/></svg>
+          <span>Activity</span>
+        </a>
+      <% } %>
     </nav>
 
     <div class="side-foot">
@@ -91,6 +98,20 @@
       <span class="mobile-brand"><%- include('logo', { variant: 'stack', size: 30 }) %></span>
     </header>
     <main>
+<% if (typeof impersonating !== 'undefined' && impersonating) { %>
+<div class="borrowed">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"/></svg>
+  <div>
+    <strong>You are signed in as <%= currentUser.name %></strong>
+    <span><%= currentUser.role === 'admin' ? 'Admin' : 'Staff' %> · <%= currentUser.email %>.
+    You see what they see; anything you do is recorded as you, acting as them.</span>
+  </div>
+  <form method="post" action="/owner/return">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn sm" type="submit">Return to my account</button>
+  </form>
+</div>
+<% } %>
 <% if (flash) { %>
 <div class="alert <%= flash.type %>">
   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="<%= flash.type === 'success' ? 'M8.5 12.3l2.4 2.4 4.6-4.9' : 'M12 8v5M12 16.2v.1' %>"/></svg>

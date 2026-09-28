@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
 const db = require('../db');
+const owner = require('../lib/owner');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { hashPassword } = require('../lib/passwords');
 
@@ -43,6 +44,7 @@ async function page(req, extra = {}) {
     errors: [],
     openForm: false,
     form: {},
+    ownerEmail: owner.ownerEmail(),
     ...extra
   };
 }
@@ -63,6 +65,10 @@ router.post('/', async (req, res) => {
   if (password.length < 10) errors.push('Password must be at least 10 characters.');
   if (await db.prepare('SELECT 1 FROM users WHERE email = ?').get(form.email)) {
     errors.push('That email is already registered.');
+  } else if (owner.isOwnerEmail(form.email)) {
+    // The owner is whoever holds that address. Letting an admin create the
+    // account would let them choose the owner's password.
+    errors.push("That address belongs to the owner's account, which is set up by the deployment.");
   }
 
   if (errors.length) {
@@ -75,6 +81,24 @@ router.post('/', async (req, res) => {
   req.session.flash = { type: 'success', message: `${form.name} can now sign in.` };
   res.redirect('/users');
 });
+
+/**
+ * The owner's account answers only to the owner. Without this any admin could
+ * reset the owner's password, sign in as them and inherit everything — the
+ * owner would be exactly as safe as the least careful admin.
+ */
+async function protectOwner(req, res, next) {
+  const target = await db.prepare('SELECT id, email FROM users WHERE id = ?').get(Number(req.params.id));
+  if (target && owner.isOwnerEmail(target.email) && !(req.realUser && req.realUser.id === target.id && !req.impersonating)) {
+    req.session.flash = { type: 'error', message: "The owner's account can only be changed by the owner." };
+    return res.redirect('/users');
+  }
+  next();
+}
+router.post('/:id/role', protectOwner);
+router.post('/:id/toggle', protectOwner);
+router.post('/:id/password', protectOwner);
+router.post('/:id/delete', protectOwner);
 
 router.post('/:id/role', async (req, res) => {
   const id = Number(req.params.id);

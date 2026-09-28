@@ -92,7 +92,9 @@
         <tr><th>User</th><th>Role</th><th>Status</th><th>Added</th><th class="right">Actions</th></tr>
       </thead>
       <tbody>
-        <% users.forEach(function (u) { %>
+        <% users.forEach(function (u) {
+             var rowIsOwner = ownerEmail && String(u.email).toLowerCase() === ownerEmail;
+             var locked = rowIsOwner && !(isOwner && !impersonating); %>
         <tr>
           <td>
             <div class="user-cell">
@@ -101,13 +103,14 @@
                 <span class="user-name">
                   <strong><%= u.name %></strong>
                   <% if (u.id === currentUser.id) { %><span class="tag">You</span><% } %>
+                  <% if (rowIsOwner) { %><span class="tag owner">Owner</span><% } %>
                 </span>
                 <span class="sub"><%= u.email %></span>
               </span>
             </div>
           </td>
           <td>
-            <% if (u.id === currentUser.id) { %>
+            <% if (u.id === currentUser.id || locked) { %>
               <span class="badge active"><%= u.role %></span>
             <% } else { %>
               <form method="post" action="/users/<%= u.id %>/role" class="inline-select">
@@ -123,8 +126,16 @@
           <td class="mono small"><%= String(u.created_at).slice(0, 10) %></td>
           <td class="right">
             <div class="row-actions">
+              <% if (isOwner && !impersonating && !rowIsOwner && u.active) { %>
+              <form method="post" action="/owner/as/<%= u.id %>">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn sm" type="submit" title="See the app exactly as <%= u.name %> does">Sign in as</button>
+              </form>
+              <% } %>
+              <% if (!locked) { %>
               <button class="btn sm" type="button" data-reset-open>Reset password</button>
-              <% if (u.id !== currentUser.id) { %>
+              <% } %>
+              <% if (u.id !== currentUser.id && !locked) { %>
               <form method="post" action="/users/<%= u.id %>/toggle">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="btn sm <%= u.active ? 'danger' : '' %>" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>

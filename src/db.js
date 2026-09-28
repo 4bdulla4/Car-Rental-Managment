@@ -172,6 +172,25 @@ CREATE TABLE IF NOT EXISTS contract_documents (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_contract_documents_slot
   ON contract_documents(rental_id, kind);
+
+-- What every account did. Names are copied in, not just ids, so the history
+-- still reads correctly after an account is deleted.
+CREATE TABLE IF NOT EXISTS activity_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  at          TEXT NOT NULL DEFAULT (datetime('now')),
+  user_id     INTEGER,
+  user_name   TEXT,
+  actor_id    INTEGER,
+  actor_name  TEXT,
+  action      TEXT NOT NULL,
+  detail      TEXT,
+  path        TEXT,
+  outcome     TEXT NOT NULL DEFAULT 'ok',
+  ip          TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_actor ON activity_log(actor_id);
 `;
 
 // Created once per process and awaited before the first request is served.

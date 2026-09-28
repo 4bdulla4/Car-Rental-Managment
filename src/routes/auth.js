@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
 const db = require('../db');
+const activity = require('../lib/activity');
 const { verifyPassword } = require('../lib/passwords');
 
 const router = express.Router();
@@ -67,11 +68,28 @@ router.post('/login', async (req, res) => {
   const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!user || !user.active || !verifyPassword(password, user.password_hash)) {
     recordFailure(email);
+    // A failed attempt on a real account is worth the owner knowing about.
+    // The password tried is never written anywhere.
+    if (user) {
+      await activity.record({
+        account: user,
+        actor: null,
+        action: 'Failed sign-in',
+        detail: user.active ? 'Wrong password' : 'Account is disabled',
+        path: '/login',
+        outcome: 'refused',
+        ip: activity.clientIp(req)
+      });
+    }
     return await fail('Incorrect email or password.');
   }
 
   attempts.delete(email);
+  delete req.session.ownerId;
   req.session.userId = user.id;
+  await activity.record({
+    account: user, actor: user, action: 'Signed in', path: '/login', ip: activity.clientIp(req)
+  });
   res.redirect(safeNext);
 });
 
