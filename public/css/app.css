@@ -131,6 +131,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 main {
   /* No width cap: the sidebar already frames the page, and capping it left a
      wide empty margin on either side of the content on a large screen. */
+  container: page / inline-size;
   padding: 30px 32px 80px;
   background: radial-gradient(1100px 360px at 18% -130px, rgba(var(--accent-rgb), 0.09), transparent 70%);
 }
@@ -172,7 +173,21 @@ section[data-panel][hidden] { display: none; }
 :not(.grid) > .card + .card { margin-top: 16px; }
 .card.flush { padding: 0; }
 .grid { display: grid; gap: 14px; }
-.grid.stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+/* A row of figures splits evenly or not at all. auto-fit happily leaves five
+   tiles and an orphan, which reads as a mistake, so the count is set by the
+   width actually available: all in one line, else halves, else pairs. It is
+   measured on the page rather than the window, because the sidebar takes a
+   quarter of the window and a media query cannot see that. */
+.grid.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container page (min-width: 620px) {
+  .grid.stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid.stats.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container page (min-width: 860px) {
+  .grid.stats.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .grid.stats.six .stat { padding: 18px; min-height: 124px; }
+  .grid.stats.six .stat .value { font-size: 31px; }
+}
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 
 .stat {
@@ -469,7 +484,6 @@ input[type="checkbox"] { width: auto; }
 }
 @media (max-width: 640px) {
   /* Two per row and shorter, or six stacked full-height cards bury the page. */
-  .grid.stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
   .stat { min-height: 0; padding: 16px; }
   .stat .value { font-size: 26px; margin-top: 6px; }
   .stat .value.sm { font-size: 18px; }
