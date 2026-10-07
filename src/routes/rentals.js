@@ -204,29 +204,50 @@ router.post('/', async (req, res) => {
 
   const q = quoteRental(form);
   const issuePolicy = settings.policy();
-  const contractNo = await db.tx(async (t) => {
-    const contract_no = await nextContractNo(t);
-    await t.prepare(
-      `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
-                            km_allowance_per_day, excess_km_rate, deposit, discount, pickup_odometer,
-                            pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
-                            currency, fuel_charge_per_eighth, late_day_multiplier,
-                            start_time, end_time, deductible, return_location,
-                            contract_snapshot, status, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
-    ).run(
-      contract_no, form.car_id, form.customer_id, form.start_date, form.end_date, form.daily_rate,
-      form.km_allowance_per_day, form.excess_km_rate, form.deposit, form.discount, form.pickup_odometer,
-      form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue,
-      settings.currency(), issuePolicy.fuelChargePerEighth, issuePolicy.lateDayMultiplier,
-      form.start_time, form.end_time, form.deductible, form.return_location,
-      agreementSnapshot.serialise(),
-      req.user.id
-    );
-    await t.prepare("UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ?")
-      .run(form.pickup_odometer, form.pickup_fuel, form.car_id);
-    return contract_no;
-  });
+  let contractNo;
+  try {
+    contractNo = await db.tx(async (t) => {
+      // The car is claimed first, and only if it is still free. Checking above
+      // and writing here are separate trips to the database, and another
+      // contract can land in between; this makes the second one lose cleanly
+      // instead of putting one car out on two contracts.
+      const claimed = await t.prepare(
+        "UPDATE cars SET status = 'rented', odometer = ?, fuel_level = ? WHERE id = ? AND status = 'available'"
+      ).run(form.pickup_odometer, form.pickup_fuel, form.car_id);
+      if (!claimed || Number(claimed.changes) !== 1) throw Object.assign(new Error('car taken'), { carTaken: true });
+
+      const contract_no = await nextContractNo(t);
+      await t.prepare(
+        `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate,
+                              km_allowance_per_day, excess_km_rate, deposit, discount, pickup_odometer,
+                              pickup_fuel, pickup_notes, base_charge, total_amount, balance_due,
+                              currency, fuel_charge_per_eighth, late_day_multiplier,
+                              start_time, end_time, deductible, return_location,
+                              contract_snapshot, status, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'active', ?)`
+      ).run(
+        contract_no, form.car_id, form.customer_id, form.start_date, form.end_date, form.daily_rate,
+        form.km_allowance_per_day, form.excess_km_rate, form.deposit, form.discount, form.pickup_odometer,
+        form.pickup_fuel, form.pickup_notes, q.baseCharge, q.total, q.balanceDue,
+        settings.currency(), issuePolicy.fuelChargePerEighth, issuePolicy.lateDayMultiplier,
+        form.start_time, form.end_time, form.deductible, form.return_location,
+        agreementSnapshot.serialise(),
+        req.user.id
+      );
+      return contract_no;
+    });
+  } catch (err) {
+    if (!err.carTaken) throw err;
+    const [cars, customers] = await Promise.all([
+      db.prepare("SELECT * FROM cars WHERE status = 'available' ORDER BY plate").all(),
+      db.prepare('SELECT * FROM customers ORDER BY full_name').all()
+    ]);
+    return res.status(409).render('rentals/new', {
+      title: 'New rental', cars, customers, form,
+      errors: [`${car.plate} has just been rented on another contract. Choose another car.`],
+      standingDiscount: settings.discount(), agreement: settings.contract()
+    });
+  }
 
   const created = await db.prepare('SELECT id FROM rentals WHERE contract_no = ?').get(contractNo);
   req.session.flash = { type: 'success', message: `Contract ${contractNo} issued.` };

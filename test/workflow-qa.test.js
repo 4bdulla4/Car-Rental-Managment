@@ -96,3 +96,28 @@ test('a contract cannot be issued with figures that make no sense', async () => 
   }
   assert.equal((await one("SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?", carId)).n, 0, 'nothing was issued');
 });
+
+test('a car rented by someone else in the meantime is not booked again', async () => {
+  // Over the network the availability check and the write are separate trips,
+  // and another contract can land between them. Recreate exactly that: the
+  // route's read sees the car free, while the database already has it out.
+  const car = await newCar('QA-RACE');
+  await db.prepare("UPDATE cars SET status = 'rented' WHERE id = ?").run(car);
+  const prepare = db.prepare;
+  db.prepare = (sql) => {
+    const stmt = prepare(sql);
+    if (sql === 'SELECT * FROM cars WHERE id = ?') {
+      return { ...stmt, get: async (...a) => ({ ...(await stmt.get(...a)), status: 'available' }) };
+    }
+    return stmt;
+  };
+  try {
+    const res = await post('/rentals', rentalForm(car));
+    assert.equal(res.status, 409, 'the second booking is refused');
+    assert.match(res.body, /has just been rented/);
+  } finally {
+    db.prepare = prepare;
+  }
+  const issued = await one('SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?', car);
+  assert.equal(Number(issued.n), 0, 'and no contract was written for it');
+});
