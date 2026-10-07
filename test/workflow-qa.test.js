@@ -229,3 +229,20 @@ test('an address with a non-numeric id is "not found", not a crash', async () =>
     assert.equal(res.status, 404, `${p} answered ${res.status}`);
   }
 });
+
+test('the contract says what is paid at handover and what is settled on return', async () => {
+  const big = await newCar('QA-DEP');
+  await post('/rentals', rentalForm(big, { deposit: '800' })); // total 600
+  const r = await one("SELECT id FROM rentals WHERE car_id = ? AND status = 'active'", big);
+  const doc = (await get(`/rentals/${r.id}/contract`)).body.replace(/\s+/g, ' ');
+  assert.match(doc, /Payable at handover: the deposit of <strong>800\.00 SAR<\/strong>/);
+  assert.match(doc, /<strong>200\.00 SAR<\/strong> of the deposit will then be refunded/);
+  assert.doesNotMatch(doc, /-200\.00/, 'never a negative amount payable');
+
+  const small = await newCar('QA-DEP2');
+  await post('/rentals', rentalForm(small, { deposit: '500' }));
+  const r2 = await one("SELECT id FROM rentals WHERE car_id = ? AND status = 'active'", small);
+  const doc2 = (await get(`/rentals/${r2.id}/contract`)).body.replace(/\s+/g, ' ');
+  assert.match(doc2, /deposit of <strong>500\.00 SAR<\/strong>/);
+  assert.match(doc2, /a further <strong>100\.00 SAR<\/strong> will then be due/);
+});

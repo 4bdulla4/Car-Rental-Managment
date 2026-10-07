@@ -86,7 +86,19 @@
     The Lessee shall pay a refundable security deposit of <strong><%= money(rental.deposit) %></strong>
     before taking possession of the vehicle. It covers any damage to the vehicle during the
     rental period or other amounts due, and the balance is refunded after inspection.
-    Payable at handover: <strong><%= money(quote.balanceDue) %></strong>.
+    <%# What happens to the money, in order. It used to read "Payable at handover:
+        total minus deposit" — which is neither what is paid at handover nor,
+        once the deposit exceeded the total, even a positive number. %>
+    Payable at handover: the deposit of <strong><%= money(rental.deposit) %></strong>.
+    The agreement total is settled on return, against the deposit: on the terms above,
+    <% if (quote.balanceDue > 0) { %>
+      a further <strong><%= money(quote.balanceDue) %></strong> will then be due from the Lessee,
+    <% } else if (quote.balanceDue < 0) { %>
+      <strong><%= money(-quote.balanceDue) %></strong> of the deposit will then be refunded to the Lessee,
+    <% } else { %>
+      the deposit exactly covers it,
+    <% } %>
+    before any charges for late return, extra kilometres, fuel or damage.
     <% if (company.bank) { %><br>Payment may be made to <%= company.bank %>.<% } %>
   </p>
 
