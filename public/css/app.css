@@ -189,7 +189,8 @@ section[data-panel][hidden] { display: none; }
 }
 /* Stacked cards in normal flow need spacing; inside a grid the gap handles it,
    so exclude grid children or the second card is pushed out of alignment. */
-:not(.grid) > .card + .card { margin-top: 16px; }
+:not(.grid) > .card + .card,
+:not(.grid) > .grid + .card { margin-top: 16px; }
 .card.flush { padding: 0; }
 .grid { display: grid; gap: 14px; }
 /* A row of figures splits evenly or not at all. auto-fit happily leaves five
