@@ -33,7 +33,20 @@ function validate(c) {
   if (c.license_expiry && !/^\d{4}-\d{2}-\d{2}$/.test(c.license_expiry)) {
     errors.push('Licence expiry must be a valid date.');
   }
+  // The signing link is sent here, so a mistyped address is a contract that
+  // never reaches its signer.
+  if (c.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email)) errors.push('That email address is not valid.');
   return errors;
+}
+
+/**
+ * One licence, one customer. Two records for the same driver split their
+ * history, and the expiry check only ever sees one of them.
+ */
+async function licenceTaken(licence, exceptId = 0) {
+  if (!licence) return null;
+  return db.prepare('SELECT full_name FROM customers WHERE UPPER(license_number) = UPPER(?) AND id <> ?')
+    .get(licence, exceptId);
 }
 
 /** Each customer with their rental counts and licence standing. */
@@ -115,6 +128,8 @@ router.get('/new', (req, res) => {
 router.post('/', async (req, res) => {
   const customer = readCustomerForm(req.body);
   const errors = validate(customer);
+  const taken = await licenceTaken(customer.license_number);
+  if (taken) errors.push(`Licence ${customer.license_number} is already on file for ${taken.full_name}.`);
   if (errors.length) {
     return res.status(400).render('customers/form', { title: 'Add customer', customer, errors, action: '/customers' });
   }
@@ -141,6 +156,8 @@ router.post('/:id', async (req, res) => {
   const id = Number(req.params.id);
   const customer = readCustomerForm(req.body);
   const errors = validate(customer);
+  const taken = await licenceTaken(customer.license_number, id);
+  if (taken) errors.push(`Licence ${customer.license_number} is already on file for ${taken.full_name}.`);
   if (errors.length) {
     return res.status(400).render('customers/form', { title: 'Edit customer', customer: { ...customer, id }, errors, action: `/customers/${id}` });
   }

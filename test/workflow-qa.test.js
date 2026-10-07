@@ -201,3 +201,24 @@ test('a car out on a contract still cannot be changed until it is checked in', a
   assert.equal(res.status, 400);
   assert.match(res.body, new RegExp(`out on ${r.contract_no}`));
 });
+
+const customerForm = (extra = {}) => ({
+  full_name: 'New Person', phone: '0501111111', email: 'new@example.test', license_number: 'DL-NEW-1', license_expiry: '2031-01-01', ...extra
+});
+
+test('a licence already on file is not added again for someone else', async () => {
+  const res = await post('/customers', customerForm({ license_number: 'dl-qa-1' }));
+  assert.equal(res.status, 400);
+  assert.match(res.body, /already on file for Ali/);
+});
+
+test('a customer can be saved with their own licence unchanged', async () => {
+  const res = await post(`/customers/${custId}`, customerForm({ full_name: 'Ali', license_number: 'DL-QA-1' }));
+  assert.equal(res.status, 302);
+});
+
+test('a malformed email address is refused', async () => {
+  const res = await post('/customers', customerForm({ email: 'not-an-email', license_number: 'DL-NEW-2' }));
+  assert.equal(res.status, 400);
+  assert.match(res.body, /email address is not valid/);
+});
