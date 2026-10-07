@@ -80,6 +80,22 @@ const dead = (res, status, title, message) =>
     company: settings.company()
   });
 
+/**
+ * Only an open contract can be signed. A link already emailed keeps working
+ * after the contract is cancelled, and without this the customer could still
+ * sign — and send their licence for — an agreement that no longer exists. A
+ * signed agreement stays readable whatever happens to it afterwards.
+ */
+function notSignable(res, rental) {
+  if (rental.signature_data || rental.status === 'active') return false;
+  dead(res, 410,
+    rental.status === 'cancelled' ? 'Agreement cancelled' : 'Agreement completed',
+    rental.status === 'cancelled'
+      ? 'This agreement was cancelled, so there is nothing to sign.'
+      : 'This rental has already been completed, so it can no longer be signed online.');
+  return true;
+}
+
 /** The access code clears once per browser session, not once per request. */
 const unlocked = (req, token) => Boolean(req.session && req.session.signed && req.session.signed[token]);
 
@@ -104,6 +120,7 @@ router.get('/:token', async (req, res) => {
   const rental = await findByToken(req.params.token);
   if (!rental) return dead(res, 404, 'Link not valid', 'This signing link is not one we recognise.');
 
+  if (notSignable(res, rental)) return;
   const signed = Boolean(rental.signature_data);
   if (!signed && esign.isExpired(rental)) {
     return dead(res, 410, 'Link expired',
@@ -145,6 +162,7 @@ router.get('/:token', async (req, res) => {
 router.post('/:token/licence', photoBody, async (req, res) => {
   const rental = await findByToken(req.params.token);
   if (!rental) return dead(res, 404, 'Link not valid', 'This signing link is not one we recognise.');
+  if (notSignable(res, rental)) return;
   if (rental.signature_data) return res.redirect(`/sign/${rental.sign_token}`);
   if (esign.isExpired(rental)) {
     return dead(res, 410, 'Link expired', 'This signing link has expired. Ask us to send you a new one.');
@@ -203,6 +221,7 @@ router.get('/:token/licence/:kind', async (req, res) => {
 router.post('/:token/code', async (req, res) => {
   const rental = await findByToken(req.params.token);
   if (!rental) return dead(res, 404, 'Link not valid', 'This signing link is not one we recognise.');
+  if (notSignable(res, rental)) return;
   if (rental.signature_data) return res.redirect(`/sign/${rental.sign_token}`);
 
   if (Number(rental.sign_code_tries) >= MAX_CODE_TRIES) {
@@ -244,6 +263,7 @@ router.get('/:token/document', async (req, res) => {
 router.post('/:token', async (req, res) => {
   const rental = await findByToken(req.params.token);
   if (!rental) return dead(res, 404, 'Link not valid', 'This signing link is not one we recognise.');
+  if (notSignable(res, rental)) return;
 
   if (rental.signature_data) {
     return dead(res, 409, 'Already signed', 'This agreement has already been signed.');

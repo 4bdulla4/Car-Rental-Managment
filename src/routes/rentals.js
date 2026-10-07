@@ -429,6 +429,10 @@ async function ensureToken(rental) {
 router.post('/:id/reissue', async (req, res) => {
   const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+  if (rental.status !== 'active') {
+    req.session.flash = { type: 'error', message: `${rental.contract_no} is ${rental.status}, so it cannot be sent for signing.` };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
   if (rental.signature_data) {
     req.session.flash = { type: 'error', message: 'That agreement is already signed, so its link cannot be reissued.' };
     return res.redirect(`/rentals/${rental.id}`);
@@ -448,6 +452,10 @@ router.post('/:id/reissue', async (req, res) => {
 router.post('/:id/send', async (req, res) => {
   const rental = await findRental(req.params.id);
   if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+  if (rental.status !== 'active') {
+    req.session.flash = { type: 'error', message: `${rental.contract_no} is ${rental.status}, so it cannot be sent for signing.` };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
 
   const token = await ensureToken(rental);
   const url = signUrl(req, token);

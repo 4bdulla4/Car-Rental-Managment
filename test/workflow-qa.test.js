@@ -246,3 +246,36 @@ test('the contract says what is paid at handover and what is settled on return',
   assert.match(doc2, /deposit of <strong>500\.00 SAR<\/strong>/);
   assert.match(doc2, /a further <strong>100\.00 SAR<\/strong> will then be due/);
 });
+
+test('a cancelled contract cannot be signed through a link already sent', async () => {
+  const r = await issued('QA-CXL');
+  await post(`/rentals/${r.id}/send`);
+  const { sign_token: token } = await one('SELECT sign_token FROM rentals WHERE id = ?', r.id);
+  assert.ok(token, 'a link was issued');
+  await post(`/rentals/${r.id}/cancel`);
+
+  const signedIn = jar;
+  jar = '';
+  try {
+    const page = await get(`/sign/${token}`);
+    assert.equal(page.status, 410);
+    assert.match(page.body, /was cancelled/);
+    const t = /name="_csrf" value="([a-f0-9]+)"/.exec((await get('/login')).body)[1];
+    const attempt = absorb(await fetch(`${base}/sign/${token}`, {
+      method: 'POST', redirect: 'manual',
+      headers: { cookie: jar, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ _csrf: t, signed_name: 'Ali', signature_data: 'data:image/png;base64,AAAA' })
+    }));
+    assert.equal(attempt.status, 410, 'and nothing can be posted to it either');
+  } finally {
+    jar = signedIn;
+  }
+  assert.equal((await one('SELECT signature_data FROM rentals WHERE id = ?', r.id)).signature_data, null);
+});
+
+test('a cancelled contract cannot be sent for signing', async () => {
+  const r = await issued('QA-CXL2');
+  await post(`/rentals/${r.id}/cancel`);
+  await post(`/rentals/${r.id}/send`);
+  assert.equal((await one('SELECT sign_token FROM rentals WHERE id = ?', r.id)).sign_token, null);
+});
