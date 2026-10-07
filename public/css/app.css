@@ -65,6 +65,9 @@ h3 {
 }
 p { margin: 0; }
 .mono { font-family: var(--mono); }
+.nowrap { white-space: nowrap; }
+/* A contract number or plate leading a row is one word, not something to break at its hyphens. */
+.table-wrap td:first-child > .mono, .table-wrap td:first-child > a.mono, .table-wrap td.mono:first-child { white-space: nowrap; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -393,7 +396,9 @@ input[type="checkbox"] { width: auto; }
 .lines { font-family: var(--mono); font-size: 14px; }
 .lines .line { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
 .lines .line:last-child { border-bottom: none; }
-.lines .line > span:first-child { font-family: var(--sans); color: var(--muted); }
+.lines .line > span:first-child { font-family: var(--sans); color: var(--muted); min-width: 0; }
+/* The amount keeps its currency on the same line; the label beside it wraps instead. */
+.lines .line > span:last-child { white-space: nowrap; flex: none; }
 .lines .line.total {
   font-weight: 700; font-size: 16px; padding-top: 13px; margin-top: 5px;
   border-top: 1px solid var(--border-lit); border-bottom: none;
@@ -762,3 +767,61 @@ table.activity .ip { display: block; margin-top: 2px; font-size: 11px; color: va
 table.changes { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.changes th { text-align: left; font-size: 11px; color: var(--faint); font-weight: 600; padding: 0 0 6px; }
 table.changes td { padding: 7px 8px 7px 0; border-top: 1px solid var(--border); vertical-align: top; }
+
+/* ---------- Phones ---------- */
+@media (max-width: 640px) {
+  /* List tables as cards: one card per row, each value under its column name. */
+  .table-wrap { overflow-x: visible; }
+  .table-wrap table.cards, .table-wrap table.cards tbody { display: block; width: 100%; }
+  .table-wrap table.cards thead { display: none; }
+  .table-wrap table.cards tr {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .table-wrap table.cards tr:last-child { border-bottom: 0; }
+  .table-wrap table.cards tr.card-wide { display: block; }
+  .table-wrap table.cards td {
+    display: block; padding: 0; border: 0; min-width: 0;
+    text-align: left !important; white-space: normal; overflow-wrap: anywhere;
+  }
+  .table-wrap table.cards td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: 2px;
+    font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--faint);
+  }
+  /* The row's subject leads, full width, without a label; actions close the card. */
+  .table-wrap table.cards td.card-lead { grid-column: 1 / -1; font-size: 14.5px; }
+  .table-wrap table.cards td.card-lead::before { display: none; }
+  .table-wrap table.cards td.card-actions { grid-column: 1 / -1; }
+  .table-wrap table.cards td.card-actions::before { display: none; }
+  .table-wrap table.cards .row-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .table-wrap table.cards td:empty { display: none; }
+  /* Identifiers keep their shape instead of breaking at every hyphen. */
+  .mono { overflow-wrap: normal; }
+
+  /* Two-column record tables stack: when, then what, then detail. */
+  .trail-table, .trail-table tbody, .trail-table tr, .trail-table td { display: block; width: 100%; }
+  .trail-table tr { padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .trail-table td { padding: 1px 0; border: 0; text-align: left !important; }
+  .trail-table td:last-child { text-align: left; }
+  table.changes td { font-size: 12.5px; }
+
+  /* Page furniture */
+  .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .page-head .actions { justify-content: flex-start; }
+  .card { padding: 16px; }
+  .kv { grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; font-size: 13.5px; }
+  .kv dd { overflow-wrap: anywhere; }
+  .list-bar { flex-wrap: wrap; }
+  .list-bar .search { flex: 1 1 100%; }
+  .tabs { overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .row { grid-template-columns: 1fr; }
+  .alert { font-size: 13.5px; }
+  /* iPhone Safari zooms the whole page into any field set below 16px, and
+     leaves it zoomed; at 16px it does not. */
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px; }
+  /* The one button that matters on a form is easy to hit with a thumb. */
+  form > .btn.primary[type=submit], form > button.btn.primary { width: 100%; justify-content: center; padding: 13px; }
+  form .actions > .btn { flex: 1 1 auto; justify-content: center; padding: 12px; }
+}

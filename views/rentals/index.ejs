@@ -84,7 +84,7 @@
           <div class="sub mono"><%= r.phone %></div>
         </td>
         <td class="mono small">
-          <%= r.start_date %> → <%= r.end_date %>
+          <span class="nowrap"><%= r.start_date %></span> → <span class="nowrap"><%= r.end_date %></span>
           <% if (overdue) { %>
             <div><span class="badge overdue">Overdue</span></div>
           <% } else if (dueToday) { %>

@@ -36,3 +36,18 @@ test('every response says how long the server spent on it', async () => {
   const res = await fetch(base + '/login');
   assert.match(res.headers.get('server-timing') || '', /^app;dur=\d+(\.\d+)?$/);
 });
+
+test('phones get readable tables and fields that do not zoom the page', async () => {
+  const fs = require('fs');
+  const css = fs.readFileSync('public/css/app.css', 'utf8');
+  const phone = css.slice(css.indexOf('/* ---------- Phones ---------- */'));
+  assert.match(phone, /@media \(max-width: 640px\)/);
+  assert.match(phone, /input:not\(\[type=checkbox\]\)[^{]*\{ font-size: 16px; \}/, 'below 16px, iPhone Safari zooms into every field');
+  assert.match(phone, /table\.cards tr \{/, 'list tables become cards');
+
+  const html = await (await fetch(base + '/login')).text();
+  assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
+
+  const print = fs.readFileSync('public/css/print.css', 'utf8');
+  assert.match(print, /@media screen and \(max-width: 820px\)[\s\S]*\.sheet \{ width: auto;/, 'the A4 sheet fits a phone screen');
+});
