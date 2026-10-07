@@ -35,8 +35,25 @@ function validate(car) {
   if (!car.make) errors.push('Make is required.');
   if (!car.model) errors.push('Model is required.');
   if (car.daily_rate <= 0) errors.push('Daily rate must be greater than zero.');
+  if (car.odometer < 0) errors.push('Odometer reading cannot be negative.');
+  if (car.km_allowance_per_day < 0) errors.push('Kilometre allowance cannot be negative.');
+  if (car.excess_km_rate < 0) errors.push('Excess kilometre rate cannot be negative.');
+  const nextYear = new Date().getFullYear() + 1;
+  if (car.year !== null && (car.year < 1950 || car.year > nextYear)) errors.push(`Year must be between 1950 and ${nextYear}.`);
+  if (car.seats < 1 || car.seats > 60) errors.push('Seats must be between 1 and 60.');
   return errors;
 }
+
+/**
+ * The statuses a person may choose. "Rented" is not one of them: it means a
+ * contract has the car, and only issuing one should say so. A car marked
+ * rented by hand could not be rented — it was not available — and could not
+ * be changed back either, because it looked as if it were out on a contract.
+ */
+const CHOOSABLE = CAR_STATUSES.filter((st) => st !== 'rented');
+
+const activeContract = (carId) =>
+  db.prepare("SELECT contract_no FROM rentals WHERE car_id = ? AND status = 'active' LIMIT 1").get(carId);
 
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').trim();
@@ -103,7 +120,7 @@ router.get('/new', async (req, res) => {
       excess_km_rate: defaults.excessKmRate
     },
     errors: [],
-    statuses: CAR_STATUSES,
+    statuses: CHOOSABLE,
     action: '/cars'
   });
 });
@@ -114,8 +131,9 @@ router.post('/', async (req, res) => {
   if (await db.prepare('SELECT 1 FROM cars WHERE plate = ?').get(car.plate)) {
     errors.push('A car with that plate already exists.');
   }
+  if (car.status === 'rented') errors.push('A car becomes "rented" when a contract is issued for it, not by hand.');
   if (errors.length) {
-    return res.status(400).render('cars/form', { title: 'Add car', car, errors, statuses: CAR_STATUSES, action: '/cars' });
+    return res.status(400).render('cars/form', { title: 'Add car', car, errors, statuses: CHOOSABLE, action: '/cars' });
   }
   await db.prepare(
     `INSERT INTO cars (plate, make, model, year, color, vin, transmission, seats, daily_rate,
@@ -133,7 +151,11 @@ router.post('/', async (req, res) => {
 router.get('/:id/edit', async (req, res) => {
   const car = await db.prepare('SELECT * FROM cars WHERE id = ?').get(Number(req.params.id));
   if (!car) return res.status(404).render('error', { title: 'Not found', message: 'Car not found.' });
-  res.render('cars/form', { title: `Edit ${car.plate}`, car, errors: [], statuses: CAR_STATUSES, action: `/cars/${car.id}` });
+  const out = await activeContract(car.id);
+  res.render('cars/form', {
+    title: `Edit ${car.plate}`, car: out ? car : { ...car, status: car.status === 'rented' ? 'available' : car.status },
+    errors: [], statuses: out ? CAR_STATUSES : CHOOSABLE, action: `/cars/${car.id}`
+  });
 });
 
 router.post('/:id', async (req, res) => {
@@ -145,11 +167,22 @@ router.post('/:id', async (req, res) => {
   const errors = validate(car);
   const clash = await db.prepare('SELECT 1 FROM cars WHERE plate = ? AND id <> ?').get(car.plate, id);
   if (clash) errors.push('Another car already uses that plate.');
-  if (existing.status === 'rented' && car.status !== 'rented') {
-    errors.push('This car is on an active rental — close the rental before changing its status.');
+  // Whether the car is out is decided by its contracts, not by the status
+  // field: a car left marked rented with no contract must be freeable.
+  const out = await activeContract(id);
+  if (out && car.status !== 'rented') {
+    errors.push(`This car is out on ${out.contract_no} — check it in before changing its status.`);
+  } else if (!out && car.status === 'rented') {
+    errors.push('A car becomes "rented" when a contract is issued for it, not by hand.');
+  }
+  if (out && car.odometer < Number(existing.odometer)) {
+    errors.push('The odometer cannot be wound back while the car is out on a contract.');
   }
   if (errors.length) {
-    return res.status(400).render('cars/form', { title: `Edit ${existing.plate}`, car: { ...car, id }, errors, statuses: CAR_STATUSES, action: `/cars/${id}` });
+    return res.status(400).render('cars/form', {
+      title: `Edit ${existing.plate}`, car: { ...car, id }, errors,
+      statuses: out ? CAR_STATUSES : CHOOSABLE, action: `/cars/${id}`
+    });
   }
 
   await db.prepare(

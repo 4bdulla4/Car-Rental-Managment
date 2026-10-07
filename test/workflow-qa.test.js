@@ -165,3 +165,39 @@ test('a resent return does not overwrite the settlement already recorded', async
   assert.equal(Number(after.damage_charge), 0);
   assert.equal(Number((await one('SELECT odometer FROM cars WHERE id = ?', r.car_id)).odometer), 10300, 'and the car was not moved again');
 });
+
+const carForm = (plate, extra = {}) => ({
+  plate, make: 'Toyota', model: 'Camry', year: '2024', seats: '5', daily_rate: '200',
+  km_allowance_per_day: '200', excess_km_rate: '0.5', odometer: '10000', fuel_level: '8', status: 'available', ...extra
+});
+
+test('a car cannot be added with a negative odometer or an impossible year', async () => {
+  for (const [bad, message] of [[{ odometer: '-10' }, /Odometer reading cannot be negative/], [{ year: '1066' }, /Year must be between/]]) {
+    const res = await post('/cars', carForm('QA-BAD', bad));
+    assert.equal(res.status, 400, `accepted ${JSON.stringify(bad)}`);
+    assert.match(res.body, message);
+  }
+});
+
+test('a car cannot be marked rented by hand', async () => {
+  const res = await post('/cars', carForm('QA-HAND', { status: 'rented' }));
+  assert.equal(res.status, 400);
+  assert.equal(await one("SELECT 1 AS x FROM cars WHERE plate = 'QA-HAND'"), undefined);
+});
+
+test('a car left marked rented with no contract can be freed', async () => {
+  // How the trap was sprung before: rented by hand, so it could not be
+  // rented, and refused any change because it looked out on a contract.
+  const car = await newCar('QA-STUCK');
+  await db.prepare("UPDATE cars SET status = 'rented' WHERE id = ?").run(car);
+  const res = await post(`/cars/${car}`, carForm('QA-STUCK', { status: 'available' }));
+  assert.equal(res.status, 302, 'this was refused forever');
+  assert.equal((await one('SELECT status FROM cars WHERE id = ?', car)).status, 'available');
+});
+
+test('a car out on a contract still cannot be changed until it is checked in', async () => {
+  const r = await issued('QA-OUT');
+  const res = await post(`/cars/${r.car_id}`, carForm('QA-OUT', { status: 'available' }));
+  assert.equal(res.status, 400);
+  assert.match(res.body, new RegExp(`out on ${r.contract_no}`));
+});
