@@ -554,6 +554,13 @@ router.post('/:id/return', async (req, res) => {
   const errors = [];
   if (!isDate(form.returnDate)) errors.push('Return date is required.');
   else if (form.returnDate < rental.start_date) errors.push('Return date cannot be before the rental started.');
+  // A car cannot come back on a day that has not happened yet, and a date
+  // typed ahead by mistake would bill late days that never occurred. One day
+  // of slack, because "today" here is UTC and a branch ahead of UTC is
+  // already on tomorrow's date for the first hours after its midnight.
+  else if (form.returnDate > new Date(Date.now() + 864e5).toISOString().slice(0, 10)) {
+    errors.push('Return date cannot be in the future.');
+  }
   if (form.returnOdometer < rental.pickup_odometer) {
     errors.push(`Return odometer cannot be lower than the pickup reading (${rental.pickup_odometer} km).`);
   }
@@ -572,21 +579,30 @@ router.post('/:id/return', async (req, res) => {
   }
 
   const s = settlement(rental, form, rentalPolicy(rental));
+  let settled = false;
   await db.tx(async (t) => {
-    await t.prepare(
+    // Closed only while still open: a double-click or a resent form must not
+    // overwrite the settlement already recorded, nor move the car again.
+    const closed = await t.prepare(
       `UPDATE rentals SET status = 'closed', return_date = ?, return_odometer = ?, return_fuel = ?,
                           damage_charge = ?, other_charges = ?, return_notes = ?, late_fee = ?,
                           excess_km_fee = ?, fuel_fee = ?, base_charge = ?, total_amount = ?,
                           balance_due = ?, closed_at = datetime('now')
-       WHERE id = ?`
+       WHERE id = ? AND status = 'active'`
     ).run(
       form.returnDate, form.returnOdometer, form.returnFuel, s.damageCharge, s.otherCharges,
       form.returnNotes, s.lateFee, s.excessKmFee, s.fuelFee, s.baseCharge, s.total, s.balanceDue,
       rental.id
     );
+    if (!closed || Number(closed.changes) !== 1) return;
+    settled = true;
     await t.prepare("UPDATE cars SET status = 'available', odometer = ?, fuel_level = ? WHERE id = ?")
       .run(form.returnOdometer, form.returnFuel, rental.car_id);
   });
+  if (!settled) {
+    req.session.flash = { type: 'error', message: `${rental.contract_no} was already checked in. The settlement on record stands.` };
+    return res.redirect(`/rentals/${rental.id}/receipt`);
+  }
 
   req.session.flash = { type: 'success', message: `${rental.contract_no} closed. Balance due ${round2(s.balanceDue)} ${rental.currency || settings.currency()}.` };
   res.redirect(`/rentals/${rental.id}/receipt`);

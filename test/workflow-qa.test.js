@@ -121,3 +121,47 @@ test('a car rented by someone else in the meantime is not booked again', async (
   const issued = await one('SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?', car);
   assert.equal(Number(issued.n), 0, 'and no contract was written for it');
 });
+
+async function issued(plate) {
+  const car = await newCar(plate);
+  await post('/rentals', rentalForm(car));
+  return one("SELECT * FROM rentals WHERE car_id = ? AND status = 'active'", car);
+}
+const returnForm = (extra = {}) => ({
+  return_date: day(0), return_odometer: '10300', return_fuel: '8', damage_charge: '0', other_charges: '0', ...extra
+});
+
+test('a return cannot be dated in the future', async () => {
+  const r = await issued('QA-FUT');
+  const res = await post(`/rentals/${r.id}/return`, returnForm({ return_date: day(10) }));
+  assert.equal(res.status, 400);
+  assert.match(res.body, /cannot be in the future/);
+  assert.equal((await one('SELECT status FROM rentals WHERE id = ?', r.id)).status, 'active');
+});
+
+test('a resent return does not overwrite the settlement already recorded', async () => {
+  const r = await issued('QA-TWICE');
+  assert.equal((await post(`/rentals/${r.id}/return`, returnForm({ return_odometer: '10300' }))).status, 302);
+
+  // The form is sent again — a double-click, or a resend after a slow page —
+  // and the route's read still sees the contract open.
+  const prepare = db.prepare;
+  db.prepare = (sql) => {
+    const stmt = prepare(sql);
+    if (sql.includes('WHERE r.id = ?')) {
+      return { ...stmt, get: async (...a) => ({ ...(await stmt.get(...a)), status: 'active' }) };
+    }
+    return stmt;
+  };
+  let res;
+  try {
+    res = await post(`/rentals/${r.id}/return`, returnForm({ return_odometer: '19999', damage_charge: '900' }));
+  } finally {
+    db.prepare = prepare;
+  }
+  assert.equal(res.status, 302);
+  const after = await one('SELECT return_odometer, damage_charge FROM rentals WHERE id = ?', r.id);
+  assert.equal(Number(after.return_odometer), 10300, 'the first settlement stands');
+  assert.equal(Number(after.damage_charge), 0);
+  assert.equal(Number((await one('SELECT odometer FROM cars WHERE id = ?', r.car_id)).odometer), 10300, 'and the car was not moved again');
+});
