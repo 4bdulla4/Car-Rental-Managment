@@ -35,16 +35,7 @@ function rentalPolicy(rental) {
   };
 }
 
-const RENTAL_SELECT = `
-  SELECT r.*,
-         c.plate, c.make, c.model, c.year, c.color, c.vin, c.transmission, c.seats,
-         cu.full_name, cu.phone, cu.email, cu.id_number, cu.license_number, cu.license_expiry, cu.address,
-         cu.emergency_name, cu.emergency_phone,
-         u.name AS issued_by
-  FROM rentals r
-  JOIN cars c ON c.id = r.car_id
-  JOIN customers cu ON cu.id = r.customer_id
-  LEFT JOIN users u ON u.id = r.created_by`;
+const { RENTAL_SELECT, findRental } = require('../lib/rental-record');
 
 /** Render locals so a single rental always displays in the currency it was issued in. */
 function inCurrency(rental) {
@@ -52,9 +43,6 @@ function inCurrency(rental) {
   return { currency: code, money: (v) => formatMoney(v, code) };
 }
 
-async function findRental(id) {
-  return lessee.overlay(await db.prepare(`${RENTAL_SELECT} WHERE r.id = ?`).get(Number(id)));
-}
 
 /** Counts across the whole table, used for the cards and their filters. */
 async function rentalStats(now) {
