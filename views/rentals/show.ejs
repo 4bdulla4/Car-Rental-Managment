@@ -134,6 +134,15 @@
       </div>
     </div>
 
+    <% if (rental.review_status) { %>
+      <div class="review-status <%= rental.review_status %>" style="margin-top:14px">
+        <% if (rental.review_status === 'pending') { %>
+          <strong>Waiting for review.</strong> <a href="/reviews/<%= rental.id %>">Review it now</a>.
+        <% } else if (rental.review_status === 'approved') { %>
+          <strong>Approved</strong> by <%= rental.reviewed_by_name %> on <%= rental.reviewed_at %> UTC.
+        <% } %>
+      </div>
+    <% } %>
     <div class="integrity <%= integrity.state %>">
       <% if (integrity.state === 'intact') { %>
         <strong>Agreement unchanged since signing.</strong>
@@ -171,6 +180,12 @@
       </a>
     </div>
   <% } else { %>
+    <% if (rental.review_status === 'rejected') { %>
+      <div class="review-status rejected" style="margin-bottom:12px">
+        <strong>Sent back</strong> by <%= rental.reviewed_by_name %> on <%= rental.reviewed_at %> UTC: <%= rental.review_note %>
+        <a href="/reviews/<%= rental.id %>">History</a>
+      </div>
+    <% } %>
     <p class="small muted">Not signed yet.</p>
     <% if (signUrl) { %>
       <% if (linkExpired) { %>

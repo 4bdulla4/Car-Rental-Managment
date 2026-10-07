@@ -197,6 +197,24 @@ CREATE TABLE IF NOT EXISTS activity_log (
   ip          TEXT
 );
 
+-- Signatures a reviewer turned back: kept, because a rejected signature is
+-- still evidence of what was signed, by whom, and why it was not accepted.
+CREATE TABLE IF NOT EXISTS signing_rejections (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  rental_id        INTEGER NOT NULL REFERENCES rentals(id),
+  rejected_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  rejected_by      INTEGER,
+  rejected_by_name TEXT,
+  reason           TEXT NOT NULL,
+  signed_name      TEXT,
+  signed_at        TEXT,
+  signed_ip        TEXT,
+  doc_hash         TEXT,
+  signature_data   TEXT,
+  lessee_snapshot  TEXT,
+  pdf              TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_activity_actor ON activity_log(actor_id);
 `;
@@ -255,6 +273,13 @@ function ready() {
         ['rentals', 'contract_snapshot', 'TEXT'],
         // The Lessee's details as they confirmed them at signing.
         ['rentals', 'lessee_snapshot', 'TEXT'],
+        // Review of a signed agreement by staff: pending, approved or rejected.
+        ['rentals', 'lessee_before', 'TEXT'],
+        ['rentals', 'review_status', 'TEXT'],
+        ['rentals', 'reviewed_at', 'TEXT'],
+        ['rentals', 'reviewed_by', 'INTEGER'],
+        ['rentals', 'reviewed_by_name', 'TEXT'],
+        ['rentals', 'review_note', 'TEXT'],
         // Marks the demonstration records, so they can be removed again exactly.
         ['cars', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],
         ['customers', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],

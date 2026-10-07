@@ -343,6 +343,10 @@ router.post('/:token', async (req, res) => {
     });
   }
 
+  // What was on file before the customer touched it, so a reviewer can see
+  // exactly which details they changed.
+  const before = lessee.capture({ ...rental, ...(JSON.parse(rental.lessee_snapshot || 'null') || {}) });
+
   // The details become the customer's record, and are read back so the
   // agreement, its fingerprint and its PDF all describe the same person.
   await db.prepare(
@@ -357,12 +361,14 @@ router.post('/:token', async (req, res) => {
   const result = await db.prepare(
     `UPDATE rentals SET signature_data = ?, signed_name = ?, signed_ip = ?, signed_user_agent = ?,
                         signed_email = ?, sign_doc_hash = ?, sign_consents = ?,
-                        handover_signed_at = ?, lessee_snapshot = ?
+                        handover_signed_at = ?, lessee_snapshot = ?, lessee_before = ?,
+                        review_status = 'pending', reviewed_at = NULL, reviewed_by = NULL,
+                        reviewed_by_name = NULL, review_note = NULL
      WHERE id = ? AND signature_data IS NULL`
   ).run(
     signature, name, clientIp(req), String(req.headers['user-agent'] || '').slice(0, 300),
     rental.sent_to || details.email || null, hash, JSON.stringify(ticked), esign.stamp(),
-    lessee.capture(current), rental.id
+    lessee.capture(current), before, rental.id
   );
 
   // Two tabs, one contract: the second submission must not overwrite the first.

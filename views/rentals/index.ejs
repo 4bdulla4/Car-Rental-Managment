@@ -97,6 +97,9 @@
           <div class="row-actions">
             <a class="btn sm" href="/rentals/<%= r.id %>">Open</a>
             <a class="btn sm" href="/rentals/<%= r.id %>/contract">Contract</a>
+            <% if (r.review_status === 'pending' && r.signature_data) { %>
+              <a class="btn sm" href="/reviews/<%= r.id %>" title="Signed by the customer — waiting for review">Review</a>
+            <% } %>
             <% if (r.signature_data) { %>
               <a class="btn sm" href="/rentals/<%= r.id %>/agreement.pdf" title="Download the signed agreement (PDF)">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/></svg>

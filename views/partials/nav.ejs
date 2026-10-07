@@ -23,6 +23,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14.5a2.6 2.6 0 0 1 2-2.5l2.4-.5 2-2.8A3.4 3.4 0 0 1 13.1 7h2.8a3.4 3.4 0 0 1 2.8 1.5l1.6 2.4.8.2a2.6 2.6 0 0 1 1.9 2.5v1.6a1 1 0 0 1-1 1h-1.7M4 14.5V16a1 1 0 0 0 1 1h1.3M4 14.5h16"/><circle cx="8.2" cy="16.8" r="2.2"/><circle cx="16.8" cy="16.8" r="2.2"/></svg>
         <span>Fleet</span>
       </a>
+      <a href="/reviews" class="<%= path.startsWith('/reviews') ? 'active' : '' %>">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14.5l1.8 1.8 3.7-4"/></svg>
+        <span>Reviews</span>
+        <% if (typeof reviewsPending !== 'undefined' && reviewsPending > 0) { %><span class="nav-count" title="Waiting for review"><%= reviewsPending %></span><% } %>
+      </a>
       <a href="/reports" class="<%= path.startsWith('/reports') ? 'active' : '' %>">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
         <span>Reports</span>

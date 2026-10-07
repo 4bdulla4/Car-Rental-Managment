@@ -1,0 +1,73 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>Reviews</h1>
+    <p class="sub">Agreements customers have signed and sent back. Check each one, then approve it or send it back with a reason.</p>
+  </div>
+</div>
+
+<nav class="tabs">
+  <% Object.keys(views).forEach(function (key) { %>
+    <a href="/reviews?view=<%= key %>" class="<%= view === key ? 'active' : '' %>">
+      <%= views[key].label %><% if (count[key]) { %> <span class="tab-count"><%= count[key] %></span><% } %>
+    </a>
+  <% }); %>
+</nav>
+
+<div class="card flush">
+  <% if (!rows.length) { %>
+    <div class="empty">
+      <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14.5l1.8 1.8 3.7-4"/></svg>
+      <div>
+        <%= view === 'pending' ? 'Nothing waiting. When a customer signs, their agreement appears here.'
+          : view === 'approved' ? 'No agreements approved yet.' : 'No agreements have been sent back.' %>
+      </div>
+    </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Contract</th><th>Customer</th><th>Car</th>
+          <th><%= view === 'pending' ? 'Signed' : view === 'approved' ? 'Approved' : 'Sent back' %></th>
+          <th><%= view === 'rejected' ? 'Reason' : 'Customer details' %></th>
+          <th class="right"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(function (r) { %>
+        <tr>
+          <td class="mono"><%= r.contract_no %></td>
+          <td>
+            <strong><%= r.full_name %></strong>
+            <% if (r.signed_name && r.signed_name.trim().toLowerCase() !== r.full_name.trim().toLowerCase()) { %>
+              <div class="sub">signed as “<%= r.signed_name %>”</div>
+            <% } %>
+          </td>
+          <td><span class="mono"><%= r.plate %></span><div class="sub"><%= r.make %> <%= r.model %></div></td>
+          <td class="mono small">
+            <% if (view === 'pending') { %><%= r.handover_signed_at %><% } else { %><%= r.reviewed_at %><div class="sub"><%= r.reviewed_by_name %></div><% } %>
+          </td>
+          <td class="small">
+            <% if (view === 'rejected') { %>
+              <%= r.review_note %>
+            <% } else if (r.changed || r.added) { %>
+              <% if (r.changed) { %><span class="badge maintenance"><%= r.changed %> changed</span><% } %>
+              <% if (r.added) { %><span class="sub"><%= r.added %> added</span><% } %>
+            <% } else { %>
+              <span class="muted">None</span>
+            <% } %>
+          </td>
+          <td class="right">
+            <a class="btn sm <%= view === 'pending' ? 'primary' : '' %>" href="/reviews/<%= r.id %>"><%= view === 'pending' ? 'Review' : 'Open' %></a>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+<%- include('../partials/foot') %>

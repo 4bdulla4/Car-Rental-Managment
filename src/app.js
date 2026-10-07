@@ -87,7 +87,10 @@ app.use(async (req, res, next) => {
   try {
     await bootstrap();
     // Settings and the signed-in user, fetched together rather than in turn.
-    await Promise.all([settings.load(), resolveUser(req, res)]);
+    const [, , pending] = await Promise.all([
+      settings.load(), resolveUser(req, res), require('./lib/review').pendingCount()
+    ]);
+    res.locals.reviewsPending = pending;
     next();
   } catch (err) {
     bootstrapped = null;
@@ -128,6 +131,7 @@ app.use('/cars', require('./routes/cars'));
 app.use('/customers', require('./routes/customers'));
 app.use('/rentals', require('./routes/rentals'));
 app.use('/reports', require('./routes/reports'));
+app.use('/reviews', require('./routes/reviews'));
 app.use('/users', require('./routes/users'));
 app.use('/settings', require('./routes/settings'));
 app.use('/sign', require('./routes/sign'));

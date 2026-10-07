@@ -31,6 +31,8 @@ const ACTIONS = [
   [/^\/rentals\/\d+\/sign$/, 'Marked a handover as signed'],
   [/^\/rentals\/\d+\/licence\/[a-z_]+\/delete$/, 'Removed a licence photo'],
   [/^\/rentals\/\d+\/licence$/, 'Attached licence photos'],
+  [/^\/reviews\/\d+\/approve$/, 'Approved a signed agreement'],
+  [/^\/reviews\/\d+\/reject$/, 'Sent a signed agreement back'],
   [/^\/users$/, 'Created an account'],
   [/^\/users\/\d+\/role$/, "Changed an account's role"],
   [/^\/users\/\d+\/toggle$/, 'Enabled or disabled an account'],

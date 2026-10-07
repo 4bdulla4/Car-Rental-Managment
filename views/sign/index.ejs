@@ -76,7 +76,11 @@
       <div>
         <strong>Signed.</strong> Thank you, <%= rental.signed_name %>. Your signed agreement is
         ready as a PDF<%= rental.signed_copy_at ? ', and a copy has been emailed to you' : '' %>.
-        There is nothing further to do.
+        <% if (rental.review_status === 'approved') { %>
+          <%= company.name %> has checked and approved it. There is nothing further to do.
+        <% } else { %>
+          <%= company.name %> will check it and confirm; you will hear from us only if anything needs correcting.
+        <% } %>
       </div>
     </div>
     <div class="actions" style="margin-bottom:18px">
@@ -119,6 +123,15 @@
       <% } %>
     </div>
   <% } else { %>
+    <% if (rental.review_status === 'rejected' && rental.review_note) { %>
+      <div class="alert error" style="margin-bottom:18px">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.2v.1"/></svg>
+        <div>
+          <strong>We could not accept your earlier signature.</strong> <%= rental.review_note %>
+          Please correct it below and sign again.
+        </div>
+      </div>
+    <% } %>
     <p class="sub" style="margin-bottom:18px">
       Please read the agreement below for <strong><%= rental.plate %></strong>, then sign at the
       bottom. It takes a moment.

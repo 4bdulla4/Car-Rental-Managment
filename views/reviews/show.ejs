@@ -1,0 +1,159 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-head">
+  <div>
+    <h1>Review <%= rental.contract_no %></h1>
+    <p class="sub"><%= rental.full_name %> · <%= rental.make %> <%= rental.model %> <span class="mono"><%= rental.plate %></span> · <%= rental.start_date %> → <%= rental.end_date %></p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="/rentals/<%= rental.id %>">Open contract</a>
+    <a class="btn" href="/reviews">All reviews</a>
+  </div>
+</div>
+
+<% if (!rental.signature_data && rental.review_status !== 'rejected') { %>
+  <div class="card"><p class="small muted">This agreement has not been signed yet, so there is nothing to review.</p></div>
+<% } else { %>
+
+<div class="review-status <%= rental.review_status %>">
+  <% if (rental.review_status === 'pending') { %>
+    <strong>Waiting for review.</strong> Signed by <%= rental.signed_name %> on <%= rental.handover_signed_at %> UTC.
+  <% } else if (rental.review_status === 'approved') { %>
+    <strong>Approved</strong> by <%= rental.reviewed_by_name %> on <%= rental.reviewed_at %> UTC<%= rental.review_note ? ' — ' + rental.review_note : '' %>.
+  <% } else if (rental.review_status === 'rejected') { %>
+    <strong>Sent back</strong> by <%= rental.reviewed_by_name %> on <%= rental.reviewed_at %> UTC: <%= rental.review_note %>
+    <span class="muted">The customer can correct it and sign again on the same link.</span>
+  <% } %>
+</div>
+
+<% if (rental.signature_data) { %>
+<div class="grid cols-2" style="margin-top:16px">
+  <div class="card">
+    <h3>What came back</h3>
+    <div class="integrity <%= integrity.state %>" style="margin:0 0 14px">
+      <% if (integrity.state === 'intact') { %>
+        <strong>Unchanged since signing.</strong> Fingerprint <span class="mono"><%= fingerprint %></span>.
+      <% } else if (integrity.state === 'altered') { %>
+        <strong>Changed since it was signed.</strong> It cannot be approved — send it back to be signed again.
+      <% } else { %>
+        <strong>No fingerprint recorded.</strong>
+      <% } %>
+    </div>
+    <dl class="kv">
+      <dt>Signed by</dt><dd><%= rental.signed_name %></dd>
+      <dt>Name on file</dt><dd><%= rental.full_name %></dd>
+      <dt>Signed at</dt><dd class="mono"><%= rental.handover_signed_at %> UTC</dd>
+      <dt>From</dt><dd class="mono"><%= rental.signed_ip || '—' %></dd>
+      <dt>Access code</dt><dd><%= rental.sign_code_at ? 'Entered correctly' : 'Not required' %></dd>
+    </dl>
+    <% if (String(rental.signed_name).trim().toLowerCase() !== String(rental.full_name).trim().toLowerCase()) { %>
+      <p class="hint" style="color:var(--warn)">The name typed at signing differs from the name on file. Check it matches the licence.</p>
+    <% } %>
+    <div class="signature-review">
+      <img class="signature-shot" src="<%= rental.signature_data %>" alt="Signature">
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <a class="btn" href="/rentals/<%= rental.id %>/agreement.pdf?view=1" target="_blank" rel="noopener">Open the signed PDF</a>
+      <a class="btn" href="/rentals/<%= rental.id %>/certificate" target="_blank" rel="noopener">Certificate</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>What the customer entered</h3>
+    <% if (!changes.length) { %>
+      <p class="small muted">Nothing new — they confirmed what was on file.</p>
+    <% } else { %>
+      <table class="changes">
+        <thead><tr><th>Field</th><th>Was</th><th>Now</th></tr></thead>
+        <tbody>
+          <% changes.slice().sort(function (a, b) { return a.kind === b.kind ? 0 : a.kind === 'changed' ? -1 : 1; }).forEach(function (c) { %>
+            <tr class="<%= c.kind %>">
+              <td><%= c.label %><% if (c.kind === 'changed') { %> <span class="badge maintenance">changed</span><% } %></td>
+              <td class="muted"><%= c.before || '—' %></td><td><strong><%= c.after || '—' %></strong></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <p class="hint">Check a changed licence number or expiry against the photographs below.</p>
+    <% } %>
+    <h3 style="margin-top:22px">Lessee as signed</h3>
+    <dl class="kv">
+      <dt>Mobile</dt><dd class="mono"><%= rental.phone || '—' %></dd>
+      <dt>Email</dt><dd><%= rental.email || '—' %></dd>
+      <dt>ID / passport</dt><dd class="mono"><%= rental.id_number || '—' %></dd>
+      <dt>Licence</dt><dd class="mono"><%= rental.license_number || '—' %> · exp <%= rental.license_expiry || '—' %></dd>
+      <dt>Address</dt><dd><%= rental.address || '—' %></dd>
+      <dt>Emergency</dt><dd><%= rental.emergency_name || '—' %> · <span class="mono"><%= rental.emergency_phone || '—' %></span></dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>Driving licence</h3>
+  <div class="shots">
+    <% [['front', 'Front'], ['back', 'Back']].forEach(function (pair) { var shot = shots[pair[0]]; %>
+      <figure class="shot shot-static <%= shot ? 'filled' : '' %>">
+        <% if (shot) { %>
+          <a href="/rentals/<%= rental.id %>/licence/licence_<%= pair[0] %>" target="_blank" rel="noopener">
+            <img src="/rentals/<%= rental.id %>/licence/licence_<%= pair[0] %>" alt="Licence <%= pair[1].toLowerCase() %>">
+          </a>
+          <figcaption><%= pair[1] %> · open full size</figcaption>
+        <% } else { %>
+          <span class="shot-face"><strong><%= pair[1] %></strong><span class="shot-hint">Not provided</span></span>
+        <% } %>
+      </figure>
+    <% }); %>
+  </div>
+</div>
+
+<% if (rental.review_status === 'pending') { %>
+<div class="grid cols-2" style="margin-top:16px">
+  <div class="card">
+    <h3>Approve</h3>
+    <p class="small muted" style="margin:-8px 0 14px">The signed agreement is accepted as it stands.</p>
+    <form method="post" action="/reviews/<%= rental.id %>/approve">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="note">Note (optional, internal)</label>
+        <input id="note" name="note" maxlength="500" placeholder="e.g. Licence checked in person">
+      </div>
+      <button class="btn primary" type="submit" <%= integrity.state === 'altered' ? 'disabled' : '' %>>Approve agreement</button>
+    </form>
+  </div>
+  <div class="card danger-zone">
+    <h3>Send back</h3>
+    <p class="small muted" style="margin:-8px 0 14px">
+      The signature is set aside — kept on record with its PDF — and the customer signs again on
+      the same link. They are shown your reason, so write it for them.
+    </p>
+    <form method="post" action="/reviews/<%= rental.id %>/reject">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field">
+        <label for="reason">Reason, shown to the customer *</label>
+        <textarea id="reason" name="reason" maxlength="500" required rows="3"
+                  placeholder="e.g. The licence photo is blurred — please take it again in good light."></textarea>
+      </div>
+      <button class="btn danger" type="submit">Send back for signing</button>
+    </form>
+  </div>
+</div>
+<% } %>
+<% } %>
+
+<% if (history.length) { %>
+<div class="card" style="margin-top:16px">
+  <h3>Earlier signatures sent back</h3>
+  <table class="trail-table">
+    <% history.forEach(function (h) { %>
+      <tr>
+        <td class="mono"><%= h.rejected_at %></td>
+        <td><%= h.signed_name %>, signed <%= h.signed_at %> · sent back by <%= h.rejected_by_name %></td>
+        <td class="muted"><%= h.reason %></td>
+      </tr>
+    <% }); %>
+  </table>
+</div>
+<% } %>
+<% } %>
+<%- include('../partials/foot') %>

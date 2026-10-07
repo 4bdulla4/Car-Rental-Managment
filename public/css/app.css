@@ -735,3 +735,30 @@ table.activity .ip { display: block; margin-top: 2px; font-size: 11px; color: va
 :root[data-theme="light"] .theme-toggle .to-dark { display: inline-flex; }
 /* No colour transitions for the frame the theme flips in. */
 .theme-switching, .theme-switching * { transition: none !important; }
+
+/* ---------- Reviews ---------- */
+.nav-count {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  display: inline-grid; place-items: center; font-size: 11px; font-weight: 700;
+  background: var(--warn); color: #1a1204;
+}
+.tab-count {
+  display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px;
+  font-size: 11px; background: var(--card-2); color: var(--muted); border: 1px solid var(--border);
+}
+.review-status {
+  padding: 12px 16px; border-radius: 12px; font-size: 13.5px; line-height: 1.5;
+  border: 1px solid var(--border); background: var(--card-2); color: var(--muted);
+}
+.review-status strong { color: var(--text); }
+.review-status.pending { border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.07); }
+.review-status.pending strong { color: var(--warn); }
+.review-status.approved { border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.07); }
+.review-status.approved strong { color: var(--ok); }
+.review-status.rejected { border-color: rgba(248, 113, 113, 0.35); background: rgba(248, 113, 113, 0.07); }
+.review-status.rejected strong { color: var(--danger); }
+.signature-review { margin-top: 14px; }
+.signature-review .signature-shot { height: 84px; max-width: 100%; }
+table.changes { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.changes th { text-align: left; font-size: 11px; color: var(--faint); font-weight: 600; padding: 0 0 6px; }
+table.changes td { padding: 7px 8px 7px 0; border-top: 1px solid var(--border); vertical-align: top; }
