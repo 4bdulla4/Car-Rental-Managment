@@ -21,21 +21,29 @@ function getClient() {
 const toNumber = (v) => (typeof v === 'bigint' ? Number(v) : v);
 
 /**
+ * NaN and Infinity have no SQL value, and the driver throws on them rather
+ * than matching nothing — so /rentals/abc, whose id is Number('abc'), was a
+ * 500 instead of a "not found". As NULL they match no row, and every route's
+ * own not-found handling takes it from there.
+ */
+const bindable = (args) => args.map((a) => (typeof a === 'number' && !Number.isFinite(a) ? null : a));
+
+/**
  * The small statement API the routes use. libSQL is asynchronous, so every call
  * returns a promise; the SQL itself is plain SQLite with `?` placeholders.
  */
 function statement(runner, sql) {
   return {
     async get(...args) {
-      const { rows } = await runner.execute({ sql, args });
+      const { rows } = await runner.execute({ sql, args: bindable(args) });
       return rows[0];
     },
     async all(...args) {
-      const { rows } = await runner.execute({ sql, args });
+      const { rows } = await runner.execute({ sql, args: bindable(args) });
       return rows;
     },
     async run(...args) {
-      const result = await runner.execute({ sql, args });
+      const result = await runner.execute({ sql, args: bindable(args) });
       return {
         changes: toNumber(result.rowsAffected),
         // A RETURNING clause reports the id in the row rather than lastInsertRowid.

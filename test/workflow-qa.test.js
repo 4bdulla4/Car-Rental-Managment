@@ -222,3 +222,10 @@ test('a malformed email address is refused', async () => {
   assert.equal(res.status, 400);
   assert.match(res.body, /email address is not valid/);
 });
+
+test('an address with a non-numeric id is "not found", not a crash', async () => {
+  for (const p of ['/rentals/abc', '/rentals/abc/contract', '/rentals/abc/receipt', '/cars/abc/edit', '/customers/abc/edit', '/rentals/1e999']) {
+    const res = await get(p);
+    assert.equal(res.status, 404, `${p} answered ${res.status}`);
+  }
+});
