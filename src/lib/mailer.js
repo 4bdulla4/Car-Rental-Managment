@@ -12,7 +12,7 @@ function isConfigured() {
   return Boolean(config.apiKey && config.from);
 }
 
-async function send({ to, subject, html, text }) {
+async function send({ to, subject, html, text, attachments }) {
   if (!isConfigured()) {
     return { sent: false, reason: 'Email is not configured — set RESEND_API_KEY and MAIL_FROM.' };
   }
@@ -21,7 +21,8 @@ async function send({ to, subject, html, text }) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: config.from, to: [to], subject, html, text })
+    // Attachments go as base64 content, which Resend accepts inline.
+    body: JSON.stringify({ from: config.from, to: [to], subject, html, text, ...(attachments ? { attachments } : {}) })
   });
 
   if (!res.ok) {

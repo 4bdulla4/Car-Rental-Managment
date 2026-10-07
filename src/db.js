@@ -253,6 +253,8 @@ function ready() {
         // The wording the contract was issued under, so editing the standard
         // terms later cannot rewrite an agreement that is already signed.
         ['rentals', 'contract_snapshot', 'TEXT'],
+        // The Lessee's details as they confirmed them at signing.
+        ['rentals', 'lessee_snapshot', 'TEXT'],
         // Marks the demonstration records, so they can be removed again exactly.
         ['cars', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],
         ['customers', 'is_sample', 'INTEGER NOT NULL DEFAULT 0'],

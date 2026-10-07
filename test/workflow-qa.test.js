@@ -275,9 +275,13 @@ test('a cancelled contract cannot be signed through a link already sent', async 
 
 test('a cancelled contract cannot be sent for signing', async () => {
   const r = await issued('QA-CXL2');
+  const before = await one('SELECT sign_token FROM rentals WHERE id = ?', r.id);
   await post(`/rentals/${r.id}/cancel`);
-  await post(`/rentals/${r.id}/send`);
-  assert.equal((await one('SELECT sign_token FROM rentals WHERE id = ?', r.id)).sign_token, null);
+  const res = await post(`/rentals/${r.id}/send`);
+  assert.equal(res.status, 302);
+  const after = await one('SELECT sign_token, sent_at FROM rentals WHERE id = ?', r.id);
+  assert.equal(after.sent_at, null, 'nothing was sent');
+  assert.equal(after.sign_token, before.sign_token, 'and the link was not reissued');
 });
 
 test('the customer list says what each customer has out, and when it is due', async () => {

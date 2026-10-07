@@ -13,6 +13,8 @@ const settings = require('../lib/settings');
 const esign = require('../lib/esign');
 const agreementSnapshot = require('../lib/agreement');
 const licence = require('../lib/licence');
+const lessee = require('../lib/lessee');
+const signedPdf = require('../lib/signed-pdf');
 
 const router = express.Router();
 
@@ -51,7 +53,7 @@ function inCurrency(rental) {
 }
 
 async function findRental(id) {
-  return db.prepare(`${RENTAL_SELECT} WHERE r.id = ?`).get(Number(id));
+  return lessee.overlay(await db.prepare(`${RENTAL_SELECT} WHERE r.id = ?`).get(Number(id)));
 }
 
 /** Counts across the whole table, used for the cards and their filters. */
@@ -249,9 +251,15 @@ router.post('/', async (req, res) => {
     });
   }
 
-  const created = await db.prepare('SELECT id FROM rentals WHERE contract_no = ?').get(contractNo);
-  req.session.flash = { type: 'success', message: `Contract ${contractNo} issued.` };
-  res.redirect(`/rentals/${created.id}/contract`);
+  const created = await db.prepare('SELECT * FROM rentals WHERE contract_no = ?').get(contractNo);
+  // Every contract gets its own signing link and code the moment it exists,
+  // so it can go to the customer straight away.
+  await ensureToken(created);
+  req.session.flash = {
+    type: 'success',
+    message: `Contract ${contractNo} issued. Its signing link is ready below — send it, or copy it to the customer.`
+  };
+  res.redirect(`/rentals/${created.id}`);
 });
 
 router.get('/:id', async (req, res) => {
@@ -375,6 +383,21 @@ router.get('/:id/certificate', async (req, res) => {
     licenceBase: `/rentals/${rental.id}/licence`,
     ...inCurrency(rental)
   });
+});
+
+/** The signed agreement as kept at signing, for staff. */
+router.get('/:id/agreement.pdf', async (req, res) => {
+  const rental = await findRental(req.params.id);
+  if (!rental) return res.status(404).render('error', { title: 'Not found', message: 'Rental not found.' });
+  if (!rental.signature_data) {
+    req.session.flash = { type: 'error', message: 'That agreement has not been signed yet, so there is no signed PDF.' };
+    return res.redirect(`/rentals/${rental.id}`);
+  }
+  const { pdf } = await signedPdf.fetchFor(rental);
+  res.type('application/pdf')
+    .set('Cache-Control', 'private, no-store')
+    .set('Content-Disposition', `${req.query.view ? 'inline' : 'attachment'}; filename="${signedPdf.filename(rental)}"`)
+    .send(pdf);
 });
 
 // Printable handover contract, generated straight from the rental record.

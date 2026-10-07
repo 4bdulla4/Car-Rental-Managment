@@ -6,6 +6,8 @@ const settings = require('../lib/settings');
 const esign = require('../lib/esign');
 const agreementSnapshot = require('../lib/agreement');
 const licence = require('../lib/licence');
+const lessee = require('../lib/lessee');
+const signedPdf = require('../lib/signed-pdf');
 const mailer = require('../lib/mailer');
 const mailConfig = require('../lib/config-mail');
 const { quoteRental } = require('../lib/pricing');
@@ -34,7 +36,7 @@ async function findByToken(token) {
   if (!/^[a-f0-9]{32,64}$/.test(String(token || ''))) return null;
   const rental = await db.prepare(`${SELECT} WHERE r.sign_token = ?`).get(String(token));
   if (!rental || !esign.sameSecret(rental.sign_token, token)) return null;
-  return rental;
+  return lessee.overlay(rental);
 }
 
 const clientIp = (req) => String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
@@ -148,6 +150,8 @@ router.get('/:token', async (req, res) => {
     signedConsents: esign.consentsOf(rental),
     licenceRequired: settings.signing().licenceRequired,
     shots,
+    detailFields: lessee.EDITABLE,
+    details: rental,
     errors: []
   });
 });
@@ -195,11 +199,24 @@ router.post('/:token/licence', photoBody, async (req, res) => {
       signedConsents: [],
       licenceRequired: settings.signing().licenceRequired,
       shots: await licence.summary(rental.id),
+      detailFields: lessee.EDITABLE,
+      details: rental,
       errors
     });
   }
 
   res.redirect(`/sign/${rental.sign_token}#licence`);
+});
+
+/** The signed agreement as a PDF, for the person who signed it. */
+router.get('/:token/agreement.pdf', async (req, res) => {
+  const rental = await findByToken(req.params.token);
+  if (!rental || !rental.signature_data) return res.status(404).send('Not found');
+  const { pdf } = await signedPdf.fetchFor(rental);
+  res.type('application/pdf')
+    .set('Cache-Control', 'private, no-store')
+    .set('Content-Disposition', `${req.query.view ? 'inline' : 'attachment'}; filename="${signedPdf.filename(rental)}"`)
+    .send(pdf);
 });
 
 /** The photographs themselves, for the page and the printed agreement. */
@@ -279,7 +296,14 @@ router.post('/:token', async (req, res) => {
   const signature = String(req.body.signature_data || '');
   const ticked = esign.CONSENTS.filter((c) => req.body['consent_' + c.id] === '1');
   const shots = await licence.summary(rental.id);
-  const errors = [];
+  // The customer completes their own details; the rental terms are locked.
+  const { values: details, errors } = lessee.readDetails(req.body, rental);
+  if (details.license_number) {
+    const taken = await db.prepare(
+      'SELECT 1 AS x FROM customers WHERE UPPER(license_number) = UPPER(?) AND id <> ?'
+    ).get(details.license_number, rental.customer_id);
+    if (taken) errors.push('That licence number is already on file for someone else. Please check it, or call us.');
+  }
 
   if (settings.signing().licenceRequired && !shots.complete) {
     errors.push('Please add a photo of both sides of your driving licence before signing.');
@@ -313,21 +337,32 @@ router.post('/:token', async (req, res) => {
       licenceRequired: settings.signing().licenceRequired,
       shots,
       errors,
+      detailFields: lessee.EDITABLE,
+      details,
       submitted: { name, ticked: ticked.map((c) => c.id) }
     });
   }
 
+  // The details become the customer's record, and are read back so the
+  // agreement, its fingerprint and its PDF all describe the same person.
+  await db.prepare(
+    `UPDATE customers SET ${lessee.EDITABLE.map((f) => `${f.key} = ?`).join(', ')} WHERE id = ?`
+  ).run(...lessee.EDITABLE.map((f) => details[f.key] || null), rental.customer_id);
+  const current = { ...(await findByToken(req.params.token)), lessee_snapshot: null };
+  const confirmed = lessee.overlay({ ...current, lessee_snapshot: lessee.capture(current) });
+
   // The hash is taken over the terms as they stand at this moment, so what was
   // agreed to can be checked against the record for the life of the contract.
-  const hash = esign.documentHash(rental, hashParts(locals, await licence.digests(rental.id)));
+  const hash = esign.documentHash(confirmed, hashParts(agreementLocals(confirmed), await licence.digests(rental.id)));
   const result = await db.prepare(
     `UPDATE rentals SET signature_data = ?, signed_name = ?, signed_ip = ?, signed_user_agent = ?,
                         signed_email = ?, sign_doc_hash = ?, sign_consents = ?,
-                        handover_signed_at = ?
+                        handover_signed_at = ?, lessee_snapshot = ?
      WHERE id = ? AND signature_data IS NULL`
   ).run(
     signature, name, clientIp(req), String(req.headers['user-agent'] || '').slice(0, 300),
-    rental.sent_to || rental.email || null, hash, JSON.stringify(ticked), esign.stamp(), rental.id
+    rental.sent_to || details.email || null, hash, JSON.stringify(ticked), esign.stamp(),
+    lessee.capture(current), rental.id
   );
 
   // Two tabs, one contract: the second submission must not overwrite the first.
@@ -335,7 +370,10 @@ router.post('/:token', async (req, res) => {
     return dead(res, 409, 'Already signed', 'This agreement has already been signed.');
   }
 
-  await sendSignedCopy(req, rental, { name, hash });
+  // The PDF is made now, from exactly what was just signed, and kept.
+  const signedRental = await findByToken(req.params.token);
+  const pdf = await signedPdf.createFor(signedRental);
+  await sendSignedCopy(req, signedRental, { name, hash, pdf });
   res.redirect(`/sign/${rental.sign_token}`);
 });
 
@@ -347,7 +385,7 @@ router.post('/:token', async (req, res) => {
  * lets them check later that it has not moved. A mail failure must not undo a
  * valid signature, so it is recorded and swallowed rather than thrown.
  */
-async function sendSignedCopy(req, rental, { name, hash }) {
+async function sendSignedCopy(req, rental, { name, hash, pdf }) {
   const to = rental.sent_to || rental.email;
   if (!to || !mailer.isConfigured()) return false;
 
@@ -366,7 +404,8 @@ async function sendSignedCopy(req, rental, { name, hash }) {
 <p><a href="${url}" style="display:inline-block;padding:11px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none">Read your signed agreement</a></p>
 <p style="color:#555;font-size:13px">Document fingerprint: <strong style="font-family:monospace">${print}</strong><br>
 This is how either of us can show the agreement has not been changed since you signed it.</p>
-<p style="color:#555;font-size:13px">${company.name}${company.phone ? ' · ' + company.phone : ''}</p>`
+<p style="color:#555;font-size:13px">${company.name}${company.phone ? ' · ' + company.phone : ''}</p>`,
+    attachments: pdf ? [{ filename: signedPdf.filename(rental), content: pdf.toString('base64') }] : undefined
   });
 
   if (result.sent) {

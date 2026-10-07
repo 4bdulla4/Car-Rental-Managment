@@ -43,6 +43,17 @@
   .done-badge svg { width: 19px; height: 19px; flex: none; }
 
   .consents { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+  .card.locked { background: var(--card-2); }
+  .card.locked h3 { display: flex; align-items: center; gap: 7px; }
+  .card.locked .lock { width: 13px; height: 13px; }
+  fieldset.details { border: 0; margin: 0 0 20px; padding: 0 0 18px; border-bottom: 1px solid var(--border); }
+  fieldset.details legend {
+    padding: 0; margin-bottom: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--faint);
+  }
+  .details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+  .details-grid .wide { grid-column: 1 / -1; }
+  @media (max-width: 560px) { .details-grid { grid-template-columns: 1fr; } }
   .consents-lead { font-size: 12.5px; color: var(--faint); margin: 0 0 2px; }
   .consent-record { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .consent-record li { display: flex; gap: 10px; font-size: 13.5px; color: var(--muted); }
@@ -63,9 +74,17 @@
     <div class="done-badge" style="margin-bottom:18px">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></svg>
       <div>
-        <strong>Signed.</strong> Thank you, <%= rental.signed_name %> — a copy of this agreement
-        is below, and one has been emailed to you. There is nothing further to do.
+        <strong>Signed.</strong> Thank you, <%= rental.signed_name %>. Your signed agreement is
+        ready as a PDF<%= rental.signed_copy_at ? ', and a copy has been emailed to you' : '' %>.
+        There is nothing further to do.
       </div>
+    </div>
+    <div class="actions" style="margin-bottom:18px">
+      <a class="btn primary" href="/sign/<%= rental.sign_token %>/agreement.pdf">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/></svg>
+        <span>Download signed agreement (PDF)</span>
+      </a>
+      <a class="btn" href="/sign/<%= rental.sign_token %>/agreement.pdf?view=1" target="_blank" rel="noopener">Open it</a>
     </div>
 
     <div class="card receipt-card" style="margin-bottom:18px">
@@ -116,6 +135,21 @@
   </p>
 
   <% if (!signed) { %>
+  <div class="card locked" style="margin-top:18px">
+    <h3><svg class="lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg> Your rental</h3>
+    <p class="small muted" style="margin:-8px 0 14px">Set by <%= company.name %> and fixed. If anything here is wrong, call us before you sign.</p>
+    <dl class="kv">
+      <dt>Agreement</dt><dd class="mono"><%= rental.contract_no %></dd>
+      <dt>Name</dt><dd><%= rental.full_name %></dd>
+      <dt>Car</dt><dd><%= rental.make %> <%= rental.model %> · <span class="mono"><%= rental.plate %></span></dd>
+      <dt>From</dt><dd class="mono"><%= rental.start_date %><%= rental.start_time ? ' ' + rental.start_time : '' %></dd>
+      <dt>Until</dt><dd class="mono"><%= rental.end_date %><%= rental.end_time ? ' ' + rental.end_time : '' %></dd>
+      <dt>Daily rate</dt><dd class="mono"><%= money(rental.daily_rate) %></dd>
+      <dt>Agreement total</dt><dd class="mono"><strong><%= money(quote.total) %></strong></dd>
+      <dt>Deposit at handover</dt><dd class="mono"><%= money(rental.deposit) %></dd>
+    </dl>
+  </div>
+
   <div class="card" id="licence" style="margin-top:18px">
     <h3>Your driving licence</h3>
     <p class="small muted" style="margin:-8px 0 16px">
@@ -176,6 +210,24 @@
     <%- include('../partials/errors') %>
     <form method="post" id="signForm">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <fieldset class="details">
+        <legend>Your details</legend>
+        <p class="small muted" style="margin:0 0 14px">
+          Check what we have and fill in anything missing. These go on the agreement you sign.
+        </p>
+        <div class="details-grid">
+          <% detailFields.forEach(function (f) { var v = details[f.key]; %>
+            <div class="field<%= f.wide ? ' wide' : '' %>">
+              <label for="d-<%= f.key %>"><%= f.label %><%= f.required ? ' *' : '' %></label>
+              <input id="d-<%= f.key %>" name="<%= f.key %>" type="<%= f.type || 'text' %>"
+                     value="<%= v == null ? '' : v %>" <%= f.required ? 'required' : '' %>
+                     <%= f.autocomplete ? 'autocomplete=' + f.autocomplete : '' %> maxlength="200">
+            </div>
+          <% }); %>
+        </div>
+      </fieldset>
+
       <div class="field">
         <label for="signed_name">Your full name</label>
         <input id="signed_name" name="signed_name"

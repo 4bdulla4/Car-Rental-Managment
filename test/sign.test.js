@@ -25,6 +25,13 @@ const PHOTO = 'data:image/jpeg;base64,' + JPEG + 'A'.repeat(2800);
 /** Both sides of the licence, as the capture form posts them. */
 const bothSides = () => ({ licence_front: PHOTO, licence_back: PHOTO });
 
+/** The Lessee's own details, as the customer fills them in on the signing page. */
+const details = () => ({
+  phone: '+966 55 123 4567', email: 'omar@test.local', id_number: '1098765432',
+  license_number: 'DL-1', license_expiry: '2031-01-01', address: 'Al Olaya, Riyadh',
+  emergency_name: 'Sara Al-Harbi', emergency_phone: '+966 50 000 0000'
+});
+
 /** Every confirmation ticked, as the form posts them. */
 const allConsents = () =>
   Object.fromEntries(esign.CONSENTS.map((c) => ['consent_' + c.id, '1']));
@@ -36,7 +43,7 @@ function absorb(res) {
 }
 async function get(path) {
   const res = absorb(await fetch(base + path, { headers: { cookie: jar }, redirect: 'manual' }));
-  return { status: res.status, body: await res.text() };
+  return { status: res.status, location: res.headers.get('location'), body: await res.text() };
 }
 async function post(path, fields, formPath) {
   const page = await get(formPath || path);
@@ -47,7 +54,7 @@ async function post(path, fields, formPath) {
     headers: { cookie: jar, 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ _csrf: match ? match[1] : '', ...fields })
   }));
-  return { status: res.status, body: await res.text() };
+  return { status: res.status, location: res.headers.get('location'), body: await res.text() };
 }
 const row = async (id) => db.prepare('SELECT * FROM rentals WHERE id = ?').get(id || rentalId);
 
@@ -73,7 +80,7 @@ test.before(async () => {
   db = await helper.reset();
   await db.prepare("INSERT INTO users (email, name, password_hash, role) VALUES (?,?,?,'admin')")
     .run('admin@test.local', 'Admin', hashPassword('AdminPassword123'));
-  for (const plate of ['SGN-1', 'SGN-2', 'SGN-3', 'SGN-4', 'SGN-5']) {
+  for (const plate of ['SGN-1', 'SGN-2', 'SGN-3', 'SGN-4', 'SGN-5', 'SGN-6', 'SGN-7', 'SGN-8']) {
     await db.prepare("INSERT INTO cars (plate, make, model, daily_rate) VALUES (?,'Toyota','Corolla',150)").run(plate);
   }
   await db.prepare("INSERT INTO customers (full_name, phone, email, license_number) VALUES ('Omar Al-Harbi','123','omar@test.local','DL-1')").run();
@@ -156,7 +163,7 @@ test('every confirmation must be ticked, not just one', async () => {
   const partial = { ...allConsents() };
   delete partial['consent_' + esign.CONSENTS[1].id];
   const res = await post(`/sign/${token}`, {
-    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...partial
+    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...details(), ...partial
   }, `/sign/${token}`);
   assert.equal(res.status, 400);
   assert.match(res.body, /tick every confirmation/i);
@@ -165,7 +172,7 @@ test('every confirmation must be ticked, not just one', async () => {
 
 test('anything that is not a PNG data URL is refused', async () => {
   const res = await post(`/sign/${token}`, {
-    signed_name: 'Omar Al-Harbi', signature_data: 'javascript:alert(1)', ...allConsents()
+    signed_name: 'Omar Al-Harbi', signature_data: 'javascript:alert(1)', ...details(), ...allConsents()
   }, `/sign/${token}`);
   assert.equal(res.status, 400);
   assert.match(res.body, /draw your signature/i);
@@ -174,7 +181,7 @@ test('anything that is not a PNG data URL is refused', async () => {
 
 test('an empty pad is refused even though it is a valid PNG', async () => {
   const res = await post(`/sign/${token}`, {
-    signed_name: 'Omar Al-Harbi', ...allConsents(),
+    signed_name: 'Omar Al-Harbi', ...details(), ...allConsents(),
     signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
   }, `/sign/${token}`);
   assert.equal(res.status, 400);
@@ -193,7 +200,7 @@ test('signing is refused until both sides of the licence are on file', async () 
   await post(`/sign/${token}/licence`, { licence_front: PHOTO }, `/sign/${token}`);
 
   const res = await post(`/sign/${token}`, {
-    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...allConsents()
+    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...details(), ...allConsents()
   }, `/sign/${token}`);
   assert.equal(res.status, 400);
   assert.match(res.body, /both sides of your driving licence/i);
@@ -225,7 +232,7 @@ test('both sides are stored, and served back only through the link', async () =>
 
 test('signing records the signature and the evidence around it', async () => {
   const res = await post(`/sign/${token}`, {
-    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...allConsents()
+    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...details(), ...allConsents()
   }, `/sign/${token}`);
   assert.equal(res.status, 302);
 
@@ -361,7 +368,7 @@ test('an expired link cannot be used', async () => {
   assert.match(page.body, /expired/i);
 
   const attempt = await post(`/sign/${other.sign_token}`, {
-    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...allConsents()
+    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...details(), ...allConsents()
   }, '/login');
   assert.equal(attempt.status, 410, 'and it cannot be signed either');
 });
@@ -404,4 +411,81 @@ test('the signature is printed on the contract', async () => {
   assert.match(contract.body, /Driving licence/, 'the licence is a section of the agreement');
   assert.match(contract.body, /licence\/licence_front/, 'and both sides are printed on it');
   assert.match(contract.body, /licence\/licence_back/);
+});
+
+test('issuing a contract creates its signing link and code at once', async () => {
+  jar = '';
+  await signIn();
+  const car = (await db.prepare("SELECT id FROM cars WHERE plate = 'SGN-8'").get()).id;
+  const res = await post('/rentals', {
+    car_id: String(car), customer_id: '1', start_date: '2026-12-01', end_date: '2026-12-03',
+    daily_rate: '150', km_allowance_per_day: '250', excess_km_rate: '0.5',
+    deposit: '500', discount: '0', pickup_odometer: '1000', pickup_fuel: '8'
+  }, '/rentals/new');
+  assert.equal(res.status, 302);
+  const r = await db.prepare('SELECT id, sign_token, sign_code FROM rentals ORDER BY id DESC LIMIT 1').get();
+  assert.match(String(r.sign_token), /^[a-f0-9]{48}$/, 'a link exists before anyone presses Send');
+  assert.match(String(r.sign_code), /^\d{6}$/);
+  assert.equal(res.location, `/rentals/${r.id}`, 'and staff land where the link is shown');
+});
+
+test('the signed agreement is a real PDF, for the signer and for staff', async () => {
+  const stored = await db.prepare("SELECT mime, bytes, digest FROM contract_documents WHERE rental_id = ? AND kind = 'signed_pdf'").get(rentalId);
+  assert.ok(stored, 'made and kept at the moment of signing');
+  assert.equal(stored.mime, 'application/pdf');
+
+  jar = '';
+  const forSigner = await fetch(`${base}/sign/${token}/agreement.pdf`);
+  assert.equal(forSigner.status, 200);
+  assert.equal(forSigner.headers.get('content-type'), 'application/pdf');
+  assert.match(forSigner.headers.get('content-disposition'), /attachment; filename="RC-\d{4}-\d{4}-signed-agreement\.pdf"/);
+  const pdf = Buffer.from(await forSigner.arrayBuffer());
+  assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+  assert.ok(pdf.length > 5000, `a PDF with the licence and signature in it, got ${pdf.length} bytes`);
+  // Agreement (two pages with the licence photos) and the signing record — and
+  // nothing else: footers once spilled onto six extra, blank pages.
+  const pages = Number(/\/Type \/Pages[\s\S]*?\/Count (\d+)/.exec(pdf.toString('latin1'))[1]);
+  assert.equal(pages, 3, `expected 3 pages, got ${pages}`);
+
+  await signIn();
+  const forStaff = await fetch(`${base}/rentals/${rentalId}/agreement.pdf`, { headers: { cookie: jar } });
+  const staffPdf = Buffer.from(await forStaff.arrayBuffer());
+  assert.ok(staffPdf.equals(pdf), 'staff get the same file, byte for byte, not a redraw');
+});
+
+test('there is no signed PDF before signing', async () => {
+  const unsigned = await db.prepare('SELECT id, sign_token FROM rentals WHERE signature_data IS NULL AND sign_token IS NOT NULL ORDER BY id DESC LIMIT 1').get();
+  const res = await fetch(`${base}/sign/${unsigned.sign_token}/agreement.pdf`);
+  assert.equal(res.status, 404);
+});
+
+test('the customer fills in their own details, and they are frozen with the signature', async () => {
+  const signed = await db.prepare('SELECT lessee_snapshot, customer_id FROM rentals WHERE id = ?').get(rentalId);
+  const frozen = JSON.parse(signed.lessee_snapshot);
+  assert.equal(frozen.address, 'Al Olaya, Riyadh', 'what the customer entered');
+  assert.equal(frozen.emergency_name, 'Sara Al-Harbi');
+  const record = await db.prepare('SELECT address FROM customers WHERE id = ?').get(signed.customer_id);
+  assert.equal(record.address, 'Al Olaya, Riyadh', 'and it became their customer record');
+
+  // The record changes later; the signed agreement does not.
+  await db.prepare("UPDATE customers SET address = 'Somewhere new', phone = '999' WHERE id = ?").run(signed.customer_id);
+  jar = '';
+  await signIn();
+  const contract = await get(`/rentals/${rentalId}/contract`);
+  assert.match(contract.body, /Al Olaya, Riyadh/);
+  assert.doesNotMatch(contract.body, /Somewhere new/);
+  const page = await get(`/rentals/${rentalId}`);
+  assert.match(page.body, /Agreement unchanged since signing/, 'and it still verifies');
+});
+
+test('details are required, and the licence must outlast the rental', async () => {
+  const fresh = await newRental('2027-01-10', '2027-01-20');
+  jar = '';
+  await post(`/sign/${fresh.sign_token}/code`, { code: fresh.sign_code }, `/sign/${fresh.sign_token}`);
+  const missing = await post(`/sign/${fresh.sign_token}`, {
+    signed_name: 'Omar Al-Harbi', signature_data: PNG, ...allConsents(), ...details(), address: '', license_expiry: '2027-01-15'
+  }, `/sign/${fresh.sign_token}`);
+  assert.equal(missing.status, 400);
+  assert.match(missing.body, /enter your home address/);
+  assert.match(missing.body, /must still be valid on 2027-01-20/);
 });
