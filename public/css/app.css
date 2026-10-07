@@ -303,7 +303,11 @@ tr.reset-row[hidden] { display: none; }
 .reset-form label { margin: 0; white-space: nowrap; color: var(--muted); }
 .reset-form input[type="password"] { width: 210px; padding: 7px 11px; font-size: 13.5px; }
 .user-meta { display: flex; flex-direction: column; gap: 1px; }
-.user-name { display: flex; align-items: center; }
+.user-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* What a customer has out right now: status, the contract, the car, when it is due. */
+.rental-cell { min-width: 170px; }
+.rental-cell .badge { margin-bottom: 4px; }
+.rental-cell > a, .rental-cell > .sub { display: block; line-height: 1.45; }
 .user-meta .sub { margin-top: 0; }
 
 /* ---------- Badges ---------- */

@@ -57,8 +57,17 @@ async function listCustomers(q, filter) {
   let sql = `
     SELECT c.*,
            (SELECT COUNT(*) FROM rentals r WHERE r.customer_id = c.id) AS rentals_count,
-           (SELECT COUNT(*) FROM rentals r WHERE r.customer_id = c.id AND r.status = 'active') AS active_count
+           (SELECT COUNT(*) FROM rentals r WHERE r.customer_id = c.id AND r.status = 'active') AS active_count,
+           -- The contract they are out on now, soonest due first, for the Rental column.
+           a.id AS out_id, a.contract_no AS out_contract, a.end_date AS out_due,
+           a.plate AS out_plate, a.make AS out_make, a.model AS out_model
     FROM customers c
+    LEFT JOIN (
+      SELECT r.id, r.customer_id, r.contract_no, r.end_date, car.plate, car.make, car.model,
+             ROW_NUMBER() OVER (PARTITION BY r.customer_id ORDER BY r.end_date, r.id) AS n
+      FROM rentals r JOIN cars car ON car.id = r.car_id
+      WHERE r.status = 'active'
+    ) a ON a.customer_id = c.id AND a.n = 1
     WHERE 1 = 1`;
 
   if (q) {
@@ -81,6 +90,14 @@ async function listCustomers(q, filter) {
     ...c,
     rentals_count: Number(c.rentals_count) || 0,
     active_count: Number(c.active_count) || 0,
+    out: c.out_id ? {
+      id: c.out_id,
+      contract: c.out_contract,
+      car: `${c.out_plate} · ${c.out_make} ${c.out_model}`,
+      due: c.out_due,
+      daysLate: c.out_due < now ? Math.round((Date.parse(now) - Date.parse(c.out_due)) / 864e5) : 0,
+      dueToday: c.out_due === now
+    } : null,
     licence: !c.license_expiry ? 'unknown' : c.license_expiry < now ? 'expired' : c.license_expiry <= soon ? 'expiring' : 'valid'
   }));
 }

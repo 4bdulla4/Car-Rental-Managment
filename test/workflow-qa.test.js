@@ -279,3 +279,29 @@ test('a cancelled contract cannot be sent for signing', async () => {
   await post(`/rentals/${r.id}/send`);
   assert.equal((await one('SELECT sign_token FROM rentals WHERE id = ?', r.id)).sign_token, null);
 });
+
+test('the customer list says what each customer has out, and when it is due', async () => {
+  await db.prepare("INSERT INTO customers (full_name, phone, license_number, license_expiry) VALUES ('Out Late','0502','DL-OUT-1','2031-01-01')").run();
+  await db.prepare("INSERT INTO customers (full_name, phone, license_number, license_expiry) VALUES ('Home Now','0503','DL-HOME-1','2031-01-01')").run();
+  const out = (await one("SELECT id FROM customers WHERE license_number = 'DL-OUT-1'")).id;
+  const car = await newCar('QA-CUST');
+  await db.prepare("UPDATE cars SET status = 'rented' WHERE id = ?").run(car);
+  await db.prepare(
+    `INSERT INTO rentals (contract_no, car_id, customer_id, start_date, end_date, daily_rate, status)
+     VALUES ('RC-OUT-1', ?, ?, ?, ?, 200, 'active')`
+  ).run(car, out, day(-5), day(-2));
+
+  const page = (await get('/customers?q=DL-')).body.replace(/\s+/g, ' ');
+  assert.match(page, /<th>Rental<\/th>/, 'a column of its own');
+  const lateRow = page.slice(page.indexOf('Out Late'), page.indexOf('Out Late') + 1500);
+  assert.match(lateRow, /Overdue 2 days/);
+  assert.match(lateRow, /RC-OUT-1/);
+  assert.match(lateRow, /QA-CUST · Toyota Camry/);
+  assert.match(lateRow, new RegExp(`due ${day(-2)}`));
+  const homeRow = page.slice(page.indexOf('Home Now'), page.indexOf('Home Now') + 800);
+  assert.match(homeRow, /Not renting/);
+
+  const filtered = (await get('/customers?filter=renting')).body;
+  assert.match(filtered, /Out Late/);
+  assert.doesNotMatch(filtered, /Home Now/, 'the "renting" filter still works');
+});
