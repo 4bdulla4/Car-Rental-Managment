@@ -489,3 +489,12 @@ test('details are required, and the licence must outlast the rental', async () =
   assert.match(missing.body, /enter your home address/);
   assert.match(missing.body, /must still be valid on 2027-01-20/);
 });
+
+test('the rentals list offers the signed PDF, and only for signed agreements', async () => {
+  jar = '';
+  await signIn();
+  const list = (await get('/rentals?view=all')).body;
+  assert.match(list, new RegExp(`href="/rentals/${rentalId}/agreement\\.pdf"`), 'a signed contract has the button');
+  const unsigned = await db.prepare('SELECT id FROM rentals WHERE signature_data IS NULL ORDER BY id DESC LIMIT 1').get();
+  assert.doesNotMatch(list, new RegExp(`href="/rentals/${unsigned.id}/agreement\\.pdf"`), 'an unsigned one does not');
+});
