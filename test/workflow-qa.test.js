@@ -80,3 +80,19 @@ test('settings states how many cars a change would apply to', async () => {
   assert.doesNotMatch(page.body, /undefined existing car/);
   assert.match(page.body, /Also apply to all \d+ existing car/);
 });
+
+test('a contract cannot be issued with figures that make no sense', async () => {
+  const cases = [
+    [{ deposit: '-100' }, /Deposit cannot be negative/],
+    [{ km_allowance_per_day: '-1' }, /allowance cannot be negative/],
+    [{ excess_km_rate: '-0.5' }, /rate cannot be negative/],
+    [{ start_time: 'banana' }, /Pickup time must be a time/],
+    [{ pickup_odometer: '5000' }, /cannot be below QA-1(&#39;|')s last reading/]
+  ];
+  for (const [bad, message] of cases) {
+    const res = await post('/rentals', rentalForm(carId, bad));
+    assert.equal(res.status, 400, `accepted ${JSON.stringify(bad)}`);
+    assert.match(res.body, message);
+  }
+  assert.equal((await one("SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?", carId)).n, 0, 'nothing was issued');
+});

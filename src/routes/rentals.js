@@ -168,6 +168,15 @@ router.post('/', async (req, res) => {
   else if (form.end_date < form.start_date) errors.push('End date cannot be before the start date.');
   if (form.daily_rate <= 0) errors.push('Daily rate must be greater than zero.');
   if (form.discount < 0) errors.push('Discount cannot be negative.');
+  // A negative deposit was accepted and added to the balance owed instead of
+  // taken off it; the other figures here are just as meaningless below zero.
+  if (form.deposit < 0) errors.push('Deposit cannot be negative.');
+  if (form.km_allowance_per_day < 0) errors.push('Kilometre allowance cannot be negative.');
+  if (form.excess_km_rate < 0) errors.push('Excess kilometre rate cannot be negative.');
+  if (form.deductible < 0) errors.push('Insurance excess cannot be negative.');
+  for (const [label, value] of [['Pickup time', form.start_time], ['Return time', form.end_time]]) {
+    if (value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) errors.push(`${label} must be a time such as 09:00.`);
+  }
   if (isDate(form.start_date) && isDate(form.end_date) && form.daily_rate > 0) {
     const gross = quoteRental({ ...form, discount: 0 }).baseCharge;
     if (form.discount > gross) {
@@ -175,6 +184,11 @@ router.post('/', async (req, res) => {
     }
   }
   if (car && form.pickup_odometer < 0) errors.push('Odometer reading cannot be negative.');
+  else if (car && form.pickup_odometer < Number(car.odometer || 0)) {
+    // Odometers do not run backwards; a lower reading is a typo, and it would
+    // hand the customer kilometres they never drove.
+    errors.push(`Pickup odometer cannot be below ${car.plate}'s last reading of ${Number(car.odometer).toLocaleString('en-US')} km.`);
+  }
   if (customer && customer.license_expiry && customer.license_expiry < form.end_date) {
     errors.push(`${customer.full_name}'s licence expires on ${customer.license_expiry}, before the rental ends.`);
   }
