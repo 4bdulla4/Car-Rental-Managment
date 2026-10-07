@@ -58,7 +58,7 @@ async function render(res, status, extra = {}) {
     dailyRate: settings.dailyRate(),
     fleetRates: await db.prepare('SELECT MIN(daily_rate) AS low, MAX(daily_rate) AS high FROM cars WHERE daily_rate > 0')
       .get(),
-    carCount: await db.prepare('SELECT COUNT(*) AS n FROM cars').get().n,
+    carCount: Number((await db.prepare('SELECT COUNT(*) AS n FROM cars').get()).n),
     common: COMMON,
     inUse,
     sample: await sampleData.summary(),

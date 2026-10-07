@@ -168,8 +168,10 @@ router.post('/:id', async (req, res) => {
 
 router.post('/:id/delete', async (req, res) => {
   const id = Number(req.params.id);
-  const used = await db.prepare('SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?').get(id).n;
-  if (used > 0) {
+  // Awaited before reading .n: reading it off the pending query gave undefined,
+  // so the guard never fired and the delete fell through to the database.
+  const { n: used } = await db.prepare('SELECT COUNT(*) AS n FROM rentals WHERE car_id = ?').get(id);
+  if (Number(used) > 0) {
     req.session.flash = { type: 'error', message: 'This car has rental history and cannot be deleted. Set it to "retired" instead.' };
     return res.redirect('/cars');
   }
